@@ -115,16 +115,16 @@ export default function Tavolo({ id, io }) {
   })
 
   return (
-    <main className="pagina">
+    <main className={`pagina${tavolo.stato === 'in_corso' ? ' ampia' : ''}`}>
       <Testata io={io} indietro />
 
-      <section className="carta">
+      <section className="carta intestazione-tavolo">
         <h2 className="titolo-tavolo">{tavolo.nome}</h2>
         <p className={`stato stato-${tavolo.stato}`}>
           {inAttesa ? 'Sala d’attesa' : tavolo.stato === 'in_corso' ? `Partita in corso dalle ${ora(tavolo.avviato_il)}` : 'Tavolo chiuso'}
         </p>
 
-        <ul className="posti" aria-label="Posti al tavolo">
+        {inAttesa && <ul className="posti" aria-label="Posti al tavolo">
           {posti.map((g, i) => (!inAttesa && !g) ? null : (
             <li key={i} className={g ? 'occupato' : 'libero'}>
               <span className="posto-numero">{i + 1}</span>
@@ -136,7 +136,7 @@ export default function Tavolo({ id, io }) {
               </span>
             </li>
           ))}
-        </ul>
+        </ul>}
 
         {avviso && <p className="avviso" role="status">{avviso}</p>}
         {errore && <p className="errore" role="alert">{errore}</p>}

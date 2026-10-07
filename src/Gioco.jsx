@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { supabase } from './supabase'
-import Carta from './Carta'
+import TavoloVerde from './TavoloVerde'
 import { messaggioErrore } from './rotte'
 import { fmt, invitoDi } from './regole'
 
@@ -24,7 +24,7 @@ export default function Gioco({ tavolo, giocatori, io }) {
       supabase.from('mani').select('*').eq('id', idMano).maybeSingle(),
       supabase.from('mani_giocatori').select('*').eq('mano_id', idMano).order('posto'),
       supabase.from('mani_carte').select('carte').eq('mano_id', idMano).eq('giocatore_id', io.id).maybeSingle(),
-      supabase.from('mani_azioni').select('id, testo').eq('mano_id', idMano).order('id', { ascending: false }).limit(12),
+      supabase.from('mani_azioni').select('id, testo, giocatore_id, tipo, importo').eq('mano_id', idMano).order('id', { ascending: false }).limit(40),
     ])
     setMano(m.data ?? null)
     setPosti(g.data ?? [])
@@ -154,81 +154,69 @@ export default function Gioco({ tavolo, giocatori, io }) {
     annullata: 'Mano annullata',
   }[mano.fase]
 
-  const stato = (p) => {
-    if (p.stato === 'fuori') return 'ha lasciato'
-    if (mano.fase === 'cambio' && p.cambio !== null) return p.cambio === 0 ? 'servito' : `cambia ${p.cambio}`
-    if (p.versato_giro > 0) return `${fmt(p.versato_giro)} in questo giro`
-    return ''
-  }
+  const mostrate = posti.filter((p) => p.carte_mostrate || p.vincita > 0)
 
   return (
-    <section className="carta gioco">
-      <div className="gioco-testa">
-        <h2>{mano ? `Mano ${mano.numero}` : 'Pronti a giocare'}</h2>
-        {mano && <p className="piatto">Piatto <strong>{fmt(mano.piatto)}</strong></p>}
-      </div>
-      {mano && <p className="fase">{fase}</p>}
+    <section className="gioco">
+      <div className="gioco-griglia">
+        <TavoloVerde
+          mano={mano} posti={posti} giocatori={giocatori} io={io} carte={carte}
+          scelte={scelte} onScegli={mano?.fase === 'cambio' && mioTurno ? scegli : null}
+          azioni={registro} conclusa={conclusa}
+        />
 
-      {mano && (
-        <ul className="giro">
-          {posti.map((p) => (
-            <li key={p.giocatore_id}
-              className={`${p.posto === mano.turno ? 'di-turno' : ''} ${p.stato === 'fuori' ? 'fuori' : ''} ${conclusa && p.vincita > 0 ? 'vincente' : ''}`}>
-              <span className="giro-nome">
-                {nomeDi(p.giocatore_id)}{p.giocatore_id === io.id ? ' (tu)' : ''}
-                {p.posto === mano.mazziere && <span className="segno" title="Mazziere">M</span>}
-                {p.giocatore_id === mano.apritore && <span className="segno apre" title="Ha aperto">A</span>}
-              </span>
-              <span className="giro-info">{fmt(fichesDi(p.giocatore_id))}</span>
-              <span className="giro-stato">{stato(p)}</span>
-              {conclusa && p.carte_mostrate && (
-                <span className="giro-mostrate">
-                  {p.carte_mostrate.map((c) => <Carta key={c} c={c} piccola />)}
-                  <span className="giro-punto">{p.punto}{p.vincita > 0 ? `: vince ${fmt(p.vincita)}` : ''}</span>
-                </span>
+        <aside className="pannello" aria-label="Informazioni e comandi">
+          <div className="pannello-testa">
+            <h2>{mano ? `Mano ${mano.numero}` : 'Pronti a giocare'}</h2>
+            {mano && <p className="piatto">Piatto <strong>{fmt(mano.piatto)}</strong></p>}
+          </div>
+          {mano && <p className="fase">{fase}</p>}
+          {mano && !conclusa && mio && (
+            <dl className="dati-mano">
+              <div><dt>Le tue fiches</dt><dd>{fmt(fichesDi(io.id))}</dd></div>
+              {mano.puntata > 0 && <div><dt>Puntata da pareggiare</dt><dd>{fmt(mano.puntata)}</dd></div>}
+              {daVedere > 0 && <div><dt>Per vedere ti servono</dt><dd>{fmt(daVedere)}</dd></div>}
+            </dl>
+          )}
+
+          {errore && (
+            <div className="errore-gioco" role="alert">
+              <p className="errore">{errore}</p>
+              {errore.includes('fiches') && (
+                <button className="secondario" disabled={attesa}
+                  onClick={() => rpc('prendi_posta', { p_tavolo: tavolo.id })}>
+                  Prendi un’altra posta ({fmt(tavolo.valore_posta)})
+                </button>
               )}
-              {conclusa && !p.carte_mostrate && p.vincita > 0 && (
-                <span className="giro-punto">vince {fmt(p.vincita)} senza mostrare le carte</span>
-              )}
-            </li>
-          ))}
-        </ul>
-      )}
+            </div>
+          )}
 
-      {mano && carte.length > 0 && !(conclusa && mio?.carte_mostrate) && (
-        <div className="mie-carte" aria-label="Le tue carte">
-          {carte.map((c) => (
-            <Carta key={c} c={c} scelta={scelte.includes(c)}
-              onClick={mano.fase === 'cambio' && mioTurno ? () => scegli(c) : undefined} />
-          ))}
-        </div>
-      )}
+          {azioni()}
 
-      {errore && (
-        <div className="errore-gioco" role="alert">
-          <p className="errore">{errore}</p>
-          {errore.includes('fiches') && (
-            <button className="secondario" disabled={attesa}
-              onClick={() => rpc('prendi_posta', { p_tavolo: tavolo.id })}>
-              Prendi un’altra posta ({fmt(tavolo.valore_posta)})
+          {conclusa && mano && mostrate.length > 0 && (
+            <ul className="esito">
+              {mostrate.map((p) => (
+                <li key={p.giocatore_id} className={p.vincita > 0 ? 'vincente' : ''}>
+                  <span>{nomeDi(p.giocatore_id)}</span>
+                  <span>{p.punto ?? 'non mostra le carte'}{p.vincita > 0 ? `: vince ${fmt(p.vincita)}` : ''}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+
+          {conclusa && (
+            <button className="principale" disabled={attesa} onClick={() => rpc('nuova_mano', { p_tavolo: tavolo.id })}>
+              {mano ? 'Distribuisci la prossima mano' : 'Distribuisci la prima mano'}
             </button>
           )}
-        </div>
-      )}
 
-      {azioni()}
-
-      {conclusa && (
-        <button className="principale" disabled={attesa} onClick={() => rpc('nuova_mano', { p_tavolo: tavolo.id })}>
-          {mano ? 'Distribuisci la prossima mano' : 'Distribuisci la prima mano'}
-        </button>
-      )}
-
-      {registro.length > 0 && (
-        <ol className="cronaca" reversed>
-          {registro.map((r) => <li key={r.id}>{r.testo}</li>)}
-        </ol>
-      )}
+          {registro.length > 0 && (
+            <ol className="cronaca">
+              {registro.slice(0, 10).map((r) => <li key={r.id}>{r.testo}</li>)}
+            </ol>
+          )}
+        </aside>
+      </div>
     </section>
   )
 }

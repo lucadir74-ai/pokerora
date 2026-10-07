@@ -290,7 +290,6 @@ a.secondario { color: var(--inchiostro); text-decoration: none; display: inline-
 .fondo { text-align: center; }
 
 /* ——— Tavolo da gioco ——— */
-.gioco { border-top: 4px solid var(--panno); }
 .gioco-testa { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; flex-wrap: wrap; }
 .gioco-testa h2 { margin: 0; }
 .piatto { margin: 0; font-size: 1.05rem; }
@@ -352,3 +351,184 @@ button.carta-gioco { cursor: pointer; transition: transform 120ms ease; }
 
 .positivo { color: var(--panno); font-weight: 600; }
 .negativo { color: var(--cuori); font-weight: 600; }
+
+
+/* ═════════ Tavolo visivo ═════════ */
+:root { --legno: #4a2c1a; --legno-chiaro: #6b4128; --dorso: #7d1a14; }
+
+.pagina.ampia { max-width: 76rem; }
+.pagina.ampia > section.carta { width: 100%; max-width: 46rem; margin-inline: auto; }
+.pagina.ampia > .intestazione-tavolo { padding: 1.4rem 1.75rem; }
+.gioco { width: 100%; }
+
+.gioco-griglia { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1.25rem; align-items: start; }
+@media (min-width: 960px) { .gioco-griglia { grid-template-columns: minmax(0, 1fr) 21rem; } }
+
+/* Il tavolo: ovale con bordo in legno e filo d'ottone */
+.tavolo-verde {
+  position: relative; width: 100%; aspect-ratio: 3 / 4;
+  border-radius: 50% / 46%;
+  background: radial-gradient(ellipse at 50% 30%, var(--legno-chiaro), var(--legno) 70%);
+  padding: 4.5%;
+  box-shadow: 0 30px 50px -20px rgba(0, 0, 0, 0.7), inset 0 2px 0 rgba(255, 255, 255, 0.12);
+}
+@media (min-width: 640px) { .tavolo-verde { aspect-ratio: 16 / 11; } }
+.panno {
+  position: relative; width: 100%; height: 100%;
+  border-radius: 50% / 46%;
+  background:
+    radial-gradient(ellipse at 50% 42%, #2f7656 0%, #22593f 55%, #173d2b 100%);
+  box-shadow: inset 0 0 0 2px rgba(201, 162, 39, 0.55), inset 0 0 40px rgba(0, 0, 0, 0.45);
+  container-type: size;
+  overflow: visible;
+}
+.panno::after {
+  content: ""; position: absolute; inset: 9%; border-radius: 50% / 46%;
+  border: 1px solid rgba(255, 255, 255, 0.08); pointer-events: none;
+}
+.invito-mano { position: absolute; inset: 0; display: grid; place-items: center; margin: 0; color: #cfe0d6; font-size: 1.05rem; }
+
+/* Elementi posizionati sul panno */
+.panno > div > *, .mazzetto, .piatto-centro { position: absolute; transform: translate(-50%, -50%); }
+
+/* Dorso delle carte */
+.dorso {
+  display: inline-block; width: clamp(16px, 4.6cqw, 40px); aspect-ratio: 5 / 7; border-radius: 4px;
+  background:
+    repeating-linear-gradient(45deg, rgba(201, 162, 39, 0.35) 0 1px, transparent 1px 5px),
+    repeating-linear-gradient(-45deg, rgba(201, 162, 39, 0.35) 0 1px, transparent 1px 5px),
+    var(--dorso);
+  border: 2px solid #fff; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+.mazzetto { display: inline-grid; }
+.mazzetto > .dorso { grid-area: 1 / 1; }
+.mazzetto > .dorso + .dorso { transform: translate(2px, -2px); }
+.mazzetto .storto { transform: rotate(14deg); opacity: 0.85; }
+
+/* Carte coperte degli altri, a ventaglio verso il centro */
+.mano-coperta { display: flex; transform: translate(-50%, -50%) rotate(var(--ang)); transition: opacity 400ms ease, transform 400ms ease; }
+.mano-coperta > .dorso { margin-left: calc(clamp(16px, 4.6cqw, 40px) * -0.55); transform: rotate(var(--rot)); }
+.mano-coperta > .dorso:first-child { margin-left: 0; }
+.mano-coperta.piegata, .mano-mia.piegata { opacity: 0.2; transform: translate(-50%, -50%) rotate(var(--ang, 0deg)) scale(0.75); }
+
+/* Le mie carte */
+.mano-mia { display: flex; gap: clamp(4px, 1.2cqw, 10px); transition: opacity 400ms ease, transform 400ms ease; }
+.mano-mia .carta-gioco { width: clamp(34px, 7.6cqw, 66px); height: auto; aspect-ratio: 5 / 7; padding: 0.3em 0.35em; }
+@media (max-width: 639px) { .mano-mia .carta-gioco { width: clamp(32px, 9cqw, 52px); } }
+.mano-mia .cg-valore { font-size: clamp(0.85rem, 2.6cqw, 1.35rem); }
+.mano-mia .cg-seme { font-size: clamp(1rem, 3.2cqw, 1.7rem); }
+@media (max-width: 639px) { .mano-mia .cg-valore { font-size: clamp(0.8rem, 3.6cqw, 1.2rem); } .mano-mia .cg-seme { font-size: clamp(0.95rem, 4.4cqw, 1.45rem); } }
+.mano-mia .volo { transform: rotate(var(--rot)); }
+.mano-mia .volo:has(.scelta) { transform: none; }
+
+/* Animazione: dalla posizione del mazzo al posto */
+.volo { display: inline-block; animation: dal-mazzo 520ms cubic-bezier(.2, .8, .25, 1) var(--ritardo, 0ms) backwards; }
+@keyframes dal-mazzo {
+  from { translate: calc(var(--dx) * 1cqw) calc(var(--dy) * 1cqh); scale: 0.5; opacity: 0; }
+  20% { opacity: 1; }
+}
+/* Carte scartate verso gli scarti */
+.fantasmi { display: flex; pointer-events: none; }
+.dorso.via { position: absolute; animation: agli-scarti 650ms ease-in var(--ritardo, 0ms) forwards; }
+@keyframes agli-scarti {
+  to { translate: calc(var(--dx) * 1cqw) calc(var(--dy) * 1cqh); rotate: 25deg; scale: 0.6; opacity: 0; }
+}
+
+/* Carte scoperte al confronto */
+.mano-scoperta { display: flex; flex-wrap: nowrap; gap: 2px; }
+.mano-scoperta.mia { gap: clamp(4px, 1.2cqw, 10px); }
+.mano-scoperta.mia .carta-gioco { width: clamp(34px, 7.6cqw, 66px); height: auto; aspect-ratio: 5 / 7; padding: 0.3em 0.35em; }
+@media (max-width: 639px) { .mano-scoperta.mia .carta-gioco { width: clamp(32px, 9cqw, 52px); } }
+.mano-scoperta .carta-gioco.piccola { width: clamp(18px, 3.7cqw, 34px); height: auto; aspect-ratio: 5 / 7; padding: 2px 3px; }
+@media (max-width: 639px) { .mano-scoperta .carta-gioco.piccola { width: clamp(16px, 5.4cqw, 30px); } }
+.mano-scoperta .carta-gioco.piccola .cg-valore { font-size: clamp(0.6rem, 2.1cqw, 0.95rem); }
+.mano-scoperta .carta-gioco.piccola .cg-seme { font-size: clamp(0.7rem, 2.6cqw, 1.15rem); }
+.gira { display: inline-block; animation: gira 480ms ease-out var(--ritardo, 0ms) backwards; }
+@keyframes gira { from { rotate: y 90deg; } }
+.punto-mostrato {
+  position: absolute; left: 50%; top: calc(100% + 3px); transform: translateX(-50%); white-space: nowrap; text-align: center; font-size: clamp(0.62rem, 1.9cqw, 0.85rem);
+  color: #e9f2ec; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+}
+.mano-scoperta.sopra .punto-mostrato { top: auto; bottom: calc(100% + 3px); }
+.mano-scoperta.vincente .punto-mostrato { color: #f2d77a; font-weight: 700; }
+
+/* Fiches */
+.pila { position: relative; display: inline-block; width: var(--d); height: calc(var(--d) * 0.62 + 6 * 3px); --d: clamp(14px, 3.4cqw, 28px); }
+.disco {
+  position: absolute; left: 0; bottom: calc(var(--i) * 3px); width: var(--d); height: calc(var(--d) * 0.62);
+  border-radius: 50%; background: var(--c); border: 2px dashed rgba(255, 255, 255, 0.8);
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.45);
+}
+.puntata-posto, .piatto-centro { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.puntata-posto { animation: dal-posto 450ms cubic-bezier(.2, .8, .25, 1) backwards; }
+@keyframes dal-posto { from { translate: calc(var(--dx) * 1cqw) calc(var(--dy) * 1cqh); opacity: 0; } }
+.cifra {
+  font-size: clamp(0.62rem, 2cqw, 0.85rem); font-weight: 600; color: #fff;
+  background: rgba(0, 0, 0, 0.35); padding: 1px 6px; border-radius: 999px; white-space: nowrap;
+}
+.piatto-centro { transition: left 800ms cubic-bezier(.3, .7, .2, 1), top 800ms cubic-bezier(.3, .7, .2, 1); z-index: 2; }
+.piatto-centro .pila { --d: clamp(18px, 4.6cqw, 38px); }
+.piatto-centro .cifra { font-size: clamp(0.75rem, 2.6cqw, 1.05rem); background: rgba(0, 0, 0, 0.5); }
+.pila-grande { display: block; animation: battito 380ms ease-out; }
+@keyframes battito { 40% { scale: 1.15; } }
+
+/* I posti */
+.posto-tavolo {
+  display: flex; align-items: center; gap: 6px; z-index: 3;
+  padding: 4px 10px 4px 4px; border-radius: 999px;
+  background: rgba(16, 32, 24, 0.82); color: #fff; max-width: 30cqw;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35); transition: box-shadow 300ms ease;
+}
+.avatar {
+  flex: none; display: grid; place-items: center; width: clamp(24px, 6cqw, 36px); aspect-ratio: 1;
+  border-radius: 50%; background: var(--carta); color: var(--panno);
+  font-family: 'Bodoni Moda', Georgia, serif; font-weight: 700; font-size: clamp(0.8rem, 2.8cqw, 1.15rem);
+}
+.posto-tavolo.io .avatar { background: var(--ottone); color: #fff; }
+.posto-testo { display: flex; flex-direction: column; min-width: 0; line-height: 1.15; }
+.posto-nick { font-weight: 600; font-size: clamp(0.68rem, 2.3cqw, 0.92rem); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.posto-fiches { font-size: clamp(0.6rem, 1.9cqw, 0.78rem); color: #cfe0d6; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.posto-tavolo.di-turno { box-shadow: 0 0 0 3px var(--ottone), 0 0 18px 2px rgba(201, 162, 39, 0.6); }
+.posto-tavolo.fuori { opacity: 0.55; }
+.posto-tavolo.vince { box-shadow: 0 0 0 3px #f2d77a, 0 0 22px 4px rgba(242, 215, 122, 0.7); }
+.bottone-mazziere {
+  position: absolute; right: -8px; top: -8px; display: grid; place-items: center;
+  width: clamp(16px, 4cqw, 22px); aspect-ratio: 1; border-radius: 50%;
+  background: #fff; color: var(--inchiostro); font-size: clamp(0.55rem, 1.8cqw, 0.72rem); font-weight: 700;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+}
+.bolla {
+  position: absolute; left: 50%; bottom: calc(100% + 6px); transform: translateX(-50%);
+  background: var(--carta); color: var(--inchiostro); font-size: clamp(0.62rem, 2cqw, 0.82rem); font-weight: 600;
+  padding: 2px 9px; border-radius: 999px; white-space: nowrap; box-shadow: 0 2px 5px rgba(0, 0, 0, 0.35);
+  animation: compare 260ms ease-out;
+}
+.bolla::after {
+  content: ""; position: absolute; left: 50%; top: 100%; transform: translateX(-50%);
+  border: 5px solid transparent; border-top-color: var(--carta);
+}
+@keyframes compare { from { opacity: 0; translate: 0 4px; } }
+
+/* Primo caricamento o movimento ridotto: niente animazioni */
+.tavolo-verde.fermo *, .tavolo-verde.fermo *::after { animation: none !important; }
+@media (prefers-reduced-motion: reduce) {
+  .tavolo-verde *, .tavolo-verde *::after { animation: none !important; transition: none !important; }
+  .dorso.via { display: none; }
+}
+
+/* Pannello laterale */
+.pannello {
+  background: var(--carta); border-radius: 18px; padding: 1.4rem 1.4rem 1.2rem;
+  box-shadow: 0 18px 40px -12px rgba(0, 0, 0, 0.55);
+}
+@media (min-width: 960px) { .pannello { position: sticky; top: 4.5rem; } }
+.pannello-testa { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; flex-wrap: wrap; }
+.pannello-testa h2 { margin: 0; }
+.dati-mano { margin: 0 0 1rem; display: grid; gap: 0.3rem; }
+.dati-mano div { display: flex; justify-content: space-between; gap: 1rem; font-size: 0.92rem; }
+.dati-mano dt { color: var(--grigio); }
+.dati-mano dd { margin: 0; font-weight: 600; font-variant-numeric: tabular-nums; }
+.esito { list-style: none; margin: 0 0 1rem; padding: 0; font-size: 0.9rem; }
+.esito li { display: flex; justify-content: space-between; gap: 0.75rem; padding: 0.4rem 0; border-bottom: 1px solid var(--bordo); }
+.esito li.vincente { color: var(--panno); font-weight: 700; }
+.pannello .cronaca { font-size: 0.84rem; }
