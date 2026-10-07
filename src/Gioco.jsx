@@ -101,9 +101,7 @@ export default function Gioco({ tavolo, giocatori, io }) {
   function azioni() {
     if (!mano || conclusa) return null
     if (!mio || mio.stato !== 'attivo') return <p className="tenue">Sei fuori da questa mano.</p>
-    if (!mioTurno) {
-      return <p className="tenue">Tocca a {diTurno ? nomeDi(diTurno.giocatore_id) : '…'}.</p>
-    }
+    if (!mioTurno) return null
     if (mano.fase === 'cambio') {
       return (
         <div className="azioni-gioco">
@@ -171,6 +169,13 @@ export default function Gioco({ tavolo, giocatori, io }) {
             {mano && <p className="piatto">Piatto <strong>{fmt(mano.piatto)}</strong></p>}
           </div>
           {mano && <p className="fase">{fase}</p>}
+          {mano && !conclusa && diTurno && (
+            <p className={`turno${mioTurno ? ' mio' : ''}`} role="status">
+              {mioTurno
+                ? (mano.fase === 'cambio' ? 'Tocca a te: scegli le carte da cambiare' : 'Tocca a te')
+                : `Tocca a ${nomeDi(diTurno.giocatore_id)}`}
+            </p>
+          )}
           {mano && !conclusa && mio && (
             <dl className="dati-mano">
               <div><dt>Le tue fiches</dt><dd>{fmt(fichesDi(io.id))}</dd></div>

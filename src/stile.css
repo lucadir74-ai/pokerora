@@ -389,7 +389,7 @@ button.carta-gioco { cursor: pointer; transition: transform 120ms ease; }
 .invito-mano { position: absolute; inset: 0; display: grid; place-items: center; margin: 0; color: #cfe0d6; font-size: 1.05rem; }
 
 /* Elementi posizionati sul panno */
-.panno > div > *, .mazzetto, .piatto-centro { position: absolute; transform: translate(-50%, -50%); }
+.panno > div > *, .mazzetto, .piatto-centro, .turno-centro { position: absolute; transform: translate(-50%, -50%); }
 
 /* Dorso delle carte */
 .dorso {
@@ -488,7 +488,8 @@ button.carta-gioco { cursor: pointer; transition: transform 120ms ease; }
 .posto-testo { display: flex; flex-direction: column; min-width: 0; line-height: 1.15; }
 .posto-nick { font-weight: 600; font-size: clamp(0.68rem, 2.3cqw, 0.92rem); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .posto-fiches { font-size: clamp(0.6rem, 1.9cqw, 0.78rem); color: #cfe0d6; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.posto-tavolo.di-turno { box-shadow: 0 0 0 3px var(--ottone), 0 0 18px 2px rgba(201, 162, 39, 0.6); }
+.posto-tavolo.di-turno { box-shadow: 0 0 0 3px var(--ottone), 0 0 18px 2px rgba(201, 162, 39, 0.6); animation: pulsa 1.4s ease-in-out infinite; }
+@keyframes pulsa { 50% { box-shadow: 0 0 0 4px #f2d77a, 0 0 30px 8px rgba(242, 215, 122, 0.75); } }
 .posto-tavolo.fuori { opacity: 0.55; }
 .posto-tavolo.vince { box-shadow: 0 0 0 3px #f2d77a, 0 0 22px 4px rgba(242, 215, 122, 0.7); }
 .bottone-mazziere {
@@ -532,3 +533,26 @@ button.carta-gioco { cursor: pointer; transition: transform 120ms ease; }
 .esito li { display: flex; justify-content: space-between; gap: 0.75rem; padding: 0.4rem 0; border-bottom: 1px solid var(--bordo); }
 .esito li.vincente { color: var(--panno); font-weight: 700; }
 .pannello .cronaca { font-size: 0.84rem; }
+
+/* Di chi è il turno */
+.turno-centro {
+  z-index: 4; white-space: nowrap; padding: 0.35em 1em; border-radius: 999px;
+  font-weight: 700; font-size: clamp(0.8rem, 2.6cqw, 1.15rem);
+  background: rgba(16, 32, 24, 0.85); color: #fff; box-shadow: 0 0 0 2px var(--ottone);
+  animation: compare 300ms ease-out;
+}
+.turno-centro.mio { background: var(--ottone); color: var(--inchiostro); box-shadow: 0 0 0 3px #fff, 0 0 24px 4px rgba(242, 215, 122, 0.7); }
+.turno {
+  margin: 0 0 1rem; padding: 0.7rem 0.9rem; border-radius: 10px;
+  font-weight: 700; font-size: 1.05rem; background: #eef2ef; color: var(--panno);
+  border-left: 4px solid var(--panno);
+}
+.turno.mio { background: #f7e9b8; color: var(--inchiostro); border-left-color: var(--ottone); font-size: 1.2rem; }
+
+/* In partita il tavolo deve entrare nello schermo */
+.pagina.ampia > .intestazione-tavolo { padding: 0.9rem 1.5rem; }
+.pagina.ampia > .intestazione-tavolo .titolo-tavolo { font-size: 1.4rem; }
+@media (min-width: 640px) {
+  .tavolo-verde { width: min(100%, calc((100vh - 7rem) * 16 / 11)); margin-inline: auto; }
+}
+@media (prefers-reduced-motion: reduce) { .posto-tavolo.di-turno { animation: none; } }

@@ -124,6 +124,18 @@ export default function TavoloVerde({ mano, posti, giocatori, io, carte, scelte,
           {mano.fase !== 'apertura' && mano.fase !== 'primo_giro' && <span className="dorso storto" />}
         </span>
 
+        {/* Di chi è il turno */}
+        {!conclusa && mano.turno != null && (() => {
+          const t = posti.find((p) => p.posto === mano.turno)
+          if (!t) return null
+          const mio = t.giocatore_id === io.id
+          return (
+            <span key={`${mano.id}-${mano.fase}-${mano.turno}`} className={`turno-centro${mio ? ' mio' : ''}`} style={stile({ x: 50, y: 33 })}>
+              {mio ? 'Tocca a te' : `Tocca a ${nomeDi(t.giocatore_id)}`}
+            </span>
+          )
+        })()}
+
         {/* Piatto */}
         {mostraPiatto && (
           <div className={`piatto-centro${conclusa && vincitori.length === 1 ? ' al-vincitore' : ''}`} style={stile(piattoVerso)}>
