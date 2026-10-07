@@ -1,0 +1,172 @@
+:root {
+  --panno: #1d4a37;
+  --panno-scuro: #12301f;
+  --carta: #fffdf8;
+  --inchiostro: #1b1d1c;
+  --cuori: #b3261e;
+  --ottone: #c9a227;
+  --grigio: #6b6f6c;
+  --bordo: #d9d4c7;
+  box-sizing: border-box;
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  font-family: 'Instrument Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  color: var(--inchiostro);
+}
+*, *::before, *::after { box-sizing: inherit; }
+html, body { height: 100%; margin: 0; }
+body {
+  background:
+    radial-gradient(ellipse at 50% 35%, #2a6149 0%, var(--panno) 45%, var(--panno-scuro) 100%);
+  background-color: var(--panno);
+}
+
+.tavolo {
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 2.5rem 1rem 3rem;
+}
+
+.marchio {
+  font-family: 'Bodoni Moda', 'Didot', Georgia, serif;
+  font-weight: 700;
+  font-size: clamp(2.6rem, 9vw, 3.6rem);
+  letter-spacing: -0.01em;
+  color: var(--carta);
+  margin: 0 0 1.75rem;
+  text-align: center;
+  line-height: 1;
+}
+.sottotitolo {
+  display: block;
+  font-family: 'Instrument Sans', system-ui, sans-serif;
+  font-weight: 400;
+  font-size: 0.95rem;
+  letter-spacing: 0;
+  color: #cfe0d6;
+  margin-top: 0.7rem;
+}
+
+/* La carta da gioco */
+.carta {
+  position: relative;
+  width: 100%;
+  max-width: 25rem;
+  background: var(--carta);
+  border-radius: 18px;
+  padding: 2.75rem 2.25rem 2.5rem;
+  box-shadow: 0 1px 0 #fff inset, 0 18px 40px -12px rgba(0, 0, 0, 0.55);
+  animation: distribuisci 420ms cubic-bezier(.2, .8, .25, 1) both;
+}
+@keyframes distribuisci {
+  from { opacity: 0; transform: translateY(-14px) rotate(-3deg); }
+  to   { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) { .carta { animation: none; } }
+
+.angolo {
+  position: absolute;
+  font-family: 'Bodoni Moda', Georgia, serif;
+  font-weight: 700;
+  font-size: 1.1rem;
+  line-height: 1;
+  text-align: center;
+  color: var(--inchiostro);
+}
+.benvenuto .angolo { color: var(--cuori); }
+.angolo.alto { top: 0.8rem; left: 0.9rem; }
+.angolo.basso { bottom: 0.8rem; right: 0.9rem; transform: rotate(180deg); }
+
+.schede {
+  display: flex;
+  gap: 1.5rem;
+  margin-bottom: 1.5rem;
+  border-bottom: 1px solid var(--bordo);
+}
+.schede button {
+  background: none;
+  border: 0;
+  padding: 0.4rem 0 0.6rem;
+  font: inherit;
+  font-size: 1.05rem;
+  font-weight: 500;
+  color: var(--grigio);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+}
+.schede button[aria-selected='true'] {
+  color: var(--inchiostro);
+  border-bottom-color: var(--cuori);
+}
+
+form { display: flex; flex-direction: column; gap: 1rem; }
+.riga { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 0.75rem; }
+.riga > label { min-width: 0; }
+input { width: 100%; }
+@media (max-width: 360px) { .riga { grid-template-columns: 1fr; } }
+
+label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+input {
+  font: inherit;
+  font-size: 1rem;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid var(--bordo);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--inchiostro);
+  min-width: 0;
+}
+input:focus { outline: none; border-color: var(--panno); box-shadow: 0 0 0 3px rgba(29, 74, 55, 0.18); }
+small { font-weight: 400; color: var(--grigio); font-size: 0.8rem; }
+
+button:focus-visible { outline: 2px solid var(--ottone); outline-offset: 2px; }
+
+.principale {
+  margin-top: 0.5rem;
+  font: inherit;
+  font-weight: 600;
+  font-size: 1rem;
+  padding: 0.8rem 1rem;
+  border: 0;
+  border-radius: 999px;
+  background: var(--panno);
+  color: var(--carta);
+  cursor: pointer;
+}
+.principale:hover { background: var(--panno-scuro); }
+.principale:disabled { opacity: 0.6; cursor: progress; }
+
+.secondario {
+  font: inherit;
+  font-weight: 500;
+  padding: 0.6rem 1.2rem;
+  border: 1px solid var(--bordo);
+  border-radius: 999px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.errore { margin: 0; color: var(--cuori); font-size: 0.9rem; }
+.avviso {
+  margin: 0 0 1rem;
+  padding: 0.75rem 0.9rem;
+  border-left: 3px solid var(--ottone);
+  background: #f7f1df;
+  font-size: 0.92rem;
+}
+
+.saluto {
+  font-family: 'Bodoni Moda', Georgia, serif;
+  font-size: 1.8rem;
+  font-weight: 500;
+  margin: 0 0 0.5rem;
+}
