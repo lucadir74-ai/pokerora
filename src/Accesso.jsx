@@ -50,12 +50,12 @@ export default function Accesso() {
     setAvviso('')
 
     const nickname = campi.nickname.trim()
-    const telefono = normalizzaTelefono(campi.telefono)
+    const telefono = campi.telefono.trim() ? normalizzaTelefono(campi.telefono) : ''
 
     if (!/^[A-Za-z0-9_.\-]{3,20}$/.test(nickname)) {
       return setErrore('Il nickname va da 3 a 20 caratteri: lettere, numeri, punto, trattino o trattino basso.')
     }
-    if (!/^\+[1-9][0-9]{6,14}$/.test(telefono)) {
+    if (telefono && !/^\+[1-9][0-9]{6,14}$/.test(telefono)) {
       return setErrore('Il numero di telefono non sembra valido. Esempio: 333 1234567.')
     }
     if (campi.password.length < 8) {
@@ -148,8 +148,8 @@ export default function Accesso() {
                 <small>È l’unico nome che vedono gli altri giocatori.</small>
               </label>
               <label>
-                Telefono
-                <input required type="tel" inputMode="tel" autoComplete="tel" placeholder="333 1234567"
+                Telefono (facoltativo)
+                <input type="tel" inputMode="tel" autoComplete="tel" placeholder="333 1234567"
                   value={campi.telefono} onChange={cambia('telefono')} />
                 <small>Resta privato. Senza prefisso usiamo +39.</small>
               </label>
