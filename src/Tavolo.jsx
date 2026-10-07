@@ -4,9 +4,20 @@ import Testata from './Testata'
 import Fiches from './Fiches'
 import Gioco from './Gioco'
 import { durata, ora } from './tempo'
+import Chat from './Chat'
+import { useChat } from './chat'
 import { messaggioErrore, vai } from './rotte'
 import { REGOLE_BASE, OPZIONI, descriviRegole, descriviMazzo, fmt, invitoDi } from './regole'
 
+
+function ChatAttesa({ tavoloId, io, nomeDi }) {
+  const { messaggi, invia } = useChat(tavoloId)
+  return (
+    <section className="carta">
+      <Chat messaggi={messaggi} invia={invia} nomeDi={nomeDi} io={io} />
+    </section>
+  )
+}
 
 export default function Tavolo({ id, io }) {
   const [tavolo, setTavolo] = useState(undefined)
@@ -175,6 +186,8 @@ export default function Tavolo({ id, io }) {
           </div>
         </section>
       )}
+
+      {inAttesa && <ChatAttesa tavoloId={id} io={io} nomeDi={nomeDi} />}
 
       {tavolo.stato === 'in_corso' && <Gioco tavolo={tavolo} giocatori={giocatori} io={io} />}
 

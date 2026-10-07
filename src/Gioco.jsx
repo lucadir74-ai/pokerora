@@ -4,6 +4,8 @@ import TavoloVerde from './TavoloVerde'
 import { messaggioErrore } from './rotte'
 import { fmt, invitoDi } from './regole'
 import { durata } from './tempo'
+import Chat from './Chat'
+import { useChat } from './chat'
 
 const COPPIA = { 11: 'fanti', 12: 'donne', 13: 're' }
 
@@ -18,6 +20,14 @@ export default function Gioco({ tavolo, giocatori, io }) {
   const [attesa, setAttesa] = useState(false)
 
   const idMano = tavolo.mano_corrente
+
+  // Chat: i messaggi nuovi compaiono anche come fumetto sul tavolo per qualche secondo
+  const [fumetti, setFumetti] = useState({})
+  const { messaggi, invia } = useChat(tavolo.id, (m) => {
+    setFumetti((f) => ({ ...f, [m.giocatore_id]: m }))
+    setTimeout(() => setFumetti((f) => (f[m.giocatore_id]?.id === m.id
+      ? Object.fromEntries(Object.entries(f).filter(([k]) => k !== m.giocatore_id)) : f)), 7000)
+  })
 
   // Aggiorna la durata della serata ogni 30 secondi
   const [, setOrologio] = useState(0)
@@ -168,7 +178,7 @@ export default function Gioco({ tavolo, giocatori, io }) {
         <TavoloVerde
           mano={mano} posti={posti} giocatori={giocatori} io={io} carte={carte}
           scelte={scelte} onScegli={mano?.fase === 'cambio' && mioTurno ? scegli : null}
-          azioni={registro} conclusa={conclusa}
+          azioni={registro} conclusa={conclusa} fumetti={fumetti}
         />
 
         <aside className="pannello" aria-label="Informazioni e comandi">
@@ -224,10 +234,15 @@ export default function Gioco({ tavolo, giocatori, io }) {
             </button>
           )}
 
+          <Chat messaggi={messaggi} invia={invia} nomeDi={nomeDi} io={io} />
+
           {registro.length > 0 && (
-            <ol className="cronaca">
-              {registro.slice(0, 10).map((r) => <li key={r.id}>{r.testo}</li>)}
-            </ol>
+            <details className="cronaca-box">
+              <summary>Cronaca della mano</summary>
+              <ol className="cronaca">
+                {registro.slice(0, 10).map((r) => <li key={r.id}>{r.testo}</li>)}
+              </ol>
+            </details>
           )}
         </aside>
       </div>

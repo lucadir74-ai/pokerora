@@ -61,7 +61,7 @@ function stile(pos, extra = {}) {
 // Spostamento (in unità del contenitore) da un punto a un altro, per le animazioni
 const delta = (da, a) => ({ '--dx': (da.x - a.x).toFixed(2), '--dy': (da.y - a.y).toFixed(2) })
 
-export default function TavoloVerde({ mano, posti, giocatori, io, carte, scelte, onScegli, azioni, conclusa }) {
+export default function TavoloVerde({ mano, posti, giocatori, io, carte, scelte, onScegli, azioni, conclusa, fumetti = {} }) {
   const [fantasmi, setFantasmi] = useState([])
   const prevCambio = useRef({})
   const [animazioni, setAnimazioni] = useState(false)
@@ -207,8 +207,12 @@ export default function TavoloVerde({ mano, posti, giocatori, io, carte, scelte,
               )}
 
               {/* Il posto */}
-              <div className={`posto-tavolo${sonoIo ? ' io' : ''}${diTurno ? ' di-turno' : ''}${fuori ? ' fuori' : ''}${vince ? ' vince' : ''}`} style={stile(s)}>
-                {ultima[p.giocatore_id] && !(conclusa && !vince && !scoperte) && (
+              <div className={`posto-tavolo${s.x < 35 ? ' lato-sx' : s.x > 65 ? ' lato-dx' : ''}${sonoIo ? ' io' : ''}${diTurno ? ' di-turno' : ''}${fuori ? ' fuori' : ''}${vince ? ' vince' : ''}`} style={stile(s)}>
+                {fumetti[p.giocatore_id] ? (
+                  <span key={`chat-${fumetti[p.giocatore_id].id}`} className="bolla chat-bolla">
+                    {fumetti[p.giocatore_id].testo.length > 60 ? fumetti[p.giocatore_id].testo.slice(0, 58) + '…' : fumetti[p.giocatore_id].testo}
+                  </span>
+                ) : ultima[p.giocatore_id] && !(conclusa && !vince && !scoperte) && (
                   <span key={`${ultima[p.giocatore_id]}-${azioni[0]?.id}`} className="bolla">{ultima[p.giocatore_id]}</span>
                 )}
                 <span className="avatar" aria-hidden="true">{nomeDi(p.giocatore_id).slice(0, 1).toUpperCase()}</span>
