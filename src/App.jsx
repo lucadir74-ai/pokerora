@@ -1,10 +1,15 @@
 import { useEffect, useState } from 'react'
 import { supabase } from './supabase'
 import Accesso from './Accesso'
+import Lobby from './Lobby'
+import Invito from './Invito'
+import Tavolo from './Tavolo'
+import { useRotta, salvaInvito, prendiInvito, vai } from './rotte'
 
 export default function App() {
   const [sessione, setSessione] = useState(undefined)
   const [profilo, setProfilo] = useState(null)
+  const rotta = useRotta()
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setSessione(data.session))
@@ -14,27 +19,21 @@ export default function App() {
 
   useEffect(() => {
     if (!sessione) return setProfilo(null)
-    supabase
-      .from('profili')
-      .select('nickname')
-      .eq('id', sessione.user.id)
-      .single()
+    supabase.from('profili').select('id, nickname').eq('id', sessione.user.id).single()
       .then(({ data }) => setProfilo(data))
-  }, [sessione])
+    const sospeso = prendiInvito()
+    if (sospeso && rotta.pagina !== 'invito') vai(`/invito/${sospeso}`)
+  }, [sessione?.user?.id])
+
+  useEffect(() => {
+    if (sessione === null && rotta.pagina === 'invito' && rotta.param) salvaInvito(rotta.param)
+  }, [sessione, rotta.pagina, rotta.param])
 
   if (sessione === undefined) return <main className="tavolo" />
   if (!sessione) return <Accesso />
 
-  return (
-    <main className="tavolo">
-      <h1 className="marchio">PokerOra</h1>
-      <section className="carta benvenuto">
-        <span className="angolo alto" aria-hidden="true">A<br />♥</span>
-        <span className="angolo basso" aria-hidden="true">A<br />♥</span>
-        <p className="saluto">Ciao {profilo?.nickname ?? '…'}</p>
-        <p>Sei dentro. I tavoli arrivano nel prossimo passo.</p>
-        <button className="secondario" onClick={() => supabase.auth.signOut()}>Esci</button>
-      </section>
-    </main>
-  )
+  const io = { id: sessione.user.id, nickname: profilo?.nickname ?? '' }
+  if (rotta.pagina === 'invito') return <Invito codice={rotta.param} io={io} />
+  if (rotta.pagina === 'tavolo') return <Tavolo id={rotta.param} io={io} />
+  return <Lobby io={io} />
 }
