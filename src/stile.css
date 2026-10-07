@@ -288,3 +288,67 @@ a.secondario { color: var(--inchiostro); text-decoration: none; display: inline-
 .riga-info { color: var(--grigio); font-size: 0.88rem; }
 
 .fondo { text-align: center; }
+
+/* ——— Tavolo da gioco ——— */
+.gioco { border-top: 4px solid var(--panno); }
+.gioco-testa { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; flex-wrap: wrap; }
+.gioco-testa h2 { margin: 0; }
+.piatto { margin: 0; font-size: 1.05rem; }
+.piatto strong { font-family: 'Bodoni Moda', Georgia, serif; font-size: 1.5rem; }
+.fase { margin: 0.4rem 0 1rem; color: var(--panno); font-weight: 600; }
+
+.giro { list-style: none; margin: 0 0 1.25rem; padding: 0; }
+.giro li {
+  display: grid; grid-template-columns: 1fr auto; gap: 0.1rem 0.75rem;
+  padding: 0.55rem 0.6rem; border-bottom: 1px solid var(--bordo); border-left: 3px solid transparent;
+}
+.giro li.di-turno { border-left-color: var(--ottone); background: #faf4e2; }
+.giro li.fuori { color: var(--grigio); }
+.giro li.vincente { background: #eef5f0; border-left-color: var(--panno); }
+.giro li.vincente .giro-punto { color: var(--panno); font-weight: 700; }
+.giro-nome { font-weight: 600; display: flex; align-items: center; gap: 0.35rem; min-width: 0; overflow-wrap: anywhere; }
+.giro-info { font-variant-numeric: tabular-nums; color: var(--grigio); font-size: 0.9rem; }
+.giro-stato { grid-column: 1 / -1; font-size: 0.85rem; color: var(--grigio); }
+.giro-stato:empty { display: none; }
+.giro-mostrate { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 0.3rem; align-items: center; margin-top: 0.35rem; }
+.giro-punto { grid-column: 1 / -1; font-size: 0.9rem; font-weight: 500; width: 100%; }
+.segno {
+  display: inline-grid; place-items: center; width: 1.25rem; height: 1.25rem; border-radius: 50%;
+  font-size: 0.68rem; font-weight: 700; background: var(--inchiostro); color: var(--carta);
+}
+.segno.apre { background: var(--cuori); }
+
+.mie-carte { display: flex; gap: 0.45rem; justify-content: center; margin: 1rem 0 1.25rem; }
+.mie-carte .carta-gioco { width: min(3.6rem, calc((100% - 1.8rem) / 5)); height: auto; aspect-ratio: 5 / 7; }
+.carta-gioco {
+  position: relative; display: flex; flex-direction: column; justify-content: space-between;
+  width: 3.6rem; height: 5.1rem; padding: 0.35rem 0.4rem; border-radius: 8px;
+  background: #fff; border: 1px solid var(--bordo); color: var(--inchiostro);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.12); font: inherit;
+  font-family: 'Bodoni Moda', Georgia, serif; text-align: left;
+}
+button.carta-gioco { cursor: pointer; transition: transform 120ms ease; }
+.carta-gioco.rossa { color: var(--cuori); }
+.carta-gioco.scelta { transform: translateY(-0.6rem); border-color: var(--ottone); box-shadow: 0 0 0 2px var(--ottone), 0 6px 12px rgba(0,0,0,.18); }
+.cg-valore { font-size: 1.25rem; font-weight: 700; line-height: 1; }
+.cg-seme { font-size: 1.6rem; line-height: 1; align-self: flex-end; }
+.carta-gioco.piccola { width: 2.3rem; height: 3.2rem; padding: 0.2rem 0.25rem; border-radius: 5px; }
+.carta-gioco.piccola .cg-valore { font-size: 0.85rem; }
+.carta-gioco.piccola .cg-seme { font-size: 1rem; }
+@media (prefers-reduced-motion: reduce) { button.carta-gioco { transition: none; } }
+
+.azioni-gioco { display: flex; flex-direction: column; gap: 0.9rem; margin-bottom: 1rem; }
+.puntata { display: flex; flex-direction: column; gap: 0.55rem; padding: 0.9rem; border: 1px solid var(--bordo); border-radius: 10px; }
+.rapidi { display: flex; gap: 0.45rem; flex-wrap: wrap; }
+.chip {
+  font: inherit; font-size: 0.85rem; padding: 0.3rem 0.8rem; border-radius: 999px;
+  border: 1px solid var(--bordo); background: #fff; cursor: pointer;
+}
+.errore-gioco { display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 0.9rem; }
+
+.cronaca { margin: 1.25rem 0 0; padding: 0.9rem 0 0 1.4rem; border-top: 1px solid var(--bordo); font-size: 0.88rem; color: var(--grigio); }
+.cronaca li { margin: 0.2rem 0; }
+.cronaca li:first-child { color: var(--inchiostro); font-weight: 500; }
+
+.positivo { color: var(--panno); font-weight: 600; }
+.negativo { color: var(--cuori); font-weight: 600; }

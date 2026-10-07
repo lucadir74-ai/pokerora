@@ -2,8 +2,9 @@ import { useCallback, useEffect, useState } from 'react'
 import { supabase } from './supabase'
 import Testata from './Testata'
 import Fiches from './Fiches'
+import Gioco from './Gioco'
 import { messaggioErrore, vai } from './rotte'
-import { REGOLE_BASE, OPZIONI, descriviRegole, descriviMazzo, fmt } from './regole'
+import { REGOLE_BASE, OPZIONI, descriviRegole, descriviMazzo, fmt, invitoDi } from './regole'
 
 const ora = (t) => new Date(t).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })
 
@@ -19,7 +20,7 @@ export default function Tavolo({ id, io }) {
   const carica = useCallback(async () => {
     const [t, g, p] = await Promise.all([
       supabase.from('tavoli').select('*').eq('id', id).maybeSingle(),
-      supabase.from('tavolo_giocatori').select('posto, giocatore_id, profili(nickname)').eq('tavolo_id', id).order('posto'),
+      supabase.from('tavolo_giocatori').select('posto, giocatore_id, fiches, profili(nickname)').eq('tavolo_id', id).order('posto'),
       supabase.from('poste').select('id, giocatore_id, numero, valore, presa_il').eq('tavolo_id', id).order('presa_il'),
     ])
     setTavolo(t.data ?? null)
@@ -80,7 +81,7 @@ export default function Tavolo({ id, io }) {
       nome: tavolo.nome,
       posti: tavolo.posti,
       valore_posta: tavolo.valore_posta,
-      regole: { ...REGOLE_BASE, ...tavolo.regole },
+      regole: { ...REGOLE_BASE, invito: invitoDi(tavolo), ...tavolo.regole },
     })
   }
 
@@ -88,9 +89,18 @@ export default function Tavolo({ id, io }) {
     e.preventDefault()
     const v = Number(modifica.valore_posta)
     if (!Number.isInteger(v) || v < 100) return setErrore('La posta deve essere di almeno 100 Vardis.')
+    const r = modifica.regole
+    const invito = Number(r.invito)
+    if (!Number.isInteger(invito) || invito < 1) return setErrore('L’invito deve essere un numero intero di almeno 1 Vardis.')
+    const regole = { mazzo: r.mazzo, limite: r.limite, cambio_max: Number(r.cambio_max), invito }
+    if (r.limite === 'fisso') {
+      const massima = Number(r.puntata_massima)
+      if (!Number.isInteger(massima) || massima < invito) return setErrore('Indica una puntata massima almeno pari all’invito.')
+      regole.puntata_massima = massima
+    }
     const ok = await chiama('aggiorna_tavolo', {
       p_tavolo: id, p_nome: modifica.nome, p_posti: modifica.posti,
-      p_valore_posta: v, p_regole: modifica.regole,
+      p_valore_posta: v, p_regole: regole,
     }, 'Modifiche salvate.')
     if (ok) setModifica(null)
   }
@@ -100,7 +110,8 @@ export default function Tavolo({ id, io }) {
   // Report poste per giocatore
   const perGiocatore = giocatori.map((g) => {
     const mie = poste.filter((p) => p.giocatore_id === g.giocatore_id)
-    return { ...g, quante: mie.length, totale: mie.reduce((s, p) => s + p.valore, 0) }
+    const totale = mie.reduce((s, p) => s + p.valore, 0)
+    return { ...g, quante: mie.length, totale, saldo: (g.fiches ?? 0) - totale }
   })
 
   return (
@@ -159,17 +170,21 @@ export default function Tavolo({ id, io }) {
         </section>
       )}
 
+      {tavolo.stato === 'in_corso' && <Gioco tavolo={tavolo} giocatori={giocatori} io={io} />}
+
       {tavolo.stato !== 'attesa' && (
         <section className="carta">
-          <h2>Poste</h2>
+          <h2>Poste e saldi</h2>
+          <p className="tenue">Il saldo è la differenza tra le fiches che hai e le poste che hai preso.</p>
           <table className="report">
             <thead>
-              <tr><th>Giocatore</th><th>Poste</th><th>Totale</th></tr>
+              <tr><th>Giocatore</th><th>Poste</th><th>Fiches</th><th>Saldo</th></tr>
             </thead>
             <tbody>
               {perGiocatore.map((g) => (
                 <tr key={g.giocatore_id}>
-                  <td>{g.profili?.nickname}</td><td>{g.quante}</td><td>{fmt(g.totale)}</td>
+                  <td>{g.profili?.nickname}</td><td>{g.quante}</td><td>{fmt(g.fiches)}</td>
+                  <td className={g.saldo > 0 ? 'positivo' : g.saldo < 0 ? 'negativo' : ''}>{g.saldo > 0 ? '+' : ''}{fmt(g.saldo)}</td>
                 </tr>
               ))}
             </tbody>
@@ -181,7 +196,6 @@ export default function Tavolo({ id, io }) {
                   && chiama('prendi_posta', { p_tavolo: id }, 'Posta aggiunta.')}>
                 Prendi un’altra posta
               </button>
-              <p className="tenue">Il tavolo da gioco con carte e puntate arriva nel prossimo passo.</p>
             </>
           )}
           <h3>Registro</h3>
@@ -202,7 +216,7 @@ export default function Tavolo({ id, io }) {
             <Fiches valore={tavolo.valore_posta} />
             <p className="mazzo">{descriviMazzo(inAttesa ? Math.max(giocatori.length, 4) : giocatori.length, tavolo.regole)}</p>
             <ul className="regole">
-              {descriviRegole(tavolo.regole).map((r) => <li key={r}>{r}</li>)}
+              {descriviRegole(tavolo).map((r) => <li key={r}>{r}</li>)}
             </ul>
             {inAttesa && organizzo && (
               <button className="secondario" onClick={apriModifica}>Modifica posta e regole</button>
@@ -228,23 +242,35 @@ export default function Tavolo({ id, io }) {
               <input type="number" inputMode="numeric" min={100} step={100} value={modifica.valore_posta}
                 onChange={(e) => setModifica({ ...modifica, valore_posta: e.target.value })} />
             </label>
-            {Object.entries(OPZIONI).map(([k, voci]) => (
-              <label key={k}>
-                {{ mazzo: 'Mazzo', apertura: 'Apertura', cambio_cinque: 'Cambio di tutte e 5 le carte' }[k]}
-                <select value={modifica.regole[k]} onChange={(e) => regola(k, e.target.value)}>
-                  {voci.map(([v, testo]) => <option key={v} value={v}>{testo}</option>)}
-                </select>
-              </label>
-            ))}
-            <label className="spunta">
-              <input type="checkbox" checked={modifica.regole.colore_batte_full}
-                onChange={(e) => regola('colore_batte_full', e.target.checked)} />
-              Il colore batte il full
+            <label>
+              Mazzo
+              <select value={modifica.regole.mazzo} onChange={(e) => regola('mazzo', e.target.value)}>
+                {OPZIONI.mazzo.map(([v, t]) => <option key={v} value={v}>{t}</option>)}
+              </select>
             </label>
-            <label className="spunta">
-              <input type="checkbox" checked={modifica.regole.scala_ciclica}
-                onChange={(e) => regola('scala_ciclica', e.target.checked)} />
-              Scala reale ciclica
+            <label>
+              Invito a ogni mano (Vardis)
+              <input type="number" inputMode="numeric" min={1} value={modifica.regole.invito}
+                onChange={(e) => regola('invito', e.target.value)} />
+            </label>
+            <label>
+              Limite delle puntate
+              <select value={modifica.regole.limite} onChange={(e) => regola('limite', e.target.value)}>
+                {OPZIONI.limite.map(([v, t]) => <option key={v} value={v}>{t}</option>)}
+              </select>
+            </label>
+            {modifica.regole.limite === 'fisso' && (
+              <label>
+                Puntata massima (Vardis)
+                <input type="number" inputMode="numeric" min={1} value={modifica.regole.puntata_massima ?? ''}
+                  onChange={(e) => regola('puntata_massima', e.target.value)} />
+              </label>
+            )}
+            <label>
+              Cambio delle carte
+              <select value={String(modifica.regole.cambio_max)} onChange={(e) => regola('cambio_max', e.target.value)}>
+                {OPZIONI.cambio_max.map(([v, t]) => <option key={v} value={v}>{t}</option>)}
+              </select>
             </label>
             <div className="bottoni">
               <button className="principale" disabled={attesa}>Salva le modifiche</button>
