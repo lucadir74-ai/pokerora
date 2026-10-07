@@ -3,10 +3,10 @@ import { supabase } from './supabase'
 import Testata from './Testata'
 import Fiches from './Fiches'
 import Gioco from './Gioco'
+import { durata, ora } from './tempo'
 import { messaggioErrore, vai } from './rotte'
 import { REGOLE_BASE, OPZIONI, descriviRegole, descriviMazzo, fmt, invitoDi } from './regole'
 
-const ora = (t) => new Date(t).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })
 
 export default function Tavolo({ id, io }) {
   const [tavolo, setTavolo] = useState(undefined)
@@ -114,14 +114,21 @@ export default function Tavolo({ id, io }) {
     return { ...g, quante: mie.length, totale, saldo: (g.fiches ?? 0) - totale }
   })
 
+  const messaggi = (avviso || errore) && (
+    <>
+      {avviso && <p className="avviso" role="status">{avviso}</p>}
+      {errore && <p className="errore" role="alert">{errore}</p>}
+    </>
+  )
+
   return (
     <main className={`pagina${tavolo.stato === 'in_corso' ? ' ampia' : ''}`}>
       <Testata io={io} indietro />
 
-      <section className="carta intestazione-tavolo">
+      {tavolo.stato !== 'in_corso' && <section className="carta intestazione-tavolo">
         <h2 className="titolo-tavolo">{tavolo.nome}</h2>
         <p className={`stato stato-${tavolo.stato}`}>
-          {inAttesa ? 'Sala d’attesa' : tavolo.stato === 'in_corso' ? `Partita in corso dalle ${ora(tavolo.avviato_il)}` : 'Tavolo chiuso'}
+          {inAttesa ? 'Sala d’attesa' : 'Tavolo chiuso'}
         </p>
 
         {inAttesa && <ul className="posti" aria-label="Posti al tavolo">
@@ -138,8 +145,7 @@ export default function Tavolo({ id, io }) {
           ))}
         </ul>}
 
-        {avviso && <p className="avviso" role="status">{avviso}</p>}
-        {errore && <p className="errore" role="alert">{errore}</p>}
+        {inAttesa && messaggi}
 
         {inAttesa && organizzo && (
           <div className="azioni">
@@ -153,7 +159,7 @@ export default function Tavolo({ id, io }) {
         {inAttesa && !organizzo && (
           <p className="tenue">Aspetta che l’organizzatore avvii la partita.</p>
         )}
-      </section>
+      </section>}
 
       {inAttesa && (
         <section className="carta">
@@ -175,7 +181,13 @@ export default function Tavolo({ id, io }) {
       {tavolo.stato !== 'attesa' && (
         <section className="carta">
           <h2>Poste e saldi</h2>
+          {tavolo.stato === 'chiuso' && tavolo.avviato_il && tavolo.chiuso_il && (
+            <p className="durata-partita">
+              Partita durata {durata(tavolo.avviato_il, tavolo.chiuso_il)}, dalle {ora(tavolo.avviato_il)} alle {ora(tavolo.chiuso_il)}
+            </p>
+          )}
           <p className="tenue">Il saldo è la differenza tra le fiches che hai e le poste che hai preso.</p>
+          {messaggi}
           <table className="report">
             <thead>
               <tr><th>Giocatore</th><th>Poste</th><th>Fiches</th><th>Saldo</th></tr>

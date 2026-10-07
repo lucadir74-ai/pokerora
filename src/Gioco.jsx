@@ -3,6 +3,7 @@ import { supabase } from './supabase'
 import TavoloVerde from './TavoloVerde'
 import { messaggioErrore } from './rotte'
 import { fmt, invitoDi } from './regole'
+import { durata } from './tempo'
 
 const COPPIA = { 11: 'fanti', 12: 'donne', 13: 're' }
 
@@ -17,6 +18,13 @@ export default function Gioco({ tavolo, giocatori, io }) {
   const [attesa, setAttesa] = useState(false)
 
   const idMano = tavolo.mano_corrente
+
+  // Aggiorna la durata della serata ogni 30 secondi
+  const [, setOrologio] = useState(0)
+  useEffect(() => {
+    const t = setInterval(() => setOrologio((n) => n + 1), 30000)
+    return () => clearInterval(t)
+  }, [])
 
   const carica = useCallback(async () => {
     if (!idMano) { setMano(null); return }
@@ -168,6 +176,7 @@ export default function Gioco({ tavolo, giocatori, io }) {
             <h2>{mano ? `Mano ${mano.numero}` : 'Pronti a giocare'}</h2>
             {mano && <p className="piatto">Piatto <strong>{fmt(mano.piatto)}</strong></p>}
           </div>
+          <p className="sotto-pannello">{tavolo.nome}, in gioco da {durata(tavolo.avviato_il)}</p>
           {mano && <p className="fase">{fase}</p>}
           {mano && !conclusa && diTurno && (
             <p className={`turno${mioTurno ? ' mio' : ''}`} role="status">

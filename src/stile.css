@@ -550,9 +550,11 @@ button.carta-gioco { cursor: pointer; transition: transform 120ms ease; }
 .turno.mio { background: #f7e9b8; color: var(--inchiostro); border-left-color: var(--ottone); font-size: 1.2rem; }
 
 /* In partita il tavolo deve entrare nello schermo */
-.pagina.ampia > .intestazione-tavolo { padding: 0.9rem 1.5rem; }
-.pagina.ampia > .intestazione-tavolo .titolo-tavolo { font-size: 1.4rem; }
 @media (min-width: 640px) {
   .tavolo-verde { width: min(100%, calc((100vh - 7rem) * 16 / 11)); margin-inline: auto; }
 }
 @media (prefers-reduced-motion: reduce) { .posto-tavolo.di-turno { animation: none; } }
+
+.sotto-pannello { margin: 0.15rem 0 0.6rem; font-size: 0.85rem; color: var(--grigio); }
+.pannello .fase { margin-top: 0; }
+.durata-partita { margin: 0 0 0.5rem; font-weight: 600; }
