@@ -66,14 +66,22 @@ const delta = (da, a) => ({ '--dx': (da.x - a.x).toFixed(2), '--dy': (da.y - a.y
 export default function TavoloVerde({ mano, posti, giocatori, io, carte, scelte, onScegli, azioni, conclusa, fumetti = {} }) {
   const [fantasmi, setFantasmi] = useState([])
   const prevCambio = useRef({})
-  const [animazioni, setAnimazioni] = useState(false)
   const stretto = useStretto()
 
-  // Al primo caricamento niente animazioni (la mano è già in corso)
+  // Gli elementi già sul tavolo all'apertura della pagina non si animano;
+  // tutto quello che arriva dopo (carte, puntate, piatto) sì.
+  const visti = useRef(new Set())
+  const [avviato, setAvviato] = useState(false)
+  const haMano = !!mano
   useEffect(() => {
-    const t = setTimeout(() => setAnimazioni(true), 400)
+    if (!haMano || avviato) return
+    const t = setTimeout(() => setAvviato(true), 300)
     return () => clearTimeout(t)
-  }, [])
+  }, [haMano, avviato])
+  const gia = (chiave) => {
+    if (!avviato) { visti.current.add(chiave); return ' gia' }
+    return visti.current.has(chiave) ? ' gia' : ''
+  }
 
   // Quando qualcuno cambia carte, le sue carte scartate volano sugli scarti
   useEffect(() => {
@@ -118,7 +126,7 @@ export default function TavoloVerde({ mano, posti, giocatori, io, carte, scelte,
   const mostraPiatto = mano.fase !== 'finita' || vincitori.length === 1
 
   return (
-    <div className={`tavolo-verde${animazioni ? '' : ' fermo'}`}>
+    <div className="tavolo-verde">
       <div className="panno" aria-label={`Tavolo: mano ${mano.numero}, piatto ${fmt(mano.piatto)}`}>
         {/* Mazzo e scarti al centro */}
         <span className="mazzetto" style={stile(MAZZO)} aria-hidden="true"><span className="dorso" /><span className="dorso" /></span>
@@ -141,7 +149,7 @@ export default function TavoloVerde({ mano, posti, giocatori, io, carte, scelte,
         {/* Piatto */}
         {mostraPiatto && (
           <div className={`piatto-centro${conclusa && vincitori.length === 1 ? ' al-vincitore' : ''}`} style={stile(piattoVerso)}>
-            <span key={alCentro} className="pila-grande"><Pila importo={Math.max(alCentro, 0)} /></span>
+            <span key={alCentro} className={`pila-grande${gia(`${mano.id}-piatto-${alCentro}`)}`}><Pila importo={Math.max(alCentro, 0)} /></span>
             <span className="cifra">{fmt(conclusa ? mano.piatto : alCentro)}</span>
           </div>
         )}
@@ -153,7 +161,7 @@ export default function TavoloVerde({ mano, posti, giocatori, io, carte, scelte,
           const diTurno = mano.turno === p.posto && !conclusa
           const vince = conclusa && p.vincita > 0
           const puntataPos = verso(s, CENTRO, sonoIo ? 0.42 : 0.4)
-          const cartePos = sonoIo ? { x: 50, y: stretto ? 76 : 72 } : verso(s, CENTRO, stretto ? 0.3 : 0.24)
+          const cartePos = sonoIo ? { x: 50, y: stretto ? 79 : 72 } : verso(s, CENTRO, stretto ? 0.3 : 0.24)
           const scoperte = conclusa && p.carte_mostrate
           const primaDelleCarte = mano.fase === 'buio'
 
@@ -171,7 +179,7 @@ export default function TavoloVerde({ mano, posti, giocatori, io, carte, scelte,
               {primaDelleCarte ? null : sonoIo && !scoperte ? (
                 <div className={`mano-mia${fuori ? ' piegata' : ''}`} style={stile(cartePos)}>
                   {carte.map((c, k) => (
-                    <span key={`${mano.id}-${c}`} className="volo" style={{ ...delta(MAZZO, cartePos), '--ritardo': `${k * giro.length * 70 + 40}ms`, '--rot': `${(k - 2) * 3}deg` }}>
+                    <span key={`${mano.id}-${c}`} className={`volo${gia(`${mano.id}-${c}`)}`} style={{ ...delta(MAZZO, cartePos), '--ritardo': `${k * giro.length * 70 + 40}ms`, '--rot': `${(k - 2) * 3}deg` }}>
                       <Carta c={c} scelta={scelte.includes(c)} onClick={onScegli ? () => onScegli(c) : undefined} />
                     </span>
                   ))}
@@ -179,14 +187,14 @@ export default function TavoloVerde({ mano, posti, giocatori, io, carte, scelte,
               ) : scoperte ? (
                 <div className={`mano-scoperta${vince ? ' vincente' : ''}${sonoIo ? ' mia' : ''}${!sonoIo && s.y > 50 ? ' sopra' : ''}`} style={stile(sonoIo ? cartePos : verso(s, CENTRO, 0.36))}>
                   {p.carte_mostrate.map((c, k) => (
-                    <span key={c} className="gira" style={{ '--ritardo': `${k * 90}ms` }}><Carta c={c} piccola={!sonoIo} /></span>
+                    <span key={c} className={`gira${gia(`${mano.id}-g-${c}`)}`} style={{ '--ritardo': `${k * 90}ms` }}><Carta c={c} piccola={!sonoIo} /></span>
                   ))}
                   <span className="punto-mostrato">{p.punto}</span>
                 </div>
               ) : (
                 <div className={`mano-coperta${fuori ? ' piegata' : ''}`} style={{ ...stile(cartePos), '--ang': `${(Math.atan2(CENTRO.y - s.y, CENTRO.x - s.x) * 180) / Math.PI - 90}deg` }}>
                   {dorsi.map((k, j) => (
-                    <span key={`${mano.id}-${k}`} className="volo dorso"
+                    <span key={`${mano.id}-${k}`} className={`volo dorso${gia(`${mano.id}-${p.giocatore_id}-${k}`)}`}
                       style={{ ...delta(MAZZO, cartePos), '--ritardo': k.startsWith('v') ? `${j * giro.length * 70 + i * 70}ms` : `${j * 60}ms`, '--rot': `${(j - 2) * 6}deg` }} />
                   ))}
                 </div>
@@ -203,7 +211,7 @@ export default function TavoloVerde({ mano, posti, giocatori, io, carte, scelte,
 
               {/* Puntata del giro davanti al posto */}
               {p.versato_giro > 0 && !conclusa && (
-                <div key={`${mano.id}-${p.giocatore_id}-${p.versato_giro}`} className="puntata-posto" style={{ ...stile(puntataPos), ...delta(s, puntataPos) }}>
+                <div key={`${mano.id}-${p.giocatore_id}-${p.versato_giro}`} className={`puntata-posto${gia(`${mano.id}-${p.giocatore_id}-p${p.versato_giro}`)}`} style={{ ...stile(puntataPos), ...delta(s, puntataPos) }}>
                   <Pila importo={p.versato_giro} />
                   <span className="cifra">{p.versato_giro}</span>
                 </div>

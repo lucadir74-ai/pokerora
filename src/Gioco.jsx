@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { supabase } from './supabase'
 import TavoloVerde from './TavoloVerde'
 import { messaggioErrore } from './rotte'
@@ -20,6 +20,17 @@ export default function Gioco({ tavolo, giocatori, io }) {
   const [attesa, setAttesa] = useState(false)
 
   const idMano = tavolo.mano_corrente
+
+  // Altezza della barra dei comandi: su telefono è fissa in basso e la pagina lascia spazio sotto
+  const comandiRef = useRef(null)
+  useEffect(() => {
+    const el = comandiRef.current
+    if (!el || typeof ResizeObserver === 'undefined') return
+    const ro = new ResizeObserver(() =>
+      document.documentElement.style.setProperty('--h-comandi', `${el.offsetHeight}px`))
+    ro.observe(el)
+    return () => { ro.disconnect(); document.documentElement.style.removeProperty('--h-comandi') }
+  }, [])
 
   // Chat: i messaggi nuovi compaiono anche come fumetto sul tavolo per qualche secondo
   const [fumetti, setFumetti] = useState({})
@@ -99,20 +110,21 @@ export default function Gioco({ tavolo, giocatori, io }) {
 
   const campoImporto = (etichetta, tipo) => (
       <div className="puntata">
-        <label>
-          {etichetta}
-          <input type="number" inputMode="numeric" min={invito} max={tetto ?? undefined} step={1}
-            value={importo} placeholder={String(invito)} onChange={(e) => setImporto(e.target.value)} />
-        </label>
-        <div className="rapidi">
-          <button type="button" className="chip" onClick={() => setImporto(String(invito))}>Invito</button>
-          {tetto && <button type="button" className="chip" onClick={() => setImporto(String(Math.max(invito, Math.floor(tetto / 2))))}>Metà</button>}
-          {tetto && <button type="button" className="chip" onClick={() => setImporto(String(tetto))}>Massimo</button>}
+        <div className="puntata-riga">
+          <label className="puntata-campo">
+            <span className="nascosto">{etichetta}</span>
+            <input type="number" inputMode="numeric" min={invito} max={tetto ?? undefined} step={1}
+              value={importo} placeholder={String(invito)} aria-label={`${etichetta} in Vardis`}
+              onChange={(e) => setImporto(e.target.value)} />
+          </label>
+          <button type="button" className="chip" onClick={() => setImporto(String(invito))}>Min</button>
+          <button type="button" className="chip" onClick={() => setImporto(String(Math.max(invito, Math.floor((tetto ?? mano.piatto) / 2))))}>½ piatto</button>
+          <button type="button" className="chip" onClick={() => setImporto(String(Math.max(invito, tetto ?? mano.piatto)))}>{tetto ? 'Max' : 'Piatto'}</button>
         </div>
         <button className="principale" disabled={attesa} onClick={() => azione(tipo, valore)}>
           {tipo === 'apro' ? `Apro con ${fmt(valore)}` : tipo === 'punto' ? `Punto ${fmt(valore)}` : `Rilancio di ${fmt(valore)}`}
         </button>
-        <small>Minimo {fmt(invito)}{tetto ? `, massimo ${fmt(tetto)}` : ''}</small>
+        <small>Minimo {fmt(invito)}{tetto ? `, massimo ${fmt(tetto)}` : ', nessun massimo'}</small>
       </div>
   )
 
@@ -230,62 +242,68 @@ export default function Gioco({ tavolo, giocatori, io }) {
           </div>
           <p className="sotto-pannello">{tavolo.nome}, in gioco da {durata(tavolo.avviato_il)}</p>
           {mano && <p className="fase">{fase}</p>}
-          {mano && !conclusa && diTurno && (
-            <p className={`turno${mioTurno ? ' mio' : ''}`} role="status">
-              {mioTurno
-                ? (mano.fase === 'cambio' ? 'Tocca a te: scegli le carte da cambiare' : 'Tocca a te')
-                : `Tocca a ${nomeDi(diTurno.giocatore_id)}`}
-            </p>
-          )}
-          {mano && !conclusa && mio && (
-            <dl className="dati-mano">
-              <div><dt>Le tue fiches</dt><dd>{fmt(fichesDi(io.id))}</dd></div>
-              {mano.puntata > 0 && <div><dt>Puntata da pareggiare</dt><dd>{fmt(mano.puntata)}</dd></div>}
-              {daVedere > 0 && <div><dt>Per vedere ti servono</dt><dd>{fmt(daVedere)}</dd></div>}
-            </dl>
-          )}
 
-          {errore && (
-            <div className="errore-gioco" role="alert">
-              <p className="errore">{errore}</p>
-              {errore.includes('fiches') && (
-                <button className="secondario" disabled={attesa}
-                  onClick={() => rpc('prendi_posta', { p_tavolo: tavolo.id })}>
-                  Prendi un’altra posta ({fmt(tavolo.valore_posta)})
-                </button>
-              )}
-            </div>
-          )}
+          <div className="comandi" ref={comandiRef}>
+            {mano && !conclusa && diTurno && (
+              <p className={`turno${mioTurno ? ' mio' : ''}`} role="status">
+                {mioTurno
+                  ? (mano.fase === 'cambio' ? 'Tocca a te: scegli le carte da cambiare' : 'Tocca a te')
+                  : `Tocca a ${nomeDi(diTurno.giocatore_id)}`}
+              </p>
+            )}
 
-          {azioni()}
+            {errore && (
+              <div className="errore-gioco" role="alert">
+                <p className="errore">{errore}</p>
+                {errore.includes('fiches') && (
+                  <button className="secondario" disabled={attesa}
+                    onClick={() => rpc('prendi_posta', { p_tavolo: tavolo.id })}>
+                    Prendi un’altra posta ({fmt(tavolo.valore_posta)})
+                  </button>
+                )}
+              </div>
+            )}
 
-          {conclusa && mano && mostrate.length > 0 && (
-            <ul className="esito">
-              {mostrate.map((p) => (
-                <li key={p.giocatore_id} className={p.vincita > 0 ? 'vincente' : ''}>
-                  <span>{nomeDi(p.giocatore_id)}</span>
-                  <span>{p.punto ?? 'non mostra le carte'}{p.vincita > 0 ? `: vince ${fmt(p.vincita)}` : ''}</span>
-                </li>
-              ))}
-            </ul>
-          )}
+            {azioni()}
 
-          {conclusa && (
-            <button className="principale" disabled={attesa} onClick={() => rpc('nuova_mano', { p_tavolo: tavolo.id })}>
-              {mano ? 'Distribuisci la prossima mano' : 'Distribuisci la prima mano'}
-            </button>
-          )}
+            {conclusa && (
+              <button className="principale" disabled={attesa} onClick={() => rpc('nuova_mano', { p_tavolo: tavolo.id })}>
+                {mano ? 'Distribuisci la prossima mano' : 'Distribuisci la prima mano'}
+              </button>
+            )}
+          </div>
 
-          <Chat messaggi={messaggi} invia={invia} nomeDi={nomeDi} io={io} />
+          <div className="pannello-scorre">
+            {mano && !conclusa && mio && (
+              <dl className="dati-mano">
+                <div><dt>Le tue fiches</dt><dd>{fmt(fichesDi(io.id))}</dd></div>
+                {mano.puntata > 0 && <div><dt>Puntata da pareggiare</dt><dd>{fmt(mano.puntata)}</dd></div>}
+                {daVedere > 0 && <div><dt>Per vedere ti servono</dt><dd>{fmt(daVedere)}</dd></div>}
+              </dl>
+            )}
 
-          {registro.length > 0 && (
-            <details className="cronaca-box">
-              <summary>Cronaca della mano</summary>
-              <ol className="cronaca">
-                {registro.slice(0, 10).map((r) => <li key={r.id}>{r.testo}</li>)}
-              </ol>
-            </details>
-          )}
+            {conclusa && mano && mostrate.length > 0 && (
+              <ul className="esito">
+                {mostrate.map((p) => (
+                  <li key={p.giocatore_id} className={p.vincita > 0 ? 'vincente' : ''}>
+                    <span>{nomeDi(p.giocatore_id)}</span>
+                    <span>{p.punto ?? 'non mostra le carte'}{p.vincita > 0 ? `: vince ${fmt(p.vincita)}` : ''}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+
+            <Chat messaggi={messaggi} invia={invia} nomeDi={nomeDi} io={io} />
+
+            {registro.length > 0 && (
+              <details className="cronaca-box">
+                <summary>Cronaca della mano</summary>
+                <ol className="cronaca">
+                  {registro.slice(0, 10).map((r) => <li key={r.id}>{r.testo}</li>)}
+                </ol>
+              </details>
+            )}
+          </div>
         </aside>
       </div>
     </section>
