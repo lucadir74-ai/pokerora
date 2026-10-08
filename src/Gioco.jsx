@@ -83,9 +83,9 @@ export default function Gioco({ tavolo, giocatori, io }) {
   const diTurno = posti.find((p) => p.posto === mano?.turno)
   const invito = invitoDi(tavolo)
   const daVedere = mano && mio ? mano.puntata - mio.versato_giro : 0
-  const limite = tavolo.regole?.limite ?? 'piatto'
+  const limite = tavolo.regole?.limite ?? 'apertura'
   const tetto = !mano ? null
-    : limite === 'piatto' ? mano.piatto + daVedere
+    : limite === 'piatto' || (limite === 'apertura' && mano.fase === 'apertura') ? mano.piatto + daVedere
     : limite === 'fisso' ? Number(tavolo.regole?.puntata_massima) || null
     : null
   const cambioMax = Number(tavolo.regole?.cambio_max) || 4
@@ -120,6 +120,47 @@ export default function Gioco({ tavolo, giocatori, io }) {
     if (!mano || conclusa) return null
     if (!mio || mio.stato !== 'attivo') return <p className="tenue">Sei fuori da questa mano.</p>
     if (!mioTurno) return null
+    if (mano.fase === 'buio') {
+      const nome = ['buio', 'controbuio', 'over'][mano.buio_livello]
+      const quanto = mano.buio_livello === 0 ? mano.piatto : mano.buio_importo * 2
+      return (
+        <div className="azioni-gioco">
+          <p>
+            {mano.buio_livello === 0
+              ? `Puoi fare il buio prima di vedere le carte: costa quanto il piatto.`
+              : `${nomeDi(mano.buio_di)} ha fatto il ${['', 'buio', 'controbuio'][mano.buio_livello]}. Puoi rispondere con il ${nome}.`}
+          </p>
+          <div className="bottoni">
+            <button className="principale" disabled={attesa} onClick={() => rpc('buio', { p_mano: mano.id, p_faccio: true })}>
+              Faccio il {nome} ({fmt(quanto)})
+            </button>
+            <button className="secondario" disabled={attesa} onClick={() => rpc('buio', { p_mano: mano.id, p_faccio: false })}>
+              Niente {nome}
+            </button>
+          </div>
+        </div>
+      )
+    }
+    if (mano.buio_aperto) {
+      if (mano.buio_di === io.id) {
+        return (
+          <div className="azioni-gioco">
+            <p>Hai messo l’ultimo buio: puoi chiudere il giro o rilanciare.</p>
+            <button className="secondario" disabled={attesa} onClick={() => azione('vedo')}>Chiudo il giro</button>
+            {campoImporto('Rilancio', 'rilancio')}
+          </div>
+        )
+      }
+      return (
+        <div className="azioni-gioco">
+          <p>Dopo il buio puoi solo vedere o lasciare.</p>
+          <div className="bottoni">
+            <button className="secondario" disabled={attesa} onClick={() => azione('passo')}>Lascio</button>
+            <button className="principale" disabled={attesa} onClick={() => azione('vedo')}>Vedo ({fmt(daVedere)})</button>
+          </div>
+        </div>
+      )
+    }
     if (mano.fase === 'cambio') {
       return (
         <div className="azioni-gioco">
@@ -154,7 +195,7 @@ export default function Gioco({ tavolo, giocatori, io }) {
       <div className="azioni-gioco">
         <div className="bottoni">
           <button className="secondario" disabled={attesa} onClick={() => azione('busso')}>Busso</button>
-          {mano.parol_possibile && <button className="secondario" disabled={attesa} onClick={() => azione('parol')}>Parol</button>}
+          {mano.parol_possibile && <button className="secondario" disabled={attesa} onClick={() => azione('parol')}>Parola</button>}
         </div>
         {campoImporto('Puntata', 'punto')}
       </div>
@@ -162,6 +203,7 @@ export default function Gioco({ tavolo, giocatori, io }) {
   }
 
   const fase = !mano ? '' : {
+    buio: 'Buio: prima di vedere le carte',
     apertura: `Apertura: serve almeno una coppia di ${COPPIA[mano.requisito]}`,
     primo_giro: 'Primo giro di puntate',
     cambio: 'Cambio delle carte',

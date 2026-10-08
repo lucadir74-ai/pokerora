@@ -9,8 +9,9 @@ export const fmt = (n) => `${nf.format(n ?? 0)} ${SIGLA}`
 
 export const REGOLE_BASE = {
   mazzo: 'regola11',
-  limite: 'piatto',
+  limite: 'apertura',
   cambio_max: 4,
+  buio: 'si',
 }
 
 export const invitoDi = (tavolo) =>
@@ -22,9 +23,14 @@ export const OPZIONI = {
     ['completo', 'Mazzo completo da 52 carte'],
   ],
   limite: [
-    ['piatto', 'Al massimo quanto c’è nel piatto'],
+    ['apertura', 'Apertura al massimo quanto il piatto, poi rilanci liberi'],
+    ['piatto', 'Sempre al massimo quanto c’è nel piatto'],
     ['fisso', 'Puntata massima fissa'],
     ['libero', 'Nessun limite'],
+  ],
+  buio: [
+    ['si', 'Sì: buio, controbuio e over'],
+    ['no', 'No'],
   ],
   cambio_max: [
     ['4', 'Fino a 4 carte: 3 subito e 1 a fine giro'],
@@ -37,14 +43,19 @@ export function descriviRegole(tavolo) {
   const limite =
     r.limite === 'fisso' ? `Puntata massima: ${fmt(Number(r.puntata_massima))}`
     : r.limite === 'libero' ? 'Nessun limite di puntata'
-    : 'Puntata massima: quanto c’è nel piatto'
+    : r.limite === 'piatto' ? 'Puntata massima: quanto c’è nel piatto'
+    : 'Apertura al massimo quanto c’è nel piatto, poi rilanci liberi e illimitati'
   return [
     `Invito a ogni mano: ${fmt(invitoDi(tavolo))}`,
     limite,
     String(r.cambio_max) === '5'
       ? 'Si cambiano fino a 5 carte: 3 subito e 2 a fine giro'
       : 'Si cambiano fino a 4 carte: 3 subito e 1 a fine giro',
-    'Si apre con almeno una coppia di fanti, o 4 carte di fila dello stesso seme senza asso. Se passano tutti: donne, poi re',
+    'Si apre con almeno una coppia di fanti, o 4 carte di fila dello stesso seme senza asso. Se passano tutti: donne, poi re, e si resta al re finché una mano non viene aperta e giocata',
+    r.buio === 'no'
+      ? 'Niente buio'
+      : 'Buio prima di vedere le carte: lo fa il primo dopo il mazziere e vale il piatto; controbuio il doppio, over il doppio del controbuio. Non si fa dopo una parola',
+    'Se tutti dicono parola: il piatto resta, la mano dopo si apre con coppia di re e senza buio',
     'Il colore batte il full. Semi: cuori, quadri, fiori, picche',
     'Scala reale: la minima batte la massima, la massima batte la media, la media batte la minima',
   ]

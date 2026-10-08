@@ -50,7 +50,9 @@ function Pila({ importo }) {
 }
 
 const BOLLE = {
-  passo: () => 'Passo', lascio: () => 'Lascio', vedo: () => 'Vedo', busso: () => 'Busso', parol: () => 'Parol',
+  passo: () => 'Passo', lascio: () => 'Lascio', vedo: () => 'Vedo', busso: () => 'Busso', parol: () => 'Parola',
+  buio: (i) => `Buio ${i}`, controbuio: (i) => `Controbuio ${i}`, over: (i) => `Over ${i}`,
+  nobuio: () => 'Niente buio', chiudo: () => 'Chiudo',
   apro: (i) => `Apro ${i}`, punto: (i) => `Punto ${i}`, rilancio: (i) => `Rilancio +${i}`,
   cambio: (i) => (i === 0 ? 'Servito' : `Cambia ${i}`), vince: (i) => `Vince ${i}`,
 }
@@ -153,6 +155,7 @@ export default function TavoloVerde({ mano, posti, giocatori, io, carte, scelte,
           const puntataPos = verso(s, CENTRO, sonoIo ? 0.42 : 0.4)
           const cartePos = sonoIo ? { x: 50, y: stretto ? 76 : 72 } : verso(s, CENTRO, stretto ? 0.3 : 0.24)
           const scoperte = conclusa && p.carte_mostrate
+          const primaDelleCarte = mano.fase === 'buio'
 
           // Dorsi degli altri: le prime (5 − cambio) sono le vecchie, poi le nuove arrivate dal mazzo
           const nuove = Math.max(0, (p.cambio ?? 0) - p.cambio_pendente)
@@ -165,7 +168,7 @@ export default function TavoloVerde({ mano, posti, giocatori, io, carte, scelte,
           return (
             <div key={p.giocatore_id}>
               {/* Carte */}
-              {sonoIo && !scoperte ? (
+              {primaDelleCarte ? null : sonoIo && !scoperte ? (
                 <div className={`mano-mia${fuori ? ' piegata' : ''}`} style={stile(cartePos)}>
                   {carte.map((c, k) => (
                     <span key={`${mano.id}-${c}`} className="volo" style={{ ...delta(MAZZO, cartePos), '--ritardo': `${k * giro.length * 70 + 40}ms`, '--rot': `${(k - 2) * 3}deg` }}>

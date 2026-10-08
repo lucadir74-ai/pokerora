@@ -103,7 +103,7 @@ export default function Tavolo({ id, io }) {
     const r = modifica.regole
     const invito = Number(r.invito)
     if (!Number.isInteger(invito) || invito < 1) return setErrore('L’invito deve essere un numero intero di almeno 1 Vardis.')
-    const regole = { mazzo: r.mazzo, limite: r.limite, cambio_max: Number(r.cambio_max), invito }
+    const regole = { mazzo: r.mazzo, limite: r.limite, cambio_max: Number(r.cambio_max), invito, buio: r.buio ?? 'si' }
     if (r.limite === 'fisso') {
       const massima = Number(r.puntata_massima)
       if (!Number.isInteger(massima) || massima < invito) return setErrore('Indica una puntata massima almeno pari all’invito.')
@@ -291,6 +291,12 @@ export default function Tavolo({ id, io }) {
                   onChange={(e) => regola('puntata_massima', e.target.value)} />
               </label>
             )}
+            <label>
+              Buio, controbuio e over
+              <select value={modifica.regole.buio ?? 'si'} onChange={(e) => regola('buio', e.target.value)}>
+                {OPZIONI.buio.map(([v, t]) => <option key={v} value={v}>{t}</option>)}
+              </select>
+            </label>
             <label>
               Cambio delle carte
               <select value={String(modifica.regole.cambio_max)} onChange={(e) => regola('cambio_max', e.target.value)}>

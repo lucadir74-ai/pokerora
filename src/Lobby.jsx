@@ -11,6 +11,7 @@ export default function Lobby({ io }) {
   const [nome, setNome] = useState('')
   const [posti, setPosti] = useState(6)
   const [posta, setPosta] = useState(1000)
+  const [invito, setInvito] = useState('')
   const [errore, setErrore] = useState('')
   const [attesa, setAttesa] = useState(false)
 
@@ -27,9 +28,11 @@ export default function Lobby({ io }) {
     const v = Number(posta)
     if (!nome.trim()) return setErrore('Dai un nome al tavolo, per esempio “Venerdì da Luca”.')
     if (!Number.isInteger(v) || v < 100) return setErrore('La posta deve essere di almeno 100 Vardis.')
+    const inv = invito === '' ? Math.max(1, Math.floor(v / 100)) : Number(invito)
+    if (!Number.isInteger(inv) || inv < 1 || inv > v) return setErrore('L’invito deve essere un numero intero tra 1 e il valore della posta.')
     setAttesa(true)
     const { data, error } = await supabase.rpc('crea_tavolo', {
-      p_nome: nome, p_posti: posti, p_valore_posta: v,
+      p_nome: nome, p_posti: posti, p_valore_posta: v, p_invito: inv,
     })
     setAttesa(false)
     if (error) return setErrore(messaggioErrore(error))
@@ -62,6 +65,13 @@ export default function Lobby({ io }) {
               onChange={(e) => setPosta(e.target.value)} />
           </label>
           {Number(posta) >= 100 && <Fiches valore={Number(posta)} />}
+          <label>
+            Invito a ogni mano (Vardis)
+            <input type="number" inputMode="numeric" min={1} value={invito}
+              placeholder={String(Math.max(1, Math.floor((Number(posta) || 0) / 100)))}
+              onChange={(e) => setInvito(e.target.value)} />
+            <small>Se lo lasci vuoto vale l’1% della posta. Le altre regole si cambiano in sala d’attesa.</small>
+          </label>
           {errore && <p className="errore" role="alert">{errore}</p>}
           <button className="principale" disabled={attesa}>{attesa ? 'Un attimo…' : 'Apri il tavolo'}</button>
         </form>
