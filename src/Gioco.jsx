@@ -18,6 +18,8 @@ export default function Gioco({ tavolo, giocatori, io }) {
   const [importo, setImporto] = useState('')
   const [errore, setErrore] = useState('')
   const [attesa, setAttesa] = useState(false)
+  const [pre, setPre] = useState(null)
+  const preInviata = useRef(false)
 
   const idMano = tavolo.mano_corrente
 
@@ -108,30 +110,50 @@ export default function Gioco({ tavolo, giocatori, io }) {
 
   const azione = (tipo, imp = 0) => rpc('azione', { p_mano: mano.id, p_tipo: tipo, p_importo: imp })
 
-  const campoImporto = (etichetta, tipo) => (
-      <div className="puntata">
-        <div className="puntata-riga">
-          <label className="puntata-campo">
-            <span className="nascosto">{etichetta}</span>
-            <input type="number" inputMode="numeric" min={invito} max={tetto ?? undefined} step={1}
-              value={importo} placeholder={String(invito)} aria-label={`${etichetta} in Vardis`}
-              onChange={(e) => setImporto(e.target.value)} />
-          </label>
-          <button type="button" className="chip" onClick={() => setImporto(String(invito))}>Min</button>
-          <button type="button" className="chip" onClick={() => setImporto(String(Math.max(invito, Math.floor((tetto ?? mano.piatto) / 2))))}>½ piatto</button>
-          <button type="button" className="chip" onClick={() => setImporto(String(Math.max(invito, tetto ?? mano.piatto)))}>{tetto ? 'Max' : 'Piatto'}</button>
-        </div>
-        <button className="principale" disabled={attesa} onClick={() => azione(tipo, valore)}>
-          {tipo === 'apro' ? `Apro con ${fmt(valore)}` : tipo === 'punto' ? `Punto ${fmt(valore)}` : `Rilancio di ${fmt(valore)}`}
-        </button>
-        <small>Minimo {fmt(invito)}{tetto ? `, massimo ${fmt(tetto)}` : ', nessun massimo'}</small>
-      </div>
+  // Pre-azione: quando arriva il mio turno la eseguo, purché la situazione sia la stessa di quando l'ho scelta
+  useEffect(() => {
+    if (!pre || !mano) return
+    const cambiata = pre.mano !== mano.id || pre.fase !== mano.fase
+    if (cambiata) { setPre(null); return }
+    const mioOra = mio && mio.stato === 'attivo' && mano.turno === mio.posto
+    const dv = mio ? mano.puntata - mio.versato_giro : 0
+    // Se qualcuno ha rilanciato dopo la scelta, "Vedo" e "Busso" non valgono più
+    if ((pre.tipo === 'vedo' && dv !== pre.daVedere) || (pre.tipo === 'busso' && mano.puntata > 0)) { setPre(null); return }
+    if (!mioOra || preInviata.current) return
+    preInviata.current = true
+    const tipo = pre.tipo
+    setPre(null)
+    azione(tipo).finally(() => { preInviata.current = false })
+  }, [pre, mano, mio])
+
+
+  // Riga dell'importo: campo e scorciatoie
+  const rigaImporto = () => (
+    <div className="puntata-riga">
+      <label className="puntata-campo">
+        <span className="nascosto">Importo</span>
+        <input type="number" inputMode="numeric" min={invito} max={tetto ?? undefined} step={1}
+          value={importo} placeholder={String(invito)} aria-label="Importo in Vardis"
+          onChange={(e) => setImporto(e.target.value)} />
+      </label>
+      <button type="button" className="chip" onClick={() => setImporto(String(invito))}>Min</button>
+      <button type="button" className="chip" onClick={() => setImporto(String(Math.max(invito, Math.floor((tetto ?? mano.piatto) / 2))))}>½ piatto</button>
+      <button type="button" className="chip" onClick={() => setImporto(String(Math.max(invito, tetto ?? mano.piatto)))}>{tetto ? 'Max' : 'Piatto'}</button>
+    </div>
+  )
+
+  // Pulsante grande: tono 'neutro' (passo, lascio), 'verde' (vedo, busso), 'oro' (apro, punto, rilancio)
+  const grande = (testo, tono, onClick, sotto) => (
+    <button type="button" className={`azione-grande ${tono}`} disabled={attesa} onClick={onClick}>
+      <span>{testo}</span>
+      {sotto && <small>{sotto}</small>}
+    </button>
   )
 
   function azioni() {
     if (!mano || conclusa) return null
     if (!mio || mio.stato !== 'attivo') return <p className="tenue">Sei fuori da questa mano.</p>
-    if (!mioTurno) return null
+    if (!mioTurno) return preAzioni()
     if (mano.fase === 'buio') {
       const nome = ['buio', 'controbuio', 'over'][mano.buio_livello]
       const quanto = mano.buio_livello === 0 ? mano.piatto : mano.buio_importo * 2
@@ -139,36 +161,23 @@ export default function Gioco({ tavolo, giocatori, io }) {
         <div className="azioni-gioco">
           <p>
             {mano.buio_livello === 0
-              ? `Puoi fare il buio prima di vedere le carte: costa quanto il piatto.`
+              ? 'Puoi fare il buio prima di vedere le carte: costa quanto il piatto.'
               : `${nomeDi(mano.buio_di)} ha fatto il ${['', 'buio', 'controbuio'][mano.buio_livello]}. Puoi rispondere con il ${nome}.`}
           </p>
-          <div className="bottoni">
-            <button className="principale" disabled={attesa} onClick={() => rpc('buio', { p_mano: mano.id, p_faccio: true })}>
-              Faccio il {nome} ({fmt(quanto)})
-            </button>
-            <button className="secondario" disabled={attesa} onClick={() => rpc('buio', { p_mano: mano.id, p_faccio: false })}>
-              Niente {nome}
-            </button>
+          <div className="griglia-azioni due">
+            {grande(`Niente ${nome}`, 'neutro', () => rpc('buio', { p_mano: mano.id, p_faccio: false }))}
+            {grande(`Faccio il ${nome}`, 'oro', () => rpc('buio', { p_mano: mano.id, p_faccio: true }), fmt(quanto))}
           </div>
         </div>
       )
     }
-    if (mano.buio_aperto) {
-      if (mano.buio_di === io.id) {
-        return (
-          <div className="azioni-gioco">
-            <p>Hai messo l’ultimo buio: puoi chiudere il giro o rilanciare.</p>
-            <button className="secondario" disabled={attesa} onClick={() => azione('vedo')}>Chiudo il giro</button>
-            {campoImporto('Rilancio', 'rilancio')}
-          </div>
-        )
-      }
+    if (mano.buio_aperto && mano.buio_di !== io.id) {
       return (
         <div className="azioni-gioco">
           <p>Dopo il buio puoi solo vedere o lasciare.</p>
-          <div className="bottoni">
-            <button className="secondario" disabled={attesa} onClick={() => azione('passo')}>Lascio</button>
-            <button className="principale" disabled={attesa} onClick={() => azione('vedo')}>Vedo ({fmt(daVedere)})</button>
+          <div className="griglia-azioni due">
+            {grande('Lascio', 'neutro', () => azione('passo'))}
+            {grande('Vedo', 'verde', () => azione('vedo'), fmt(daVedere))}
           </div>
         </div>
       )
@@ -177,39 +186,71 @@ export default function Gioco({ tavolo, giocatori, io }) {
       return (
         <div className="azioni-gioco">
           <p>Tocca le carte da scartare (al massimo {cambioMax}).</p>
-          <button className="principale" disabled={attesa}
-            onClick={() => rpc('cambia', { p_mano: mano.id, p_scarti: scelte })}>
-            {scelte.length === 0 ? 'Sono servito' : scelte.length === 1 ? 'Cambia 1 carta' : `Cambia ${scelte.length} carte`}
-          </button>
-        </div>
-      )
-    }
-    if (mano.fase === 'apertura') {
-      return (
-        <div className="azioni-gioco">
-          <button className="secondario" disabled={attesa} onClick={() => azione('passo')}>Passo</button>
-          {campoImporto('Apertura', 'apro')}
-        </div>
-      )
-    }
-    if (mano.puntata > 0) {
-      return (
-        <div className="azioni-gioco">
-          <div className="bottoni">
-            <button className="secondario" disabled={attesa} onClick={() => azione('passo')}>Lascio</button>
-            {daVedere > 0 && <button className="secondario" disabled={attesa} onClick={() => azione('vedo')}>Vedo ({fmt(daVedere)})</button>}
+          <div className="griglia-azioni uno">
+            {grande(scelte.length === 0 ? 'Sono servito' : scelte.length === 1 ? 'Cambio 1 carta' : `Cambio ${scelte.length} carte`,
+              'oro', () => rpc('cambia', { p_mano: mano.id, p_scarti: scelte }))}
           </div>
-          {campoImporto('Rilancio', 'rilancio')}
         </div>
       )
+    }
+    // Giri di puntate: riga dell'importo sopra, pulsanti grandi sotto
+    let pulsanti
+    if (mano.buio_aperto) {
+      pulsanti = [
+        grande('Chiudo il giro', 'verde', () => azione('vedo')),
+        grande('Rilancio', 'oro', () => azione('rilancio', valore), `+${fmt(valore)}`),
+      ]
+    } else if (mano.fase === 'apertura') {
+      pulsanti = [
+        grande('Passo', 'neutro', () => azione('passo')),
+        grande('Apro', 'oro', () => azione('apro', valore), fmt(valore)),
+      ]
+    } else if (mano.puntata > 0) {
+      pulsanti = [
+        grande('Lascio', 'neutro', () => azione('passo')),
+        daVedere > 0 ? grande('Vedo', 'verde', () => azione('vedo'), fmt(daVedere)) : null,
+        grande('Rilancio', 'oro', () => azione('rilancio', valore), `+${fmt(valore)}`),
+      ].filter(Boolean)
+    } else {
+      pulsanti = [
+        grande('Busso', 'verde', () => azione('busso')),
+        mano.parol_possibile ? grande('Parola', 'neutro', () => azione('parol')) : null,
+        grande('Punto', 'oro', () => azione('punto', valore), fmt(valore)),
+      ].filter(Boolean)
     }
     return (
       <div className="azioni-gioco">
-        <div className="bottoni">
-          <button className="secondario" disabled={attesa} onClick={() => azione('busso')}>Busso</button>
-          {mano.parol_possibile && <button className="secondario" disabled={attesa} onClick={() => azione('parol')}>Parola</button>}
+        {rigaImporto()}
+        <div className={`griglia-azioni ${['', 'uno', 'due', 'tre'][pulsanti.length]}`}>
+          {pulsanti.map((b, k) => <span key={k} className="cella">{b}</span>)}
         </div>
-        {campoImporto('Puntata', 'punto')}
+        <small className="limiti">Minimo {fmt(invito)}{tetto ? `, massimo ${fmt(tetto)}` : ', nessun massimo'}</small>
+      </div>
+    )
+  }
+
+  // Pre-azioni: quando non è il tuo turno puoi scegliere in anticipo cosa fare
+  function preAzioni() {
+    const fasiPuntata = ['apertura', 'primo_giro', 'secondo_giro']
+    if (!fasiPuntata.includes(mano.fase)) return null
+    const scelte = mano.fase === 'apertura'
+      ? [['passo', 'Passo']]
+      : mano.puntata > 0
+        ? [['passo', 'Lascio'], ...(daVedere > 0 ? [['vedo', `Vedo ${fmt(daVedere)}`]] : [])]
+        : [['busso', 'Busso']]
+    const attiva = (tipo) => pre && pre.tipo === tipo
+    return (
+      <div className="pre-azioni" role="group" aria-label="Scegli in anticipo">
+        <span className="pre-titolo">Quando tocca a te:</span>
+        {scelte.map(([tipo, testo]) => (
+          <label key={tipo} className={`pre-scelta${attiva(tipo) ? ' attiva' : ''}`}>
+            <input type="checkbox" checked={attiva(tipo)}
+              onChange={(e) => setPre(e.target.checked
+                ? { tipo, mano: mano.id, fase: mano.fase, daVedere, puntata: mano.puntata }
+                : null)} />
+            {testo}
+          </label>
+        ))}
       </div>
     )
   }

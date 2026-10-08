@@ -599,7 +599,7 @@ button.carta-gioco { cursor: pointer; transition: transform 120ms ease; }
 
 .puntata { gap: 0.5rem; padding: 0.7rem; }
 .puntata-riga { display: flex; gap: 0.4rem; align-items: center; flex-wrap: wrap; }
-.puntata-campo input { width: 6.5rem; padding: 0.5rem 0.6rem; }
+.puntata-campo input { width: 5.2rem; padding: 0.5rem 0.6rem; }
 .puntata .principale { margin-top: 0; }
 
 /* Computer: il pannello resta fermo e alto quanto lo schermo; scorre solo la parte sotto i comandi */
@@ -631,3 +631,46 @@ button.carta-gioco { cursor: pointer; transition: transform 120ms ease; }
   .pagina.ampia > .fondo { padding-bottom: calc(var(--h-comandi, 0px) + 0.5rem); }
 }
 .mano-mia, .mano-scoperta.mia { z-index: 5; }
+
+/* Il mio punto sotto le carte */
+.mano-mia { position: absolute; }
+.mio-punto {
+  position: absolute; left: 50%; bottom: calc(100% + 10px); transform: translateX(-50%);
+  white-space: nowrap; font-size: clamp(0.68rem, 2.2cqw, 0.92rem); font-weight: 600;
+  color: #fff; background: rgba(16, 32, 24, 0.75); padding: 2px 10px; border-radius: 999px;
+}
+.mio-punto b { font-weight: 600; }
+.mio-punto .si { color: #f2d77a; }
+.mio-punto .no { color: #cfe0d6; font-weight: 400; }
+
+/* Pulsanti d'azione grandi */
+.griglia-azioni { display: grid; gap: 0.5rem; }
+.griglia-azioni.uno { grid-template-columns: 1fr; }
+.griglia-azioni.due { grid-template-columns: 1fr 1fr; }
+.griglia-azioni.tre { grid-template-columns: 1fr 1fr 1fr; }
+.griglia-azioni .cella { display: contents; }
+.azione-grande {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px;
+  min-height: 3.4rem; padding: 0.45rem 0.5rem; border-radius: 14px; cursor: pointer;
+  font: inherit; font-weight: 700; font-size: 1.08rem; line-height: 1.15;
+  border: 2px solid transparent; box-shadow: 0 3px 0 rgba(0, 0, 0, 0.18);
+  transition: transform 80ms ease, box-shadow 80ms ease;
+}
+.azione-grande small { font-size: 0.82rem; font-weight: 600; opacity: 0.85; color: inherit; }
+.azione-grande:active { transform: translateY(2px); box-shadow: 0 1px 0 rgba(0, 0, 0, 0.18); }
+.azione-grande:disabled { opacity: 0.55; cursor: progress; }
+.azione-grande.neutro { background: #fff; color: var(--inchiostro); border-color: var(--bordo); }
+.azione-grande.verde { background: var(--panno); color: #fff; }
+.azione-grande.oro { background: linear-gradient(#e2c35a, var(--ottone)); color: var(--inchiostro); }
+.limiti { color: var(--grigio); font-size: 0.8rem; }
+@media (max-width: 959px) { .limiti { display: none; } }
+
+/* Pre-azioni */
+.pre-azioni { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; }
+.pre-titolo { font-size: 0.85rem; color: var(--grigio); width: 100%; }
+.pre-scelta {
+  flex-direction: row; align-items: center; gap: 0.45rem; font-weight: 600; font-size: 0.95rem;
+  padding: 0.55rem 0.85rem; border: 2px solid var(--bordo); border-radius: 12px; cursor: pointer; background: #fff;
+}
+.pre-scelta input { width: 1.1rem; height: 1.1rem; accent-color: var(--panno); }
+.pre-scelta.attiva { border-color: var(--panno); background: #eef5f0; }

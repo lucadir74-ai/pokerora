@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import Carta from './Carta'
 import { fmt } from './regole'
+import { valutaMano, nomePunto, puoAprire } from './punti'
 
 // Posizioni in percentuale del tavolo (x sulla larghezza, y sull'altezza)
 const CENTRO = { x: 50, y: 46 }
@@ -183,6 +184,13 @@ export default function TavoloVerde({ mano, posti, giocatori, io, carte, scelte,
                       <Carta c={c} scelta={scelte.includes(c)} onClick={onScegli ? () => onScegli(c) : undefined} />
                     </span>
                   ))}
+                  {carte.length === 5 && (
+                    <span className="mio-punto">
+                      {nomePunto(valutaMano(carte, mano.bassa))}
+                      {mano.fase === 'apertura' && (puoAprire(carte, mano.requisito, mano.bassa)
+                        ? <b className="si"> · puoi aprire</b> : <b className="no"> · non puoi aprire</b>)}
+                    </span>
+                  )}
                 </div>
               ) : scoperte ? (
                 <div className={`mano-scoperta${vince ? ' vincente' : ''}${sonoIo ? ' mia' : ''}${!sonoIo && s.y > 50 ? ' sopra' : ''}`} style={stile(sonoIo ? cartePos : verso(s, CENTRO, 0.36))}>
