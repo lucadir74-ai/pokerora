@@ -12,7 +12,7 @@ export function normalizzaTelefono(grezzo) {
 const VUOTO = { email: '', password: '', nome: '', cognome: '', nickname: '', telefono: '' }
 
 export default function Accesso() {
-  const [modo, setModo] = useState('entra') // 'entra' | 'iscriviti'
+  const [modo, setModo] = useState('entra') // 'entra' | 'iscriviti' | 'recupero'
   const [campi, setCampi] = useState(VUOTO)
   const [errore, setErrore] = useState('')
   const [avviso, setAvviso] = useState('')
@@ -24,6 +24,23 @@ export default function Accesso() {
     setModo(m)
     setErrore('')
     setAvviso('')
+  }
+
+  async function recupera(e) {
+    e.preventDefault()
+    setErrore('')
+    setAvviso('')
+    const email = campi.email.trim()
+    if (!email) return setErrore('Scrivi l’email con cui ti sei iscritto.')
+    setAttesa(true)
+    const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin })
+    setAttesa(false)
+    if (error) {
+      return setErrore(error.message.toLowerCase().includes('rate')
+        ? 'Hai chiesto troppi link in poco tempo: riprova tra qualche minuto.'
+        : 'Non è stato possibile inviare l’email. Riprova.')
+    }
+    setAvviso(`Se ${email} è registrata, ti abbiamo mandato un link per scegliere una nuova password. Controlla anche lo spam.`)
   }
 
   async function entra(e) {
@@ -119,7 +136,7 @@ export default function Accesso() {
         <span className="angolo basso" aria-hidden="true">A<br />♠</span>
 
         <div className="schede" role="tablist">
-          <button role="tab" aria-selected={modo === 'entra'} onClick={() => cambiaModo('entra')}>
+          <button role="tab" aria-selected={modo !== 'iscriviti'} onClick={() => cambiaModo('entra')}>
             Entra
           </button>
           <button role="tab" aria-selected={modo === 'iscriviti'} onClick={() => cambiaModo('iscriviti')}>
@@ -129,7 +146,11 @@ export default function Accesso() {
 
         {avviso && <p className="avviso" role="status">{avviso}</p>}
 
-        <form onSubmit={modo === 'entra' ? entra : iscriviti} noValidate>
+        {modo === 'recupero' && (
+          <p className="tenue">Scrivi l’email con cui ti sei iscritto: ti mandiamo un link per scegliere una nuova password.</p>
+        )}
+
+        <form onSubmit={modo === 'entra' ? entra : modo === 'recupero' ? recupera : iscriviti} noValidate>
           {modo === 'iscriviti' && (
             <>
               <div className="riga">
@@ -160,19 +181,28 @@ export default function Accesso() {
             Email
             <input required type="email" autoComplete="email" value={campi.email} onChange={cambia('email')} />
           </label>
-          <label>
-            Password
-            <input required type="password" minLength={8}
-              autoComplete={modo === 'entra' ? 'current-password' : 'new-password'}
-              value={campi.password} onChange={cambia('password')} />
-          </label>
+          {modo !== 'recupero' && (
+            <label>
+              Password
+              <input required type="password" minLength={8}
+                autoComplete={modo === 'entra' ? 'current-password' : 'new-password'}
+                value={campi.password} onChange={cambia('password')} />
+            </label>
+          )}
 
           {errore && <p className="errore" role="alert">{errore}</p>}
 
           <button className="principale" type="submit" disabled={attesa}>
-            {attesa ? 'Un attimo…' : modo === 'entra' ? 'Entra' : 'Crea l’account'}
+            {attesa ? 'Un attimo…' : modo === 'entra' ? 'Entra' : modo === 'recupero' ? 'Mandami il link' : 'Crea l’account'}
           </button>
         </form>
+
+        {modo === 'entra' && (
+          <button type="button" className="link-scuro" onClick={() => cambiaModo('recupero')}>Password dimenticata?</button>
+        )}
+        {modo === 'recupero' && (
+          <button type="button" className="link-scuro" onClick={() => cambiaModo('entra')}>Torna all’accesso</button>
+        )}
       </section>
     </main>
   )

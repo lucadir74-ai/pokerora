@@ -767,3 +767,49 @@ button.carta-gioco { cursor: pointer; transition: transform 120ms ease; }
 .cassetto-corpo .secondario { margin-bottom: 0.5rem; }
 @media (prefers-reduced-motion: reduce) { .cassetto, .cassetto-velo { transition: none; } }
 @media (min-width: 960px) { .pagina.ampia { padding-bottom: 0.75rem; gap: 0.75rem; } }
+
+/* Link discreto sotto il modulo di accesso */
+.link-scuro {
+  display: block; margin: 1rem auto 0; background: none; border: 0; padding: 0.3rem;
+  font: inherit; font-size: 0.92rem; color: var(--panno); text-decoration: underline;
+  text-underline-offset: 3px; cursor: pointer;
+}
+
+/* Frecce per aumentare e diminuire la puntata */
+.importo-frecce { display: inline-flex; align-items: stretch; border-radius: 10px; overflow: hidden; border: 1px solid var(--bordo); background: #fff; }
+.importo-frecce .puntata-campo input { border: 0; border-radius: 0; width: 5.2rem; text-align: center; font-weight: 700; font-size: 1.05rem; -moz-appearance: textfield; }
+.importo-frecce .puntata-campo input::-webkit-outer-spin-button,
+.importo-frecce .puntata-campo input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.freccia {
+  width: 2.6rem; min-height: 2.6rem; border: 0; cursor: pointer; font-size: 0.95rem;
+  background: linear-gradient(#e2c35a, var(--ottone)); color: var(--inchiostro);
+  touch-action: manipulation; user-select: none; -webkit-user-select: none;
+}
+.freccia:active { filter: brightness(0.9); }
+.freccia:disabled { background: #e7e3d6; color: #aaa; cursor: not-allowed; }
+.console .importo-frecce { border-color: rgba(201, 162, 39, 0.7); }
+
+/* Frecce per l'importo */
+.importo-frecce { display: flex; align-items: stretch; border-radius: 12px; overflow: hidden; border: 1px solid rgba(255, 255, 255, 0.3); }
+.importo-frecce .puntata-campo input { border: 0; border-radius: 0; width: 5.4rem; text-align: center; font-weight: 700; font-size: 1.05rem; height: 100%; }
+.freccia {
+  width: 2.9rem; min-height: 2.75rem; border: 0; cursor: pointer;
+  background: var(--ottone); color: var(--inchiostro); font: inherit; font-size: 1.5rem; font-weight: 700; line-height: 1;
+  touch-action: none; user-select: none; -webkit-user-select: none;
+}
+.freccia:first-child { background: rgba(255, 255, 255, 0.85); }
+.freccia:active { filter: brightness(0.9); }
+.freccia:disabled { opacity: 0.35; cursor: default; }
+/* niente frecce native del campo numerico: usiamo le nostre */
+.importo-frecce input::-webkit-outer-spin-button, .importo-frecce input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.importo-frecce input[type=number] { -moz-appearance: textfield; appearance: textfield; }
+@media (max-width: 959px) {
+  .freccia { width: 2.5rem; }
+  .importo-frecce .puntata-campo input { width: 3.9rem; }
+  .console .chip { padding: 0.3rem 0.6rem; }
+}
+@media (max-width: 380px) {
+  .console .chip { padding: 0.28rem 0.45rem; font-size: 0.78rem; }
+  .freccia { width: 2.3rem; }
+  .importo-frecce .puntata-campo input { width: 3.5rem; }
+}

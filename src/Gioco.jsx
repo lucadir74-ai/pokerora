@@ -129,49 +129,28 @@ export default function Gioco({ tavolo, giocatori, io }) {
   }, [pre, mano, mio])
 
 
-  // Riga dell'importo: campo e scorciatoie
-  // Frecce: ogni tocco sposta di un invito; tenendo premuto la cifra scorre
-  const passo = (dir) => setImporto((prima) => {
-    const ora = prima === '' ? invito : Number(prima) || invito
-    let n = ora + dir * invito
-    n = Math.max(invito, n)
-    if (tetto) n = Math.min(tetto, n)
-    return String(n)
+  // Riga dell'importo: frecce per scendere e salire, campo e scorciatoie
+  const passo = invito
+  const limita = (v) => Math.max(invito, tetto ? Math.min(v, tetto) : v)
+  const cambiaImporto = (verso) => setImporto((attuale) => {
+    const v = attuale === '' ? invito : Number(attuale) || invito
+    return String(limita(v + verso * passo))
   })
-  const fermaRipeti = () => { clearTimeout(ripeti.current?.t); clearInterval(ripeti.current?.i); ripeti.current = null }
-  const avviaRipeti = (dir) => {
-    fermaRipeti()
-    passo(dir)
-    ripeti.current = { t: setTimeout(() => { ripeti.current.i = setInterval(() => passo(dir), 80) }, 400) }
-  }
-  const freccia = (dir) => {
-    const alLimite = dir < 0 ? valore <= invito : (tetto != null && valore >= tetto)
-    return (
-      <button type="button" className="freccia" disabled={alLimite}
-        aria-label={dir < 0 ? `Diminuisci di ${invito} V` : `Aumenta di ${invito} V`}
-        onPointerDown={(e) => { e.preventDefault(); avviaRipeti(dir) }}
-        onPointerUp={fermaRipeti} onPointerLeave={fermaRipeti} onPointerCancel={fermaRipeti}
-        onClick={(e) => { if (e.detail === 0) passo(dir) }}>
-        {dir < 0 ? '▼' : '▲'}
-      </button>
-    )
-  }
-
   const rigaImporto = () => (
     <div className="puntata-riga">
       <div className="importo-frecce">
-        {freccia(-1)}
+        <Freccia verso={-1} onPasso={cambiaImporto} disabled={attesa || valore <= invito} etichetta={`Diminuisci di ${fmt(passo)}`} />
         <label className="puntata-campo">
           <span className="nascosto">Importo</span>
-          <input type="number" inputMode="numeric" min={invito} max={tetto ?? undefined} step={invito}
+          <input type="number" inputMode="numeric" min={invito} max={tetto ?? undefined} step={passo}
             value={importo} placeholder={String(invito)} aria-label="Importo in Vardis"
             onChange={(e) => setImporto(e.target.value)} />
         </label>
-        {freccia(1)}
+        <Freccia verso={1} onPasso={cambiaImporto} disabled={attesa || (tetto != null && valore >= tetto)} etichetta={`Aumenta di ${fmt(passo)}`} />
       </div>
       <button type="button" className="chip" onClick={() => setImporto(String(invito))}>Min</button>
-      <button type="button" className="chip" onClick={() => setImporto(String(Math.max(invito, Math.floor((tetto ?? mano.piatto) / 2))))}>½ piatto</button>
-      <button type="button" className="chip" onClick={() => setImporto(String(Math.max(invito, tetto ?? mano.piatto)))}>{tetto ? 'Max' : 'Piatto'}</button>
+      <button type="button" className="chip" onClick={() => setImporto(String(limita(Math.floor((tetto ?? mano.piatto) / 2))))}>½ piatto</button>
+      <button type="button" className="chip" onClick={() => setImporto(String(limita(tetto ?? mano.piatto)))}>{tetto ? 'Max' : 'Piatto'}</button>
     </div>
   )
 
@@ -395,5 +374,33 @@ export default function Gioco({ tavolo, giocatori, io }) {
         </aside>
       </div>
     </section>
+  )
+}
+
+// Freccia per l'importo: un tocco cambia di un passo, tenendola premuta continua sempre più veloce
+function Freccia({ verso, onPasso, disabled, etichetta }) {
+  const timer = useRef(null)
+  const ferma = () => { clearTimeout(timer.current); timer.current = null }
+  const avvia = (e) => {
+    if (disabled) return
+    e.preventDefault()
+    onPasso(verso)
+    let ritardo = 400
+    const ripeti = () => {
+      onPasso(verso)
+      ritardo = Math.max(60, ritardo * 0.8)
+      timer.current = setTimeout(ripeti, ritardo)
+    }
+    timer.current = setTimeout(ripeti, ritardo)
+  }
+  useEffect(() => ferma, [])
+  useEffect(() => { if (disabled) ferma() }, [disabled])
+  return (
+    <button type="button" className="freccia" disabled={disabled} aria-label={etichetta} title={etichetta}
+      onPointerDown={avvia} onPointerUp={ferma} onPointerLeave={ferma} onPointerCancel={ferma}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onPasso(verso) } }}
+      onContextMenu={(e) => e.preventDefault()}>
+      {verso < 0 ? '−' : '+'}
+    </button>
   )
 }
