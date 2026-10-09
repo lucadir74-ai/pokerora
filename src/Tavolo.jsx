@@ -6,6 +6,7 @@ import Gioco from './Gioco'
 import { durata, ora } from './tempo'
 import Chat from './Chat'
 import Cassetto from './Cassetto'
+import { suoniAttivi, impostaSuoni, ascoltaSuoni } from './suoni'
 import { useChat } from './chat'
 import { messaggioErrore, vai } from './rotte'
 import { REGOLE_BASE, OPZIONI, descriviRegole, descriviMazzo, fmt, invitoDi } from './regole'
@@ -30,6 +31,8 @@ export default function Tavolo({ id, io }) {
   const [modifica, setModifica] = useState(null)
   const [cassetto, setCassetto] = useState(null) // 'poste' | 'regole' | null
   const chiudiCassetto = useCallback(() => setCassetto(null), [])
+  const [suoni, setSuoni] = useState(suoniAttivi())
+  useEffect(() => ascoltaSuoni(setSuoni), [])
 
   const carica = useCallback(async () => {
     const [t, g, p] = await Promise.all([
@@ -193,6 +196,10 @@ export default function Tavolo({ id, io }) {
         <nav className="barra-gioco" aria-label="Tavolo">
           <span className="barra-nome">{tavolo.nome}</span>
           <span className="barra-link">
+            <button className="suoni-tasto" onClick={() => impostaSuoni(!suoni)}
+              aria-label={suoni ? 'Disattiva i suoni' : 'Attiva i suoni'} title={suoni ? 'Suoni attivi' : 'Suoni spenti'}>
+              {suoni ? '🔊' : '🔇'}
+            </button>
             <button className="link-chiaro" onClick={() => setCassetto('regole')}>Regole</button>
             <button className="link-chiaro" onClick={() => setCassetto('poste')}>Poste e saldi</button>
             <button className="chip-posta" disabled={attesa} title={`Prendi un’altra posta da ${fmt(tavolo.valore_posta)}`}

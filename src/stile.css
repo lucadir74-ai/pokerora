@@ -853,3 +853,22 @@ button.carta-gioco { cursor: pointer; transition: transform 120ms ease; }
   .pagina.ampia .zona-tavolo > .scena { width: calc(100% + 1.5rem); margin-inline: -0.75rem; }
   .pagina.ampia { gap: 0.6rem; }
 }
+
+/* ═════════ Spizzare le proprie carte ═════════ */
+.spizza {
+  position: relative; display: inline-block; border-radius: 8px; overflow: hidden;
+  touch-action: none; cursor: grab; -webkit-user-select: none; user-select: none; vertical-align: top;
+}
+.spizza > span[aria-hidden] { display: block; }
+.spizza .carta-gioco { display: flex; }
+.spizza .copertura {
+  position: absolute; inset: 0; border-radius: inherit; will-change: transform;
+  background: var(--dorso) url('/img/dorso.webp') center / cover no-repeat;
+  border: 2px solid #fff; box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.15);
+}
+.spizza.mollata .copertura { transition: transform 180ms ease-out; }
+.spizza:focus-visible { outline: 3px solid var(--ottone); outline-offset: 2px; }
+.scopri-tutte { border: 0; cursor: pointer; font: inherit; font-size: clamp(0.72rem, 2.4cqw, 0.95rem); font-weight: 700; color: #f2d77a; }
+
+/* Pulsante dei suoni nella barra del tavolo */
+.suoni-tasto { background: none; border: 0; padding: 0.2rem; font-size: 1.15rem; line-height: 1; cursor: pointer; }

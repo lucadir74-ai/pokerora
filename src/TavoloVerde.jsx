@@ -2,6 +2,60 @@ import { useEffect, useRef, useState } from 'react'
 import Carta from './Carta'
 import { fmt } from './regole'
 import { valutaMano, nomePunto, puoAprire } from './punti'
+import { gira } from './suoni'
+
+// Una mia carta ancora coperta: si guarda toccandola o trascinando il dorso verso l'alto
+function Spizza({ c, onVedi }) {
+  const [alza, setAlza] = useState(0)
+  const [tengo, setTengo] = useState(false)
+  const inizio = useRef(null)
+  const ref = useRef(null)
+  const scopri = () => { gira(); onVedi() }
+  return (
+    <span ref={ref} className={`spizza${tengo ? '' : ' mollata'}`} role="button" tabIndex={0}
+      aria-label="Carta coperta: tocca o trascina in su per guardarla"
+      onPointerDown={(e) => {
+        inizio.current = { y: e.clientY, mosso: false }
+        setTengo(true)
+        e.currentTarget.setPointerCapture?.(e.pointerId)
+      }}
+      onPointerMove={(e) => {
+        const i = inizio.current
+        if (!i) return
+        const d = i.y - e.clientY
+        if (Math.abs(d) > 6) i.mosso = true
+        setAlza(Math.min(1, Math.max(0, d / (ref.current?.offsetHeight || 80))))
+      }}
+      onPointerUp={() => {
+        const i = inizio.current
+        inizio.current = null
+        setTengo(false)
+        if (i && (!i.mosso || alza > 0.45)) scopri()
+        setAlza(0)
+      }}
+      onPointerCancel={() => { inizio.current = null; setTengo(false); setAlza(0) }}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); scopri() } }}>
+      <span aria-hidden="true"><Carta c={c} /></span>
+      <span className="copertura" style={{ transform: `translateY(${(-alza * 100).toFixed(1)}%)` }} />
+    </span>
+  )
+}
+
+// Carte già guardate in questa mano (restano scoperte anche se ricarichi la pagina)
+function useViste(idMano) {
+  const chiave = `pokerora_viste_${idMano}`
+  const leggi = () => {
+    try { return new Set(JSON.parse(sessionStorage.getItem(chiave) || '[]')) } catch { return new Set() }
+  }
+  const [viste, setViste] = useState(leggi)
+  useEffect(() => { setViste(leggi()) }, [idMano])
+  const salva = (nuove) => {
+    try { sessionStorage.setItem(chiave, JSON.stringify([...nuove])) } catch {}
+    return nuove
+  }
+  const vedi = (cc) => setViste((v) => salva(new Set([...v, ...[].concat(cc)])))
+  return [viste, vedi]
+}
 
 // Posizioni in percentuale del tavolo (x sulla larghezza, y sull'altezza)
 const CENTRO = { x: 50, y: 48 }
@@ -146,6 +200,7 @@ function Fondo({ stretto }) {
 
 export default function TavoloVerde({ mano, posti, giocatori, io, carte, scelte, onScegli, azioni, conclusa, fumetti = {} }) {
   const [fantasmi, setFantasmi] = useState([])
+  const [viste, vedi] = useViste(mano?.id)
   const prevCambio = useRef({})
   const stretto = useStretto()
   const stile = (pos, extra = {}) => {
@@ -285,10 +340,17 @@ export default function TavoloVerde({ mano, posti, giocatori, io, carte, scelte,
                 <div className={`mano-mia${fuori ? ' piegata' : ''}`} style={stile(cartePos)}>
                   {carte.map((c, k) => (
                     <span key={`${mano.id}-${c}`} className={`volo${gia(`${mano.id}-${c}`)}`} style={{ ...delta(MAZZO, cartePos), '--ritardo': `${k * giro.length * 70 + 40}ms`, '--rot': `${(k - 2) * 3}deg` }}>
-                      <Carta c={c} scelta={scelte.includes(c)} onClick={onScegli ? () => onScegli(c) : undefined} />
+                      {viste.has(c) || fuori
+                        ? <Carta c={c} scelta={scelte.includes(c)} onClick={onScegli ? () => onScegli(c) : undefined} />
+                        : <Spizza c={c} onVedi={() => vedi(c)} />}
                     </span>
                   ))}
-                  {carte.length === 5 && (
+                  {carte.length === 5 && !fuori && carte.some((c) => !viste.has(c)) && (
+                    <button type="button" className="mio-punto scopri-tutte" onClick={() => { gira(); vedi(carte) }}>
+                      Spizza le carte · scopri tutte
+                    </button>
+                  )}
+                  {carte.length === 5 && !fuori && carte.every((c) => viste.has(c)) && (
                     <span className="mio-punto">
                       {nomePunto(valutaMano(carte, mano.bassa))}
                       {mano.fase === 'apertura' && (puoAprire(carte, mano.requisito, mano.bassa)
