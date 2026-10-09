@@ -364,32 +364,17 @@ button.carta-gioco { cursor: pointer; transition: transform 120ms ease; }
 .gioco-griglia { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1.25rem; align-items: start; }
 @media (min-width: 960px) { .gioco-griglia { grid-template-columns: minmax(0, 1fr) 21rem; } }
 
-/* Il tavolo: ovale con bordo in legno e filo d'ottone */
-.tavolo-verde {
-  position: relative; width: 100%; aspect-ratio: 3 / 4;
-  border-radius: 50% / 46%;
-  background: radial-gradient(ellipse at 50% 30%, var(--legno-chiaro), var(--legno) 70%);
-  padding: 4.5%;
-  box-shadow: 0 30px 50px -20px rgba(0, 0, 0, 0.7), inset 0 2px 0 rgba(255, 255, 255, 0.12);
-}
-@media (min-width: 640px) { .tavolo-verde { aspect-ratio: 16 / 11; } }
-.panno {
-  position: relative; width: 100%; height: 100%;
-  border-radius: 50% / 46%;
-  background:
-    radial-gradient(ellipse at 50% 42%, #2f7656 0%, #22593f 55%, #173d2b 100%);
-  box-shadow: inset 0 0 0 2px rgba(201, 162, 39, 0.55), inset 0 0 40px rgba(0, 0, 0, 0.45);
-  container-type: size;
-  overflow: visible;
-}
-.panno::after {
-  content: ""; position: absolute; inset: 9%; border-radius: 50% / 46%;
-  border: 1px solid rgba(255, 255, 255, 0.08); pointer-events: none;
-}
+/* Il tavolo: disegnato in prospettiva (sfondo vettoriale), gli oggetti sopra */
+.tavolo-verde { position: relative; width: 100%; aspect-ratio: 3 / 4.2; }
+@media (min-width: 640px) { .tavolo-verde { aspect-ratio: 16 / 10.5; } }
+.tavolo-verde > .fondo { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.panno { position: absolute; inset: 0; container-type: size; overflow: visible; }
 .invito-mano { position: absolute; inset: 0; display: grid; place-items: center; margin: 0; color: #cfe0d6; font-size: 1.05rem; }
 
 /* Elementi posizionati sul panno */
-.panno > div > *, .mazzetto, .piatto-centro, .turno-centro { position: absolute; transform: translate(-50%, -50%); }
+.posto-gruppo > *, .mazzetto, .piatto-centro, .turno-centro { position: absolute; transform: translate(-50%, -50%) scale(var(--s, 1)); }
+.posto-gruppo { position: absolute; inset: 0; pointer-events: none; }
+.posto-gruppo > * { pointer-events: auto; }
 
 /* Dorso delle carte */
 .dorso {
@@ -406,14 +391,14 @@ button.carta-gioco { cursor: pointer; transition: transform 120ms ease; }
 .mazzetto .storto { transform: rotate(14deg); opacity: 0.85; }
 
 /* Carte coperte degli altri, a ventaglio verso il centro */
-.mano-coperta { display: flex; transform: translate(-50%, -50%) rotate(var(--ang)); transition: opacity 400ms ease, transform 400ms ease; }
+.mano-coperta { display: flex; transform: translate(-50%, -50%) scale(var(--s, 1)); transition: opacity 400ms ease, transform 400ms ease; }
 .mano-coperta > .dorso { margin-left: calc(clamp(16px, 4.6cqw, 40px) * -0.55); transform: rotate(var(--rot)); }
 .mano-coperta > .dorso:first-child { margin-left: 0; }
-.mano-coperta.piegata, .mano-mia.piegata { opacity: 0.2; transform: translate(-50%, -50%) rotate(var(--ang, 0deg)) scale(0.75); }
+.mano-coperta.piegata, .mano-mia.piegata { opacity: 0.2; transform: translate(-50%, -50%) scale(calc(var(--s, 1) * 0.75)); }
 
 /* Le mie carte */
 .mano-mia { display: flex; gap: clamp(4px, 1.2cqw, 10px); transition: opacity 400ms ease, transform 400ms ease; }
-.mano-mia .carta-gioco { width: clamp(34px, 7.6cqw, 66px); height: auto; aspect-ratio: 5 / 7; padding: 0.3em 0.35em; }
+.mano-mia .carta-gioco { width: clamp(34px, 7cqw, 62px); height: auto; aspect-ratio: 5 / 7; padding: 0.3em 0.35em; }
 @media (max-width: 639px) { .mano-mia .carta-gioco { width: clamp(32px, 9cqw, 52px); } }
 .mano-mia .cg-valore { font-size: clamp(0.85rem, 2.6cqw, 1.35rem); }
 .mano-mia .cg-seme { font-size: clamp(1rem, 3.2cqw, 1.7rem); }
@@ -437,7 +422,7 @@ button.carta-gioco { cursor: pointer; transition: transform 120ms ease; }
 /* Carte scoperte al confronto */
 .mano-scoperta { display: flex; flex-wrap: nowrap; gap: 2px; }
 .mano-scoperta.mia { gap: clamp(4px, 1.2cqw, 10px); }
-.mano-scoperta.mia .carta-gioco { width: clamp(34px, 7.6cqw, 66px); height: auto; aspect-ratio: 5 / 7; padding: 0.3em 0.35em; }
+.mano-scoperta.mia .carta-gioco { width: clamp(34px, 7cqw, 62px); height: auto; aspect-ratio: 5 / 7; padding: 0.3em 0.35em; }
 @media (max-width: 639px) { .mano-scoperta.mia .carta-gioco { width: clamp(32px, 9cqw, 52px); } }
 .mano-scoperta .carta-gioco.piccola { width: clamp(18px, 3.7cqw, 34px); height: auto; aspect-ratio: 5 / 7; padding: 2px 3px; }
 @media (max-width: 639px) { .mano-scoperta .carta-gioco.piccola { width: clamp(16px, 5.4cqw, 30px); } }
@@ -551,7 +536,7 @@ button.carta-gioco { cursor: pointer; transition: transform 120ms ease; }
 
 /* In partita il tavolo deve entrare nello schermo */
 @media (min-width: 640px) {
-  .tavolo-verde { width: min(100%, calc((100vh - 7rem) * 16 / 11)); margin-inline: auto; }
+  .tavolo-verde { width: min(100%, calc((100vh - 7rem) * 16 / 10.5)); margin-inline: auto; }
 }
 @media (prefers-reduced-motion: reduce) { .posto-tavolo.di-turno { animation: none; } }
 
@@ -674,3 +659,15 @@ button.carta-gioco { cursor: pointer; transition: transform 120ms ease; }
 }
 .pre-scelta input { width: 1.1rem; height: 1.1rem; accent-color: var(--panno); }
 .pre-scelta.attiva { border-color: var(--panno); background: #eef5f0; }
+
+/* Rilievo di carte, fiches e posti */
+.panno .carta-gioco {
+  background: linear-gradient(160deg, #ffffff 0%, #f4f0e6 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 6px 14px rgba(0, 0, 0, 0.45);
+}
+.panno .dorso { box-shadow: 0 2px 0 rgba(0, 0, 0, 0.3), 0 5px 10px rgba(0, 0, 0, 0.35); }
+.panno .disco { box-shadow: 0 2px 0 color-mix(in srgb, var(--c) 50%, #000), 0 3px 5px rgba(0, 0, 0, 0.45); }
+.panno .posto-tavolo {
+  background: linear-gradient(180deg, rgba(34, 58, 45, 0.96), rgba(10, 22, 16, 0.96));
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.14);
+}

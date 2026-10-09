@@ -4,18 +4,18 @@ import { fmt } from './regole'
 import { valutaMano, nomePunto, puoAprire } from './punti'
 
 // Posizioni in percentuale del tavolo (x sulla larghezza, y sull'altezza)
-const CENTRO = { x: 50, y: 46 }
-const MAZZO = { x: 37, y: 46 }
-const SCARTI = { x: 63, y: 46 }
+const CENTRO = { x: 50, y: 48 }
+const MAZZO = { x: 36, y: 48 }
+const SCARTI = { x: 64, y: 48 }
 const verso = (a, b, t) => ({ x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t })
 
 // Senso orario visto dall'alto: io in basso, poi a sinistra, in alto, a destra
 function posizioni(n, stretto) {
-  const rx = stretto ? 36 : 43
-  const ry = stretto ? 42 : 41
+  const rx = stretto ? 40 : 45
+  const ry = stretto ? 44 : 45
   return Array.from({ length: n }, (_, k) => {
     const a = ((90 + (k * 360) / n) * Math.PI) / 180
-    return { x: 50 + rx * Math.cos(a), y: 47 + ry * Math.sin(a) }
+    return { x: 50 + rx * Math.cos(a), y: 50 + ry * Math.sin(a) }
   })
 }
 
@@ -58,16 +58,89 @@ const BOLLE = {
   cambio: (i) => (i === 0 ? 'Servito' : `Cambia ${i}`), vince: (i) => `Vince ${i}`,
 }
 
-function stile(pos, extra = {}) {
-  return { left: `${pos.x}%`, top: `${pos.y}%`, ...extra }
+// ── Prospettiva disegnata ──
+// Il tavolo è descritto "dall'alto" (x, y da 0 a 100) e proiettato sullo schermo:
+// in fondo (y piccolo) è più stretto e gli oggetti sono un po' più piccoli.
+const PROSPETTIVA = {
+  largo: { fondo: 0.74, alto: 7, altezza: 84 },
+  stretto: { fondo: 0.84, alto: 5, altezza: 88 },
 }
-// Spostamento (in unità del contenitore) da un punto a un altro, per le animazioni
-const delta = (da, a) => ({ '--dx': (da.x - a.x).toFixed(2), '--dy': (da.y - a.y).toFixed(2) })
+function proietta(p, stretto) {
+  const k = PROSPETTIVA[stretto ? 'stretto' : 'largo']
+  const t = Math.min(Math.max(p.y, 0), 100) / 100
+  const d = k.fondo + (1 - k.fondo) * t
+  return { x: 50 + (p.x - 50) * d, y: k.alto + p.y * (k.altezza / 100), s: Math.pow(d, 0.9) }
+}
+
+// Contorno di un'ellisse del tavolo, proiettato, come percorso SVG
+function ellisse(cx, cy, rx, ry, stretto, dy = 0) {
+  const punti = Array.from({ length: 73 }, (_, i) => {
+    const a = (i / 72) * Math.PI * 2
+    const q = proietta({ x: cx + rx * Math.cos(a), y: cy + ry * Math.sin(a) }, stretto)
+    return `${q.x.toFixed(2)},${(q.y + dy).toFixed(2)}`
+  })
+  return `M${punti.join('L')}Z`
+}
+
+function Fondo({ stretto }) {
+  const bordo = ellisse(50, 50, 49, 49, stretto)
+  const spessore = ellisse(50, 50, 49, 49, stretto, stretto ? 2.2 : 3.2)
+  const panno = ellisse(50, 50, 43.5, 42.5, stretto)
+  const filo = ellisse(50, 50, 42.3, 41.3, stretto)
+  const linea = ellisse(50, 49, 29, 27, stretto)
+  return (
+    <svg className="fondo" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+      <defs>
+        <radialGradient id="g-pelle" cx="50%" cy="20%" r="80%">
+          <stop offset="0%" stopColor="#5a3826" />
+          <stop offset="55%" stopColor="#38200f" />
+          <stop offset="100%" stopColor="#1b0d06" />
+        </radialGradient>
+        <linearGradient id="g-legno" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#2a160b" />
+          <stop offset="100%" stopColor="#0b0503" />
+        </linearGradient>
+        <radialGradient id="g-panno" cx="50%" cy="42%" r="62%">
+          <stop offset="0%" stopColor="#3a9a6b" />
+          <stop offset="45%" stopColor="#21724b" />
+          <stop offset="85%" stopColor="#144a33" />
+          <stop offset="100%" stopColor="#0c3121" />
+        </radialGradient>
+        <filter id="f-trama" x="0" y="0" width="100%" height="100%">
+          <feTurbulence type="fractalNoise" baseFrequency="1.6" numOctaves="2" seed="3" />
+          <feColorMatrix values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.10 0" />
+          <feComposite in2="SourceGraphic" operator="in" />
+        </filter>
+        <filter id="f-ombra" x="-20%" y="-20%" width="140%" height="160%">
+          <feGaussianBlur stdDeviation="2.2" />
+        </filter>
+      </defs>
+      <path d={spessore} transform="translate(0 2.5)" fill="rgba(0,0,0,0.55)" filter="url(#f-ombra)" />
+      <path d={spessore} fill="url(#g-legno)" />
+      <path d={bordo} fill="url(#g-pelle)" />
+      <path d={bordo} fill="none" stroke="rgba(255,255,255,0.16)" strokeWidth="1.2" vectorEffect="non-scaling-stroke" />
+      <path d={panno} fill="url(#g-panno)" />
+      <path d={panno} fill="#000" filter="url(#f-trama)" />
+      <path d={panno} fill="none" stroke="rgba(0,0,0,0.45)" strokeWidth="6" vectorEffect="non-scaling-stroke" />
+      <path d={filo} fill="none" stroke="#c9a227" strokeOpacity="0.8" strokeWidth="1.5" vectorEffect="non-scaling-stroke" />
+      <path d={linea} fill="none" stroke="rgba(242,215,122,0.25)" strokeWidth="1" strokeDasharray="4 5" vectorEffect="non-scaling-stroke" />
+    </svg>
+  )
+}
 
 export default function TavoloVerde({ mano, posti, giocatori, io, carte, scelte, onScegli, azioni, conclusa, fumetti = {} }) {
   const [fantasmi, setFantasmi] = useState([])
   const prevCambio = useRef({})
   const stretto = useStretto()
+  const stile = (pos, extra = {}) => {
+    const q = proietta(pos, stretto)
+    return { left: `${q.x}%`, top: `${q.y}%`, '--s': q.s.toFixed(3), ...extra }
+  }
+  // Spostamento sullo schermo da un punto all'altro (per le animazioni)
+  const delta = (da, a) => {
+    const p = proietta(da, stretto), q = proietta(a, stretto)
+    return { '--dx': (p.x - q.x).toFixed(2), '--dy': (p.y - q.y).toFixed(2) }
+  }
 
   // Gli elementi già sul tavolo all'apertura della pagina non si animano;
   // tutto quello che arriva dopo (carte, puntate, piatto) sì.
@@ -100,7 +173,11 @@ export default function TavoloVerde({ mano, posti, giocatori, io, carte, scelte,
   }, [posti, mano])
 
   if (!mano) {
-    return <div className="tavolo-verde vuoto"><div className="panno"><p className="invito-mano">Il mazzo è pronto.</p></div></div>
+    return (
+      <div className="scena">
+        <div className="tavolo-verde vuoto"><Fondo stretto={stretto} /><div className="panno"><p className="invito-mano">Il mazzo è pronto.</p></div></div>
+      </div>
+    )
   }
 
   // Io in basso, gli altri in senso orario
@@ -127,7 +204,9 @@ export default function TavoloVerde({ mano, posti, giocatori, io, carte, scelte,
   const mostraPiatto = mano.fase !== 'finita' || vincitori.length === 1
 
   return (
+    <div className="scena">
     <div className="tavolo-verde">
+      <Fondo stretto={stretto} />
       <div className="panno" aria-label={`Tavolo: mano ${mano.numero}, piatto ${fmt(mano.piatto)}`}>
         {/* Mazzo e scarti al centro */}
         <span className="mazzetto" style={stile(MAZZO)} aria-hidden="true"><span className="dorso" /><span className="dorso" /></span>
@@ -141,7 +220,7 @@ export default function TavoloVerde({ mano, posti, giocatori, io, carte, scelte,
           if (!t) return null
           const mio = t.giocatore_id === io.id
           return (
-            <span key={`${mano.id}-${mano.fase}-${mano.turno}`} className={`turno-centro${mio ? ' mio' : ''}`} style={stile({ x: 50, y: 33 })}>
+            <span key={`${mano.id}-${mano.fase}-${mano.turno}`} className={`turno-centro${mio ? ' mio' : ''}`} style={stile({ x: 50, y: 32 })}>
               {mio ? 'Tocca a te' : `Tocca a ${nomeDi(t.giocatore_id)}`}
             </span>
           )
@@ -162,7 +241,7 @@ export default function TavoloVerde({ mano, posti, giocatori, io, carte, scelte,
           const diTurno = mano.turno === p.posto && !conclusa
           const vince = conclusa && p.vincita > 0
           const puntataPos = verso(s, CENTRO, sonoIo ? 0.42 : 0.4)
-          const cartePos = sonoIo ? { x: 50, y: stretto ? 79 : 72 } : verso(s, CENTRO, stretto ? 0.3 : 0.24)
+          const cartePos = sonoIo ? { x: 50, y: stretto ? 77 : 74 } : verso(s, CENTRO, stretto ? 0.3 : 0.24)
           const scoperte = conclusa && p.carte_mostrate
           const primaDelleCarte = mano.fase === 'buio'
 
@@ -175,7 +254,7 @@ export default function TavoloVerde({ mano, posti, giocatori, io, carte, scelte,
           ]
 
           return (
-            <div key={p.giocatore_id}>
+            <div key={p.giocatore_id} className="posto-gruppo">
               {/* Carte */}
               {primaDelleCarte ? null : sonoIo && !scoperte ? (
                 <div className={`mano-mia${fuori ? ' piegata' : ''}`} style={stile(cartePos)}>
@@ -245,6 +324,7 @@ export default function TavoloVerde({ mano, posti, giocatori, io, carte, scelte,
           )
         })}
       </div>
+    </div>
     </div>
   )
 }
