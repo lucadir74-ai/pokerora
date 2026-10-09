@@ -19,6 +19,8 @@ export default function Gioco({ tavolo, giocatori, io }) {
   const [errore, setErrore] = useState('')
   const [attesa, setAttesa] = useState(false)
   const [pre, setPre] = useState(null)
+  const ripeti = useRef(null)
+  useEffect(() => () => { clearTimeout(ripeti.current?.t); clearInterval(ripeti.current?.i) }, [])
   const preInviata = useRef(false)
 
   const idMano = tavolo.mano_corrente
@@ -128,21 +130,51 @@ export default function Gioco({ tavolo, giocatori, io }) {
 
 
   // Riga dell'importo: campo e scorciatoie
+  // Frecce: ogni tocco sposta di un invito; tenendo premuto la cifra scorre
+  const passo = (dir) => setImporto((prima) => {
+    const ora = prima === '' ? invito : Number(prima) || invito
+    let n = ora + dir * invito
+    n = Math.max(invito, n)
+    if (tetto) n = Math.min(tetto, n)
+    return String(n)
+  })
+  const fermaRipeti = () => { clearTimeout(ripeti.current?.t); clearInterval(ripeti.current?.i); ripeti.current = null }
+  const avviaRipeti = (dir) => {
+    fermaRipeti()
+    passo(dir)
+    ripeti.current = { t: setTimeout(() => { ripeti.current.i = setInterval(() => passo(dir), 80) }, 400) }
+  }
+  const freccia = (dir) => {
+    const alLimite = dir < 0 ? valore <= invito : (tetto != null && valore >= tetto)
+    return (
+      <button type="button" className="freccia" disabled={alLimite}
+        aria-label={dir < 0 ? `Diminuisci di ${invito} V` : `Aumenta di ${invito} V`}
+        onPointerDown={(e) => { e.preventDefault(); avviaRipeti(dir) }}
+        onPointerUp={fermaRipeti} onPointerLeave={fermaRipeti} onPointerCancel={fermaRipeti}
+        onClick={(e) => { if (e.detail === 0) passo(dir) }}>
+        {dir < 0 ? '▼' : '▲'}
+      </button>
+    )
+  }
+
   const rigaImporto = () => (
     <div className="puntata-riga">
-      <label className="puntata-campo">
-        <span className="nascosto">Importo</span>
-        <input type="number" inputMode="numeric" min={invito} max={tetto ?? undefined} step={1}
-          value={importo} placeholder={String(invito)} aria-label="Importo in Vardis"
-          onChange={(e) => setImporto(e.target.value)} />
-      </label>
+      <div className="importo-frecce">
+        {freccia(-1)}
+        <label className="puntata-campo">
+          <span className="nascosto">Importo</span>
+          <input type="number" inputMode="numeric" min={invito} max={tetto ?? undefined} step={invito}
+            value={importo} placeholder={String(invito)} aria-label="Importo in Vardis"
+            onChange={(e) => setImporto(e.target.value)} />
+        </label>
+        {freccia(1)}
+      </div>
       <button type="button" className="chip" onClick={() => setImporto(String(invito))}>Min</button>
       <button type="button" className="chip" onClick={() => setImporto(String(Math.max(invito, Math.floor((tetto ?? mano.piatto) / 2))))}>½ piatto</button>
       <button type="button" className="chip" onClick={() => setImporto(String(Math.max(invito, tetto ?? mano.piatto)))}>{tetto ? 'Max' : 'Piatto'}</button>
     </div>
   )
 
-  // Pulsante grande: tono 'neutro' (passo, lascio), 'verde' (vedo, busso), 'oro' (apro, punto, rilancio)
   // Pulsante grande: titolo con l'eventuale cifra, e sotto una riga che spiega cosa succede
   const grande = (testo, tono, onClick, spiega) => (
     <button type="button" className={`azione-grande ${tono}`} disabled={attesa} onClick={onClick} title={spiega}>
@@ -173,12 +205,22 @@ export default function Gioco({ tavolo, giocatori, io }) {
       )
     }
     if (mano.buio_aperto && mano.buio_di !== io.id) {
+      // Coprire il buio: chi non ha messo buii paga l'ultimo per intero,
+      // chi aveva già messo buio o controbuio aggiunge solo la differenza
+      const cosa = ['', 'il buio', 'il controbuio', 'l’over'][mano.buio_livello]
+      const giaMesso = mio.versato_giro > 0
       return (
         <div className="azioni-gioco">
-          <p>Dopo il buio puoi solo vedere o lasciare.</p>
+          <p>
+            {giaMesso
+              ? `${nomeDi(mano.buio_di)} ha fatto ${cosa}: per restare in gioco aggiungi la differenza.`
+              : `C’è ${cosa} di ${fmt(mano.puntata)}: per giocare devi coprirlo, altrimenti lasci.`}
+          </p>
           <div className="griglia-azioni due">
-            {grande('Lascio', 'neutro', () => azione('passo'), 'Esci dalla mano')}
-            {grande(`Vedo ${fmt(daVedere)}`, 'verde', () => azione('vedo'), 'Pareggi il buio e resti in gioco')}
+            {grande('Lascio', 'neutro', () => azione('passo'),
+              giaMesso ? 'Esci dalla mano: perdi quanto hai già messo' : 'Esci dalla mano')}
+            {grande(`Copro ${cosa} ${fmt(daVedere)}`, 'verde', () => azione('vedo'),
+              giaMesso ? `Aggiungi ${fmt(daVedere)} e resti in gioco` : 'Metti la stessa cifra e resti in gioco')}
           </div>
         </div>
       )
@@ -199,7 +241,7 @@ export default function Gioco({ tavolo, giocatori, io }) {
     let pulsanti
     if (mano.buio_aperto) {
       pulsanti = [
-        grande('Chiudo il giro', 'verde', () => azione('vedo'), 'Non rilanci: si passa al cambio'),
+        grande('Chiudo il giro', 'verde', () => azione('vedo'), 'Tutti hanno coperto: non rilanci e si passa al cambio'),
         grande(`Rilancio +${fmt(valore)}`, 'oro', () => azione('rilancio', valore), 'Alzi la puntata: gli altri devono pareggiare'),
       ]
     } else if (mano.fase === 'apertura') {
