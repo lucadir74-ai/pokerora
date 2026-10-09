@@ -5,6 +5,7 @@ import Fiches from './Fiches'
 import Gioco from './Gioco'
 import { durata, ora } from './tempo'
 import Chat from './Chat'
+import Cassetto from './Cassetto'
 import { useChat } from './chat'
 import { messaggioErrore, vai } from './rotte'
 import { REGOLE_BASE, OPZIONI, descriviRegole, descriviMazzo, fmt, invitoDi } from './regole'
@@ -27,6 +28,8 @@ export default function Tavolo({ id, io }) {
   const [avviso, setAvviso] = useState('')
   const [attesa, setAttesa] = useState(false)
   const [modifica, setModifica] = useState(null)
+  const [posteAperte, setPosteAperte] = useState(false)
+  const chiudiPoste = useCallback(() => setPosteAperte(false), [])
 
   const carica = useCallback(async () => {
     const [t, g, p] = await Promise.all([
@@ -132,6 +135,48 @@ export default function Tavolo({ id, io }) {
     </>
   )
 
+  const contenutoPoste = (
+    <>
+          {tavolo.stato === 'chiuso' && tavolo.avviato_il && tavolo.chiuso_il && (
+            <p className="durata-partita">
+              Partita durata {durata(tavolo.avviato_il, tavolo.chiuso_il)}, dalle {ora(tavolo.avviato_il)} alle {ora(tavolo.chiuso_il)}
+            </p>
+          )}
+          <p className="tenue">Il saldo è la differenza tra le fiches che hai e le poste che hai preso.</p>
+          {messaggi}
+          <table className="report">
+            <thead>
+              <tr><th>Giocatore</th><th>Poste</th><th>Fiches</th><th>Saldo</th></tr>
+            </thead>
+            <tbody>
+              {perGiocatore.map((g) => (
+                <tr key={g.giocatore_id}>
+                  <td>{g.profili?.nickname}</td><td>{g.quante}</td><td>{fmt(g.fiches)}</td>
+                  <td className={g.saldo > 0 ? 'positivo' : g.saldo < 0 ? 'negativo' : ''}>{g.saldo > 0 ? '+' : ''}{fmt(g.saldo)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {tavolo.stato === 'in_corso' && (
+            <>
+              <button className="secondario" disabled={attesa}
+                onClick={() => window.confirm(`Prendi un’altra posta da ${fmt(tavolo.valore_posta)}? Resterà nel report.`)
+                  && chiama('prendi_posta', { p_tavolo: id }, 'Posta aggiunta.')}>
+                Prendi un’altra posta
+              </button>
+            </>
+          )}
+          <h3>Registro</h3>
+          <ol className="registro">
+            {poste.map((p) => (
+              <li key={p.id}>
+                <time>{ora(p.presa_il)}</time> {nomeDi(p.giocatore_id)} {p.numero === 1 ? 'riceve la prima posta' : `prende la posta n. ${p.numero}`} ({fmt(p.valore)})
+              </li>
+            ))}
+          </ol>
+    </>
+  )
+
   return (
     <main className={`pagina${tavolo.stato === 'in_corso' ? ' ampia' : ''}`}>
       <Testata io={io} indietro />
@@ -191,47 +236,22 @@ export default function Tavolo({ id, io }) {
 
       {tavolo.stato === 'in_corso' && <Gioco tavolo={tavolo} giocatori={giocatori} io={io} />}
 
-      {tavolo.stato !== 'attesa' && (
+      {tavolo.stato === 'chiuso' && (
         <section className="carta">
           <h2>Poste e saldi</h2>
-          {tavolo.stato === 'chiuso' && tavolo.avviato_il && tavolo.chiuso_il && (
-            <p className="durata-partita">
-              Partita durata {durata(tavolo.avviato_il, tavolo.chiuso_il)}, dalle {ora(tavolo.avviato_il)} alle {ora(tavolo.chiuso_il)}
-            </p>
-          )}
-          <p className="tenue">Il saldo è la differenza tra le fiches che hai e le poste che hai preso.</p>
-          {messaggi}
-          <table className="report">
-            <thead>
-              <tr><th>Giocatore</th><th>Poste</th><th>Fiches</th><th>Saldo</th></tr>
-            </thead>
-            <tbody>
-              {perGiocatore.map((g) => (
-                <tr key={g.giocatore_id}>
-                  <td>{g.profili?.nickname}</td><td>{g.quante}</td><td>{fmt(g.fiches)}</td>
-                  <td className={g.saldo > 0 ? 'positivo' : g.saldo < 0 ? 'negativo' : ''}>{g.saldo > 0 ? '+' : ''}{fmt(g.saldo)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          {tavolo.stato === 'in_corso' && (
-            <>
-              <button className="secondario" disabled={attesa}
-                onClick={() => window.confirm(`Prendi un’altra posta da ${fmt(tavolo.valore_posta)}? Resterà nel report.`)
-                  && chiama('prendi_posta', { p_tavolo: id }, 'Posta aggiunta.')}>
-                Prendi un’altra posta
-              </button>
-            </>
-          )}
-          <h3>Registro</h3>
-          <ol className="registro">
-            {poste.map((p) => (
-              <li key={p.id}>
-                <time>{ora(p.presa_il)}</time> {nomeDi(p.giocatore_id)} {p.numero === 1 ? 'riceve la prima posta' : `prende la posta n. ${p.numero}`} ({fmt(p.valore)})
-              </li>
-            ))}
-          </ol>
+          {contenutoPoste}
         </section>
+      )}
+
+      {tavolo.stato === 'in_corso' && (
+        <>
+          <button className="linguetta-poste" onClick={() => setPosteAperte(true)} aria-label="Apri poste e saldi">
+            Poste e saldi
+          </button>
+          <Cassetto aperto={posteAperte} onChiudi={chiudiPoste} titolo="Poste e saldi">
+            {contenutoPoste}
+          </Cassetto>
+        </>
       )}
 
       <section className="carta">
