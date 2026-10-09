@@ -53,6 +53,14 @@ export default function Tavolo({ id, io }) {
     return () => { supabase.removeChannel(canale) }
   }, [id, carica])
 
+  // Durante la partita l'avviso nella barra sparisce da solo dopo qualche secondo
+  const inCorso = tavolo?.stato === 'in_corso'
+  useEffect(() => {
+    if (!inCorso || (!avviso && !errore)) return
+    const t = setTimeout(() => { setAvviso(''); setErrore('') }, 4000)
+    return () => clearTimeout(t)
+  }, [inCorso, avviso, errore])
+
   async function chiama(funzione, parametri, ok) {
     setErrore('')
     setAvviso('')
@@ -181,6 +189,24 @@ export default function Tavolo({ id, io }) {
     <main className={`pagina${tavolo.stato === 'in_corso' ? ' ampia' : ''}`}>
       <Testata io={io} indietro />
 
+      {tavolo.stato === 'in_corso' && (
+        <nav className="barra-gioco" aria-label="Tavolo">
+          <span className="barra-nome">{tavolo.nome}</span>
+          <span className="barra-link">
+            <button className="link-chiaro" onClick={() => setCassetto('regole')}>Regole</button>
+            <button className="link-chiaro" onClick={() => setCassetto('poste')}>Poste e saldi</button>
+            <button className="chip-posta" disabled={attesa} title={`Prendi un’altra posta da ${fmt(tavolo.valore_posta)}`}
+              onClick={() => window.confirm(`Prendi un’altra posta da ${fmt(tavolo.valore_posta)}? Resterà nel report.`)
+                && chiama('prendi_posta', { p_tavolo: id }, `Posta da ${fmt(tavolo.valore_posta)} aggiunta.`)}>
+              + Posta
+            </button>
+          </span>
+          {cassetto === null && (avviso || errore) && (
+            <p className={`barra-avviso${errore ? ' errore' : ''}`} role={errore ? 'alert' : 'status'}>{errore || avviso}</p>
+          )}
+        </nav>
+      )}
+
       {tavolo.stato !== 'in_corso' && <section className="carta intestazione-tavolo">
         <h2 className="titolo-tavolo">{tavolo.nome}</h2>
         <p className={`stato stato-${tavolo.stato}`}>
@@ -245,10 +271,6 @@ export default function Tavolo({ id, io }) {
 
       {tavolo.stato === 'in_corso' && (
         <>
-          <div className="linguette">
-            <button className="linguetta" onClick={() => setCassetto('poste')}>Poste e saldi</button>
-            <button className="linguetta" onClick={() => setCassetto('regole')}>Regole</button>
-          </div>
           <Cassetto aperto={cassetto === 'poste'} onChiudi={chiudiCassetto} titolo="Poste e saldi">
             {contenutoPoste}
           </Cassetto>

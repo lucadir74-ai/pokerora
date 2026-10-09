@@ -726,19 +726,6 @@ button.carta-gioco { cursor: pointer; transition: transform 120ms ease; }
 .zona-tavolo > .scena { width: 100%; }
 
 /* ═════════ Finestra laterale (Poste e saldi) ═════════ */
-.linguette {
-  position: fixed; right: 0; top: 34%; z-index: 25;
-  display: flex; flex-direction: column; gap: 0.5rem;
-}
-.linguetta {
-  writing-mode: vertical-rl; transform: rotate(180deg);
-  padding: 0.9rem 0.5rem; border: 1px solid rgba(201, 162, 39, 0.6); border-left: 0;
-  border-radius: 0 12px 12px 0;
-  background: linear-gradient(90deg, rgba(20, 26, 23, 0.95), rgba(8, 12, 10, 0.95));
-  color: #f2d77a; font: inherit; font-weight: 700; font-size: 0.9rem; letter-spacing: 0.04em;
-  cursor: pointer; box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5);
-}
-.linguetta:hover { color: #fff; }
 .chiudi-tavolo { margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--bordo); }
 .cassetto-velo {
   position: fixed; inset: 0; z-index: 40; background: rgba(0, 0, 0, 0.45);
@@ -837,4 +824,32 @@ button.carta-gioco { cursor: pointer; transition: transform 120ms ease; }
 }
 .posto-gruppo > .posto-tavolo.bordo-dx {
   left: auto !important; right: 1.5%; transform: translate(0, -50%) scale(var(--s, 1)); transform-origin: right center;
+}
+
+/* ═════════ Barra del tavolo in partita: regole, poste e "+ Posta" ═════════ */
+.barra-gioco {
+  display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 0.3rem 0.75rem;
+  color: #eef3ef; padding: 0.15rem 0.1rem;
+}
+.barra-nome {
+  flex: 1 1 8rem; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-family: 'Bodoni Moda', Georgia, serif; font-weight: 700; font-size: 1.1rem;
+}
+.barra-link { display: flex; align-items: center; gap: 0.9rem; flex: none; }
+.chip-posta {
+  font: inherit; font-weight: 700; font-size: 0.88rem; padding: 0.3rem 0.8rem; border-radius: 999px; cursor: pointer;
+  border: 1px solid rgba(201, 162, 39, 0.75); background: rgba(0, 0, 0, 0.35); color: #f2d77a;
+}
+.chip-posta:hover { background: rgba(201, 162, 39, 0.18); }
+.chip-posta:disabled { opacity: 0.6; cursor: progress; }
+.barra-avviso {
+  flex-basis: 100%; margin: 0; padding: 0.4rem 0.75rem; border-radius: 10px; font-size: 0.9rem;
+  background: rgba(242, 215, 122, 0.15); color: #f2d77a;
+}
+.barra-avviso.errore { background: rgba(255, 138, 128, 0.15); color: #ff8a80; }
+
+/* Telefono: il tavolo usa quasi tutta la larghezza dello schermo */
+@media (max-width: 639px) {
+  .pagina.ampia .zona-tavolo > .scena { width: calc(100% + 1.5rem); margin-inline: -0.75rem; }
+  .pagina.ampia { gap: 0.6rem; }
 }
