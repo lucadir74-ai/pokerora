@@ -112,6 +112,9 @@ function Fondo({ stretto }) {
         <pattern id="p-panno" patternUnits="userSpaceOnUse" width={lato} height={lato * rapporto}>
           <image href="/img/panno.webp" width={lato} height={lato * rapporto} preserveAspectRatio="none" />
         </pattern>
+        <pattern id="p-pelle" patternUnits="userSpaceOnUse" width={lato} height={lato * rapporto}>
+          <image href="/img/pelle.webp" width={lato} height={lato * rapporto} preserveAspectRatio="none" />
+        </pattern>
         <radialGradient id="g-luce" cx="50%" cy="42%" r="62%">
           <stop offset="0%" stopColor="#fff" stopOpacity="0.16" />
           <stop offset="40%" stopColor="#fff" stopOpacity="0" />
@@ -124,7 +127,8 @@ function Fondo({ stretto }) {
       </defs>
       <path d={spessore} transform="translate(0 2.5)" fill="rgba(0,0,0,0.55)" filter="url(#f-ombra)" />
       <path d={spessore} fill="url(#g-legno)" />
-      <path d={bordo} fill="url(#g-pelle)" />
+      <path d={bordo} fill="url(#p-pelle)" />
+      <path d={bordo} fill="url(#g-pelle)" opacity="0.45" />
       <path d={bordo} fill="none" stroke="rgba(255,255,255,0.16)" strokeWidth="1.2" vectorEffect="non-scaling-stroke" />
       <path d={panno} fill="url(#g-panno)" />
       <path d={panno} fill="url(#p-panno)" />
