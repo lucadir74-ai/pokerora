@@ -83,6 +83,9 @@ function ellisse(cx, cy, rx, ry, stretto, dy = 0) {
 }
 
 function Fondo({ stretto }) {
+  // Proporzioni del tavolo (larghezza / altezza): servono perché la trama del panno resti quadrata
+  const rapporto = stretto ? 3 / 4.2 : 16 / 10.5
+  const lato = stretto ? 34 : 22
   const bordo = ellisse(50, 50, 49, 49, stretto)
   const spessore = ellisse(50, 50, 49, 49, stretto, stretto ? 2.2 : 3.2)
   const panno = ellisse(50, 50, 43.5, 42.5, stretto)
@@ -106,11 +109,15 @@ function Fondo({ stretto }) {
           <stop offset="85%" stopColor="#144a33" />
           <stop offset="100%" stopColor="#0c3121" />
         </radialGradient>
-        <filter id="f-trama" x="0" y="0" width="100%" height="100%">
-          <feTurbulence type="fractalNoise" baseFrequency="1.6" numOctaves="2" seed="3" />
-          <feColorMatrix values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.10 0" />
-          <feComposite in2="SourceGraphic" operator="in" />
-        </filter>
+        <pattern id="p-panno" patternUnits="userSpaceOnUse" width={lato} height={lato * rapporto}>
+          <image href="/img/panno.webp" width={lato} height={lato * rapporto} preserveAspectRatio="none" />
+        </pattern>
+        <radialGradient id="g-luce" cx="50%" cy="42%" r="62%">
+          <stop offset="0%" stopColor="#fff" stopOpacity="0.16" />
+          <stop offset="40%" stopColor="#fff" stopOpacity="0" />
+          <stop offset="80%" stopColor="#000" stopOpacity="0.30" />
+          <stop offset="100%" stopColor="#000" stopOpacity="0.55" />
+        </radialGradient>
         <filter id="f-ombra" x="-20%" y="-20%" width="140%" height="160%">
           <feGaussianBlur stdDeviation="2.2" />
         </filter>
@@ -120,7 +127,9 @@ function Fondo({ stretto }) {
       <path d={bordo} fill="url(#g-pelle)" />
       <path d={bordo} fill="none" stroke="rgba(255,255,255,0.16)" strokeWidth="1.2" vectorEffect="non-scaling-stroke" />
       <path d={panno} fill="url(#g-panno)" />
-      <path d={panno} fill="#000" filter="url(#f-trama)" />
+      <path d={panno} fill="url(#p-panno)" />
+      <path d={panno} fill="#0e5a3c" fillOpacity="0.28" />
+      <path d={panno} fill="url(#g-luce)" />
       <path d={panno} fill="none" stroke="rgba(0,0,0,0.45)" strokeWidth="6" vectorEffect="non-scaling-stroke" />
       <path d={filo} fill="none" stroke="#c9a227" strokeOpacity="0.8" strokeWidth="1.5" vectorEffect="non-scaling-stroke" />
       <path d={linea} fill="none" stroke="rgba(242,215,122,0.25)" strokeWidth="1" strokeDasharray="4 5" vectorEffect="non-scaling-stroke" />

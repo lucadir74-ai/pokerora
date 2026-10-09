@@ -379,10 +379,7 @@ button.carta-gioco { cursor: pointer; transition: transform 120ms ease; }
 /* Dorso delle carte */
 .dorso {
   display: inline-block; width: clamp(16px, 4.6cqw, 40px); aspect-ratio: 5 / 7; border-radius: 4px;
-  background:
-    repeating-linear-gradient(45deg, rgba(201, 162, 39, 0.35) 0 1px, transparent 1px 5px),
-    repeating-linear-gradient(-45deg, rgba(201, 162, 39, 0.35) 0 1px, transparent 1px 5px),
-    var(--dorso);
+  background: var(--dorso) url('/img/dorso.webp') center / cover no-repeat;
   border: 2px solid #fff; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
 }
 .mazzetto { display: inline-grid; }
