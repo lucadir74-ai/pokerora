@@ -668,3 +668,12 @@ button.carta-gioco { cursor: pointer; transition: transform 120ms ease; }
   background: linear-gradient(180deg, rgba(34, 58, 45, 0.96), rgba(10, 22, 16, 0.96));
   box-shadow: 0 8px 18px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.14);
 }
+
+/* Sfondo della sala durante la partita */
+.pagina.ampia::before {
+  content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+  background:
+    radial-gradient(ellipse at 50% 55%, rgba(6, 6, 6, 0.15), rgba(6, 6, 6, 0.55) 80%),
+    #0b0d0c url('/img/sala.webp') center / cover no-repeat;
+}
+.pagina.ampia .testata { background: rgba(8, 10, 9, 0.7); }
