@@ -28,8 +28,8 @@ export default function Tavolo({ id, io }) {
   const [avviso, setAvviso] = useState('')
   const [attesa, setAttesa] = useState(false)
   const [modifica, setModifica] = useState(null)
-  const [posteAperte, setPosteAperte] = useState(false)
-  const chiudiPoste = useCallback(() => setPosteAperte(false), [])
+  const [cassetto, setCassetto] = useState(null) // 'poste' | 'regole' | null
+  const chiudiCassetto = useCallback(() => setCassetto(null), [])
 
   const carica = useCallback(async () => {
     const [t, g, p] = await Promise.all([
@@ -245,93 +245,113 @@ export default function Tavolo({ id, io }) {
 
       {tavolo.stato === 'in_corso' && (
         <>
-          <button className="linguetta-poste" onClick={() => setPosteAperte(true)} aria-label="Apri poste e saldi">
-            Poste e saldi
-          </button>
-          <Cassetto aperto={posteAperte} onChiudi={chiudiPoste} titolo="Poste e saldi">
+          <div className="linguette">
+            <button className="linguetta" onClick={() => setCassetto('poste')}>Poste e saldi</button>
+            <button className="linguetta" onClick={() => setCassetto('regole')}>Regole</button>
+          </div>
+          <Cassetto aperto={cassetto === 'poste'} onChiudi={chiudiCassetto} titolo="Poste e saldi">
             {contenutoPoste}
+          </Cassetto>
+          <Cassetto aperto={cassetto === 'regole'} onChiudi={chiudiCassetto} titolo="Posta e regole">
+            <Fiches valore={tavolo.valore_posta} />
+            <p className="mazzo">{descriviMazzo(giocatori.length, tavolo.regole)}</p>
+            <ul className="regole">
+              {descriviRegole(tavolo).map((r) => <li key={r}>{r}</li>)}
+            </ul>
+            <p className="tenue">Durante la partita le regole non si possono cambiare.</p>
+            {organizzo && (
+              <div className="chiudi-tavolo">
+                <button className="secondario" disabled={attesa}
+                  onClick={() => window.confirm('Chiudere il tavolo? Nessuno potrà più sedersi né prendere poste.')
+                    && chiama('chiudi_tavolo', { p_tavolo: id }, 'Tavolo chiuso.').then((ok) => ok && chiudiCassetto())}>
+                  Chiudi il tavolo
+                </button>
+              </div>
+            )}
           </Cassetto>
         </>
       )}
 
+      {tavolo.stato !== 'in_corso' && (
       <section className="carta">
-        <h2>Posta e regole</h2>
-        {!modifica && (
-          <>
-            <Fiches valore={tavolo.valore_posta} />
-            <p className="mazzo">{descriviMazzo(inAttesa ? Math.max(giocatori.length, 4) : giocatori.length, tavolo.regole)}</p>
-            <ul className="regole">
-              {descriviRegole(tavolo).map((r) => <li key={r}>{r}</li>)}
-            </ul>
-            {inAttesa && organizzo && (
-              <button className="secondario" onClick={apriModifica}>Modifica posta e regole</button>
-            )}
-          </>
-        )}
-
-        {modifica && (
-          <form onSubmit={salvaModifica} noValidate>
-            <label>
-              Nome del tavolo
-              <input value={modifica.nome} maxLength={40} onChange={(e) => setModifica({ ...modifica, nome: e.target.value })} />
-            </label>
-            <fieldset className="scelta">
-              <legend>Posti al tavolo</legend>
-              {[4, 5, 6].map((n) => (
-                <button type="button" key={n} aria-pressed={modifica.posti === n}
-                  onClick={() => setModifica({ ...modifica, posti: n })}>{n}</button>
-              ))}
-            </fieldset>
-            <label>
-              Valore di una posta (Vardis)
-              <input type="number" inputMode="numeric" min={100} step={100} value={modifica.valore_posta}
-                onChange={(e) => setModifica({ ...modifica, valore_posta: e.target.value })} />
-            </label>
-            <label>
-              Mazzo
-              <select value={modifica.regole.mazzo} onChange={(e) => regola('mazzo', e.target.value)}>
-                {OPZIONI.mazzo.map(([v, t]) => <option key={v} value={v}>{t}</option>)}
-              </select>
-            </label>
-            <label>
-              Invito a ogni mano (Vardis)
-              <input type="number" inputMode="numeric" min={1} value={modifica.regole.invito}
-                onChange={(e) => regola('invito', e.target.value)} />
-            </label>
-            <label>
-              Limite delle puntate
-              <select value={modifica.regole.limite} onChange={(e) => regola('limite', e.target.value)}>
-                {OPZIONI.limite.map(([v, t]) => <option key={v} value={v}>{t}</option>)}
-              </select>
-            </label>
-            {modifica.regole.limite === 'fisso' && (
+          <h2>Posta e regole</h2>
+          {!modifica && (
+            <>
+              <Fiches valore={tavolo.valore_posta} />
+              <p className="mazzo">{descriviMazzo(inAttesa ? Math.max(giocatori.length, 4) : giocatori.length, tavolo.regole)}</p>
+              <ul className="regole">
+                {descriviRegole(tavolo).map((r) => <li key={r}>{r}</li>)}
+              </ul>
+              {inAttesa && organizzo && (
+                <button className="secondario" onClick={apriModifica}>Modifica posta e regole</button>
+              )}
+            </>
+          )}
+  
+          {modifica && (
+            <form onSubmit={salvaModifica} noValidate>
               <label>
-                Puntata massima (Vardis)
-                <input type="number" inputMode="numeric" min={1} value={modifica.regole.puntata_massima ?? ''}
-                  onChange={(e) => regola('puntata_massima', e.target.value)} />
+                Nome del tavolo
+                <input value={modifica.nome} maxLength={40} onChange={(e) => setModifica({ ...modifica, nome: e.target.value })} />
               </label>
-            )}
-            <label>
-              Buio, controbuio e over
-              <select value={modifica.regole.buio ?? 'si'} onChange={(e) => regola('buio', e.target.value)}>
-                {OPZIONI.buio.map(([v, t]) => <option key={v} value={v}>{t}</option>)}
-              </select>
-            </label>
-            <label>
-              Cambio delle carte
-              <select value={String(modifica.regole.cambio_max)} onChange={(e) => regola('cambio_max', e.target.value)}>
-                {OPZIONI.cambio_max.map(([v, t]) => <option key={v} value={v}>{t}</option>)}
-              </select>
-            </label>
-            <div className="bottoni">
-              <button className="principale" disabled={attesa}>Salva le modifiche</button>
-              <button type="button" className="secondario" onClick={() => setModifica(null)}>Annulla</button>
-            </div>
-          </form>
-        )}
-      </section>
+              <fieldset className="scelta">
+                <legend>Posti al tavolo</legend>
+                {[4, 5, 6].map((n) => (
+                  <button type="button" key={n} aria-pressed={modifica.posti === n}
+                    onClick={() => setModifica({ ...modifica, posti: n })}>{n}</button>
+                ))}
+              </fieldset>
+              <label>
+                Valore di una posta (Vardis)
+                <input type="number" inputMode="numeric" min={100} step={100} value={modifica.valore_posta}
+                  onChange={(e) => setModifica({ ...modifica, valore_posta: e.target.value })} />
+              </label>
+              <label>
+                Mazzo
+                <select value={modifica.regole.mazzo} onChange={(e) => regola('mazzo', e.target.value)}>
+                  {OPZIONI.mazzo.map(([v, t]) => <option key={v} value={v}>{t}</option>)}
+                </select>
+              </label>
+              <label>
+                Invito a ogni mano (Vardis)
+                <input type="number" inputMode="numeric" min={1} value={modifica.regole.invito}
+                  onChange={(e) => regola('invito', e.target.value)} />
+              </label>
+              <label>
+                Limite delle puntate
+                <select value={modifica.regole.limite} onChange={(e) => regola('limite', e.target.value)}>
+                  {OPZIONI.limite.map(([v, t]) => <option key={v} value={v}>{t}</option>)}
+                </select>
+              </label>
+              {modifica.regole.limite === 'fisso' && (
+                <label>
+                  Puntata massima (Vardis)
+                  <input type="number" inputMode="numeric" min={1} value={modifica.regole.puntata_massima ?? ''}
+                    onChange={(e) => regola('puntata_massima', e.target.value)} />
+                </label>
+              )}
+              <label>
+                Buio, controbuio e over
+                <select value={modifica.regole.buio ?? 'si'} onChange={(e) => regola('buio', e.target.value)}>
+                  {OPZIONI.buio.map(([v, t]) => <option key={v} value={v}>{t}</option>)}
+                </select>
+              </label>
+              <label>
+                Cambio delle carte
+                <select value={String(modifica.regole.cambio_max)} onChange={(e) => regola('cambio_max', e.target.value)}>
+                  {OPZIONI.cambio_max.map(([v, t]) => <option key={v} value={v}>{t}</option>)}
+                </select>
+              </label>
+              <div className="bottoni">
+                <button className="principale" disabled={attesa}>Salva le modifiche</button>
+                <button type="button" className="secondario" onClick={() => setModifica(null)}>Annulla</button>
+              </div>
+            </form>
+          )}
+        </section>
+      )}
 
-      {tavolo.stato !== 'chiuso' && (
+      {tavolo.stato === 'attesa' && (
         <div className="fondo">
           {organizzo
             ? <button className="link-chiaro" disabled={attesa}

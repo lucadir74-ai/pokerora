@@ -708,7 +708,7 @@ button.carta-gioco { cursor: pointer; transition: transform 120ms ease; }
 
 /* Computer: la console sta subito sotto il tavolo, accanto alle tue carte */
 @media (min-width: 960px) {
-  .tavolo-verde { width: min(100%, calc((100vh - 17rem) * 16 / 10.5)); }
+  .tavolo-verde { width: min(100%, calc((100vh - 17.5rem) * 16 / 10.5)); }
   .console {
     position: relative; z-index: 5;
     width: min(100%, 44rem); margin-top: -2.2rem;
@@ -726,8 +726,11 @@ button.carta-gioco { cursor: pointer; transition: transform 120ms ease; }
 .zona-tavolo > .scena { width: 100%; }
 
 /* ═════════ Finestra laterale (Poste e saldi) ═════════ */
-.linguetta-poste {
-  position: fixed; right: 0; top: 42%; z-index: 25;
+.linguette {
+  position: fixed; right: 0; top: 34%; z-index: 25;
+  display: flex; flex-direction: column; gap: 0.5rem;
+}
+.linguetta {
   writing-mode: vertical-rl; transform: rotate(180deg);
   padding: 0.9rem 0.5rem; border: 1px solid rgba(201, 162, 39, 0.6); border-left: 0;
   border-radius: 0 12px 12px 0;
@@ -735,7 +738,8 @@ button.carta-gioco { cursor: pointer; transition: transform 120ms ease; }
   color: #f2d77a; font: inherit; font-weight: 700; font-size: 0.9rem; letter-spacing: 0.04em;
   cursor: pointer; box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5);
 }
-.linguetta-poste:hover { color: #fff; }
+.linguetta:hover { color: #fff; }
+.chiudi-tavolo { margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--bordo); }
 .cassetto-velo {
   position: fixed; inset: 0; z-index: 40; background: rgba(0, 0, 0, 0.45);
   opacity: 0; pointer-events: none; transition: opacity 250ms ease;
@@ -762,3 +766,4 @@ button.carta-gioco { cursor: pointer; transition: transform 120ms ease; }
 .cassetto-corpo { flex: 1; overflow-y: auto; padding: 1rem 1.25rem 1.5rem; }
 .cassetto-corpo .secondario { margin-bottom: 0.5rem; }
 @media (prefers-reduced-motion: reduce) { .cassetto, .cassetto-velo { transition: none; } }
+@media (min-width: 960px) { .pagina.ampia { padding-bottom: 0.75rem; gap: 0.75rem; } }
