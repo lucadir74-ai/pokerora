@@ -677,3 +677,50 @@ button.carta-gioco { cursor: pointer; transition: transform 120ms ease; }
     #0b0d0c url('/img/sala.webp') center / cover no-repeat;
 }
 .pagina.ampia .testata { background: rgba(8, 10, 9, 0.7); }
+
+/* ═════════ Console di gioco sotto le carte ═════════ */
+.zona-tavolo { display: flex; flex-direction: column; align-items: center; min-width: 0; }
+.console {
+  color: #eef3ef;
+  background: linear-gradient(180deg, rgba(20, 26, 23, 0.94), rgba(8, 12, 10, 0.96));
+  border: 1px solid rgba(201, 162, 39, 0.55);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+}
+.console .turno { background: rgba(255, 255, 255, 0.08); color: #eef3ef; border-left-color: #6fbf93; }
+.console .turno.mio { background: #f2d77a; color: var(--inchiostro); border-left-color: #fff; }
+.console .azioni-gioco > p, .console .tenue { color: #cfd9d2; }
+.console .limiti { color: #9fb0a5; }
+.console .errore { color: #ff8a80; }
+.console .chip { background: rgba(255, 255, 255, 0.08); color: #eef3ef; border-color: rgba(255, 255, 255, 0.25); }
+.console .puntata-campo input { background: rgba(255, 255, 255, 0.95); }
+.console .pre-titolo { color: #cfd9d2; }
+.console .pre-scelta { background: rgba(255, 255, 255, 0.06); color: #eef3ef; border-color: rgba(255, 255, 255, 0.25); }
+.console .pre-scelta.attiva { background: rgba(111, 191, 147, 0.18); border-color: #6fbf93; }
+.console .principale { width: 100%; }
+.console .secondario { color: var(--inchiostro); background: #fff; }
+
+/* Pulsanti: titolo grande, spiegazione sotto */
+.azione-grande { min-height: 4.1rem; padding: 0.5rem 0.6rem; }
+.azione-grande > span { font-size: 1.1rem; }
+.azione-grande small { font-size: 0.74rem; font-weight: 500; line-height: 1.2; opacity: 0.9; text-align: center; }
+.azione-grande.neutro small { color: var(--grigio); opacity: 1; }
+
+/* Computer: la console sta subito sotto il tavolo, accanto alle tue carte */
+@media (min-width: 960px) {
+  .tavolo-verde { width: min(100%, calc((100vh - 17rem) * 16 / 10.5)); }
+  .console {
+    position: relative; z-index: 5;
+    width: min(100%, 44rem); margin-top: -2.2rem;
+    padding: 0.85rem 1rem 0.9rem; border-radius: 18px;
+  }
+  .console:empty { display: none; }
+}
+/* Telefono: la console resta fissata in basso (stesse regole di prima), solo con i colori scuri */
+@media (max-width: 959px) {
+  .console { border-radius: 16px 16px 0 0; border-bottom: 0; }
+  .azione-grande small { font-size: 0.66rem; }
+  .azione-grande > span { font-size: 0.95rem; }
+  .azione-grande { padding: 0.45rem 0.35rem; }
+}
+.zona-tavolo > .scena { width: 100%; }

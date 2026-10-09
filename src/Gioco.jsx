@@ -143,10 +143,11 @@ export default function Gioco({ tavolo, giocatori, io }) {
   )
 
   // Pulsante grande: tono 'neutro' (passo, lascio), 'verde' (vedo, busso), 'oro' (apro, punto, rilancio)
-  const grande = (testo, tono, onClick, sotto) => (
-    <button type="button" className={`azione-grande ${tono}`} disabled={attesa} onClick={onClick}>
+  // Pulsante grande: titolo con l'eventuale cifra, e sotto una riga che spiega cosa succede
+  const grande = (testo, tono, onClick, spiega) => (
+    <button type="button" className={`azione-grande ${tono}`} disabled={attesa} onClick={onClick} title={spiega}>
       <span>{testo}</span>
-      {sotto && <small>{sotto}</small>}
+      {spiega && <small>{spiega}</small>}
     </button>
   )
 
@@ -165,8 +166,8 @@ export default function Gioco({ tavolo, giocatori, io }) {
               : `${nomeDi(mano.buio_di)} ha fatto il ${['', 'buio', 'controbuio'][mano.buio_livello]}. Puoi rispondere con il ${nome}.`}
           </p>
           <div className="griglia-azioni due">
-            {grande(`Niente ${nome}`, 'neutro', () => rpc('buio', { p_mano: mano.id, p_faccio: false }))}
-            {grande(`Faccio il ${nome}`, 'oro', () => rpc('buio', { p_mano: mano.id, p_faccio: true }), fmt(quanto))}
+            {grande(`Niente ${nome}`, 'neutro', () => rpc('buio', { p_mano: mano.id, p_faccio: false }), 'Non punti al buio: si distribuiscono le carte')}
+            {grande(`Faccio il ${nome} ${fmt(quanto)}`, 'oro', () => rpc('buio', { p_mano: mano.id, p_faccio: true }), 'Punti prima di vedere le carte')}
           </div>
         </div>
       )
@@ -176,8 +177,8 @@ export default function Gioco({ tavolo, giocatori, io }) {
         <div className="azioni-gioco">
           <p>Dopo il buio puoi solo vedere o lasciare.</p>
           <div className="griglia-azioni due">
-            {grande('Lascio', 'neutro', () => azione('passo'))}
-            {grande('Vedo', 'verde', () => azione('vedo'), fmt(daVedere))}
+            {grande('Lascio', 'neutro', () => azione('passo'), 'Esci dalla mano')}
+            {grande(`Vedo ${fmt(daVedere)}`, 'verde', () => azione('vedo'), 'Pareggi il buio e resti in gioco')}
           </div>
         </div>
       )
@@ -188,7 +189,8 @@ export default function Gioco({ tavolo, giocatori, io }) {
           <p>Tocca le carte da scartare (al massimo {cambioMax}).</p>
           <div className="griglia-azioni uno">
             {grande(scelte.length === 0 ? 'Sono servito' : scelte.length === 1 ? 'Cambio 1 carta' : `Cambio ${scelte.length} carte`,
-              'oro', () => rpc('cambia', { p_mano: mano.id, p_scarti: scelte }))}
+              'oro', () => rpc('cambia', { p_mano: mano.id, p_scarti: scelte }),
+              scelte.length === 0 ? 'Tieni le tue 5 carte' : 'Scarti le carte scelte e ne ricevi di nuove')}
           </div>
         </div>
       )
@@ -197,25 +199,25 @@ export default function Gioco({ tavolo, giocatori, io }) {
     let pulsanti
     if (mano.buio_aperto) {
       pulsanti = [
-        grande('Chiudo il giro', 'verde', () => azione('vedo')),
-        grande('Rilancio', 'oro', () => azione('rilancio', valore), `+${fmt(valore)}`),
+        grande('Chiudo il giro', 'verde', () => azione('vedo'), 'Non rilanci: si passa al cambio'),
+        grande(`Rilancio +${fmt(valore)}`, 'oro', () => azione('rilancio', valore), 'Alzi la puntata: gli altri devono pareggiare'),
       ]
     } else if (mano.fase === 'apertura') {
       pulsanti = [
-        grande('Passo', 'neutro', () => azione('passo')),
-        grande('Apro', 'oro', () => azione('apro', valore), fmt(valore)),
+        grande('Passo', 'neutro', () => azione('passo'), 'Non apri: la parola passa al prossimo'),
+        grande(`Apro ${fmt(valore)}`, 'oro', () => azione('apro', valore), 'Apri il gioco con questa puntata'),
       ]
     } else if (mano.puntata > 0) {
       pulsanti = [
-        grande('Lascio', 'neutro', () => azione('passo')),
-        daVedere > 0 ? grande('Vedo', 'verde', () => azione('vedo'), fmt(daVedere)) : null,
-        grande('Rilancio', 'oro', () => azione('rilancio', valore), `+${fmt(valore)}`),
+        grande('Lascio', 'neutro', () => azione('passo'), 'Esci dalla mano: perdi quanto hai già puntato'),
+        daVedere > 0 ? grande(`Vedo ${fmt(daVedere)}`, 'verde', () => azione('vedo'), 'Pareggi la puntata e resti in gioco') : null,
+        grande(`Rilancio +${fmt(valore)}`, 'oro', () => azione('rilancio', valore), 'Alzi la puntata: gli altri devono pareggiare'),
       ].filter(Boolean)
     } else {
       pulsanti = [
-        grande('Busso', 'verde', () => azione('busso')),
-        mano.parol_possibile ? grande('Parola', 'neutro', () => azione('parol')) : null,
-        grande('Punto', 'oro', () => azione('punto', valore), fmt(valore)),
+        grande('Busso', 'verde', () => azione('busso'), 'Non punti ma resti in gioco'),
+        mano.parol_possibile ? grande('Parola', 'neutro', () => azione('parol'), 'Non punti; se la dicono tutti la mano si annulla') : null,
+        grande(`Punto ${fmt(valore)}`, 'oro', () => azione('punto', valore), 'Punti per primo: gli altri devono vedere o lasciare'),
       ].filter(Boolean)
     }
     return (
@@ -270,21 +272,14 @@ export default function Gioco({ tavolo, giocatori, io }) {
   return (
     <section className="gioco">
       <div className="gioco-griglia">
+        <div className="zona-tavolo">
         <TavoloVerde
-          mano={mano} posti={posti} giocatori={giocatori} io={io} carte={carte}
-          scelte={scelte} onScegli={mano?.fase === 'cambio' && mioTurno ? scegli : null}
-          azioni={registro} conclusa={conclusa} fumetti={fumetti}
-        />
+            mano={mano} posti={posti} giocatori={giocatori} io={io} carte={carte}
+            scelte={scelte} onScegli={mano?.fase === 'cambio' && mioTurno ? scegli : null}
+            azioni={registro} conclusa={conclusa} fumetti={fumetti}
+          />
 
-        <aside className="pannello" aria-label="Informazioni e comandi">
-          <div className="pannello-testa">
-            <h2>{mano ? `Mano ${mano.numero}` : 'Pronti a giocare'}</h2>
-            {mano && <p className="piatto">Piatto <strong>{fmt(mano.piatto)}</strong></p>}
-          </div>
-          <p className="sotto-pannello">{tavolo.nome}, in gioco da {durata(tavolo.avviato_il)}</p>
-          {mano && <p className="fase">{fase}</p>}
-
-          <div className="comandi" ref={comandiRef}>
+          <div className="comandi console" ref={comandiRef} aria-label="Comandi di gioco">
             {mano && !conclusa && diTurno && (
               <p className={`turno${mioTurno ? ' mio' : ''}`} role="status">
                 {mioTurno
@@ -313,6 +308,16 @@ export default function Gioco({ tavolo, giocatori, io }) {
               </button>
             )}
           </div>
+
+        </div>
+
+        <aside className="pannello" aria-label="Informazioni sul tavolo e chat">
+          <div className="pannello-testa">
+            <h2>{mano ? `Mano ${mano.numero}` : 'Pronti a giocare'}</h2>
+            {mano && <p className="piatto">Piatto <strong>{fmt(mano.piatto)}</strong></p>}
+          </div>
+          <p className="sotto-pannello">{tavolo.nome}, in gioco da {durata(tavolo.avviato_il)}</p>
+          {mano && <p className="fase">{fase}</p>}
 
           <div className="pannello-scorre">
             {mano && !conclusa && mio && (
