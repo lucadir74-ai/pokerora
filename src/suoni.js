@@ -11,11 +11,53 @@ let ctx = null
 let rumore = null
 let fineMescola = 0 // le carte si distribuiscono solo dopo il mescolare
 
+// ── Suoni registrati (pacchetto "Casino Audio" di Kenney, licenza CC0) ──
+// I file stanno in public/suoni/*.mp3. Se un file manca si usa il suono sintetizzato.
+const CAMPIONI = {
+  mescola: ['cardShuffle'],
+  carta: ['cardSlide1', 'cardSlide2', 'cardSlide3', 'cardSlide4', 'cardSlide5', 'cardSlide6', 'cardSlide7', 'cardSlide8'],
+  posa: ['cardPlace1', 'cardPlace2', 'cardPlace3', 'cardPlace4'],
+  spinta: ['cardShove1', 'cardShove2', 'cardShove3', 'cardShove4'],
+  fiche: ['chipLay1', 'chipLay2', 'chipLay3'],
+  pila: ['chipsStack1', 'chipsStack2', 'chipsStack3', 'chipsStack4', 'chipsStack5', 'chipsStack6'],
+  urto: ['chipsCollide1', 'chipsCollide2', 'chipsCollide3', 'chipsCollide4'],
+  manciata: ['chipsHandle1', 'chipsHandle2', 'chipsHandle3', 'chipsHandle4', 'chipsHandle5', 'chipsHandle6'],
+}
+const registrati = {}   // nome del file → suono pronto
+let caricati = false
+
+function caricaCampioni(c) {
+  if (caricati) return
+  caricati = true
+  for (const nome of Object.values(CAMPIONI).flat()) {
+    fetch(`/suoni/${nome}.mp3`)
+      .then((r) => (r.ok ? r.arrayBuffer() : Promise.reject()))
+      .then((b) => c.decodeAudioData(b))
+      .then((buf) => { registrati[nome] = buf })
+      .catch(() => {})
+  }
+}
+
+// Suona un campione a caso del gruppo; false se non ce n'è nessuno caricato
+function campione(c, gruppo, quando, volume = 0.8, velocita = 1) {
+  const pronti = CAMPIONI[gruppo].filter((n) => registrati[n])
+  if (!pronti.length) return false
+  const src = c.createBufferSource()
+  src.buffer = registrati[pronti[Math.floor(Math.random() * pronti.length)]]
+  src.playbackRate.value = velocita * (0.96 + Math.random() * 0.08)
+  const g = c.createGain()
+  g.gain.value = volume
+  src.connect(g).connect(c.destination)
+  src.start(quando)
+  return true
+}
+
 function contesto() {
   if (ctx) return ctx
   const AC = window.AudioContext || window.webkitAudioContext
   if (!AC) return null
   ctx = new AC()
+  caricaCampioni(ctx)
   // Un secondo di rumore bianco, riusato per fruscii e tocchi
   rumore = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate)
   const d = rumore.getChannelData(0)
@@ -88,6 +130,10 @@ function fiche(c, quando, volume = 0.18) {
 // Mazzo mescolato: una serie di fruscii ravvicinati, come un riffle
 export function mescola() {
   const c = pronto(); if (!c) return
+  if (campione(c, 'mescola', c.currentTime + 0.02, 0.9)) {
+    fineMescola = c.currentTime + Math.min(registrati.cardShuffle?.duration ?? 1, 1.6)
+    return
+  }
   const t = c.currentTime + 0.02
   for (let i = 0; i < 18; i++) {
     fruscio(c, t + i * caso(0.018, 0.026), { durata: 0.03, freq: caso(2500, 4500), q: 0.8, volume: 0.12 })
@@ -100,6 +146,10 @@ export function mescola() {
 export function distribuisci(n = 5, intervallo = 0.09) {
   const c = pronto(); if (!c) return
   const t = Math.max(c.currentTime + 0.02, fineMescola)
+  if (CAMPIONI.carta.some((x) => registrati[x])) {
+    for (let i = 0; i < n; i++) campione(c, 'carta', t + i * intervallo, 0.55)
+    return
+  }
   for (let i = 0; i < n; i++) {
     fruscio(c, t + i * intervallo, { durata: 0.06, freq: caso(1800, 2600), q: 0.9, volume: 0.22, freqFine: 900 })
   }
@@ -109,6 +159,11 @@ export function distribuisci(n = 5, intervallo = 0.09) {
 export function fiches(quante = 3) {
   const c = pronto(); if (!c) return
   const t = c.currentTime + 0.02
+  // Puntate piccole: qualche fiche posata; puntate grosse: una pila che scivola nel piatto
+  if (campione(c, quante >= 5 ? 'pila' : 'fiche', t, 0.85)) {
+    if (quante >= 4) campione(c, 'fiche', t + 0.12, 0.5)
+    return
+  }
   const n = Math.max(2, Math.min(quante, 7))
   for (let i = 0; i < n; i++) fiche(c, t + i * caso(0.045, 0.075))
 }
@@ -117,24 +172,32 @@ export function fiches(quante = 3) {
 export function vincita() {
   const c = pronto(); if (!c) return
   const t = c.currentTime + 0.05
+  if (campione(c, 'manciata', t, 0.9)) {
+    campione(c, 'urto', t + 0.35, 0.7)
+    campione(c, 'pila', t + 0.7, 0.6)
+    return
+  }
   for (let i = 0; i < 14; i++) fiche(c, t + i * caso(0.03, 0.06), 0.14)
 }
 
 // Carte scartate: strisciata verso il basso
 export function scarta() {
   const c = pronto(); if (!c) return
+  if (campione(c, 'spinta', c.currentTime + 0.02, 0.75)) return
   fruscio(c, c.currentTime + 0.02, { durata: 0.22, freq: 3500, freqFine: 500, q: 0.6, volume: 0.25, tipo: 'lowpass' })
 }
 
 // Mano lasciata: carte buttate sul panno
 export function lascia() {
   const c = pronto(); if (!c) return
+  if (campione(c, 'posa', c.currentTime + 0.02, 0.7, 0.9)) return
   fruscio(c, c.currentTime + 0.02, { durata: 0.12, freq: 900, q: 0.7, volume: 0.28 })
 }
 
 // Carta girata mentre la spizzi
 export function gira() {
   const c = pronto(); if (!c) return
+  if (campione(c, 'carta', c.currentTime + 0.01, 0.45, 1.15)) return
   fruscio(c, c.currentTime + 0.01, { durata: 0.08, freq: 3200, freqFine: 1400, q: 1.2, volume: 0.2 })
 }
 

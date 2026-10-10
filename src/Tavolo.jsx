@@ -113,6 +113,8 @@ export default function Tavolo({ id, io }) {
   const [cassetto, setCassetto] = useState(null) // 'poste' | 'regole' | null
   const chiudiCassetto = useCallback(() => setCassetto(null), [])
   const [suoni, setSuoni] = useState(suoniAttivi())
+  const [pannello, setPannello] = useState(null)   // 'chat' | 'storico' | null
+  const [nonLetti, setNonLetti] = useState(0)
   useEffect(() => ascoltaSuoni(setSuoni), [])
 
   const carica = useCallback(async () => {
@@ -283,18 +285,23 @@ export default function Tavolo({ id, io }) {
       {tavolo.stato === 'in_corso' && (
         <nav className="barra-gioco" aria-label="Tavolo">
           <span className="barra-nome">{tavolo.nome}</span>
+          <button className="chip-posta" disabled={attesa} title={`Prendi un’altra posta da ${fmt(tavolo.valore_posta)}`}
+              onClick={() => window.confirm(`Prendi un’altra posta da ${fmt(tavolo.valore_posta)}? Resterà nel report.`)
+                && chiama('prendi_posta', { p_tavolo: id }, `Posta da ${fmt(tavolo.valore_posta)} aggiunta.`)}>
+              + Posta
+            </button>
           <span className="barra-link">
             <button className="suoni-tasto" onClick={() => impostaSuoni(!suoni)}
               aria-label={suoni ? 'Disattiva i suoni' : 'Attiva i suoni'} title={suoni ? 'Suoni attivi' : 'Suoni spenti'}>
               {suoni ? '🔊' : '🔇'}
             </button>
-            <button className="link-chiaro" onClick={() => setCassetto('regole')}>Regole</button>
-            <button className="link-chiaro" onClick={() => setCassetto('poste')}>Poste e saldi</button>
-            <button className="chip-posta" disabled={attesa} title={`Prendi un’altra posta da ${fmt(tavolo.valore_posta)}`}
-              onClick={() => window.confirm(`Prendi un’altra posta da ${fmt(tavolo.valore_posta)}? Resterà nel report.`)
-                && chiama('prendi_posta', { p_tavolo: id }, `Posta da ${fmt(tavolo.valore_posta)} aggiunta.`)}>
-              + Posta
+            <button className="link-chiaro" onClick={() => setPannello(pannello === 'chat' ? null : 'chat')}>
+              Chat{nonLetti > 0 && <span className="segnale" aria-label={`${nonLetti} messaggi nuovi`}>{nonLetti}</span>}
             </button>
+            <button className="link-chiaro" onClick={() => setPannello(pannello === 'storico' ? null : 'storico')}>Storico</button>
+            <button className="link-chiaro" onClick={() => setCassetto('regole')}>Regole</button>
+            <button className="link-chiaro" onClick={() => setCassetto('poste')}>Poste</button>
+
           </span>
           {cassetto === null && (avviso || errore) && (
             <p className={`barra-avviso${errore ? ' errore' : ''}`} role={errore ? 'alert' : 'status'}>{errore || avviso}</p>
@@ -368,7 +375,8 @@ export default function Tavolo({ id, io }) {
 
       {inAttesa && <ChatAttesa tavoloId={id} io={io} nomeDi={nomeDi} />}
 
-      {tavolo.stato === 'in_corso' && <Gioco tavolo={tavolo} giocatori={giocatori} io={io} bot={bot} />}
+      {tavolo.stato === 'in_corso' && <Gioco tavolo={tavolo} giocatori={giocatori} io={io} bot={bot}
+        pannello={pannello} setPannello={setPannello} onNonLetti={setNonLetti} />}
 
       {tavolo.stato === 'chiuso' && (
         <section className="carta">

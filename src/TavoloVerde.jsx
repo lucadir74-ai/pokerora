@@ -341,7 +341,7 @@ export default function TavoloVerde({ mano, posti, giocatori, io, carte, scelte,
                     </span>
                   ))}
                   {chiuse && (
-                    <span className="mio-punto spizza-aiuto" aria-hidden="true">Tocca le carte per spizzarle</span>
+                    <span className="mio-punto spizza-aiuto" aria-hidden="true">Tocca per spizzare</span>
                   )}
                   {spizzo && carte.length === 5 && !fuori && (
                     <Spizzata ordine={ordine} viste={viste} onVedi={vedi} punto={punto}

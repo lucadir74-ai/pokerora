@@ -6,11 +6,12 @@ import { fmt, invitoDi } from './regole'
 import { durata } from './tempo'
 import Chat from './Chat'
 import { useChat } from './chat'
+import Cassetto from './Cassetto'
 import * as suoni from './suoni'
 
 const COPPIA = { 11: 'fanti', 12: 'donne', 13: 're' }
 
-export default function Gioco({ tavolo, giocatori, io, bot = new Set() }) {
+export default function Gioco({ tavolo, giocatori, io, bot = new Set(), pannello = null, setPannello = () => {}, onNonLetti = () => {} }) {
   const [mano, setMano] = useState(null)
   const [posti, setPosti] = useState([])
   const [carte, setCarte] = useState([])
@@ -40,7 +41,18 @@ export default function Gioco({ tavolo, giocatori, io, bot = new Set() }) {
 
   // Chat: i messaggi nuovi compaiono anche come fumetto sul tavolo per qualche secondo
   const [fumetti, setFumetti] = useState({})
+  // Messaggi non letti: contano solo quelli degli altri arrivati a chat chiusa
+  const pannelloRef = useRef(pannello)
+  const nonLetti = useRef(0)
+  useEffect(() => {
+    pannelloRef.current = pannello
+    if (pannello === 'chat') { nonLetti.current = 0; onNonLetti(0) }
+  }, [pannello])
   const { messaggi, invia } = useChat(tavolo.id, (m) => {
+    if (pannelloRef.current !== 'chat' && m.giocatore_id !== io.id) {
+      nonLetti.current += 1
+      onNonLetti(nonLetti.current)
+    }
     setFumetti((f) => ({ ...f, [m.giocatore_id]: m }))
     setTimeout(() => setFumetti((f) => (f[m.giocatore_id]?.id === m.id
       ? Object.fromEntries(Object.entries(f).filter(([k]) => k !== m.giocatore_id)) : f)), 7000)
@@ -450,46 +462,36 @@ export default function Gioco({ tavolo, giocatori, io, bot = new Set() }) {
 
         </div>
 
-        <aside className="pannello" aria-label="Informazioni sul tavolo e chat">
-          <div className="pannello-testa">
-            <h2>{mano ? `Mano ${mano.numero}` : 'Pronti a giocare'}</h2>
-            {mano && <p className="piatto">Piatto <strong>{fmt(mano.piatto)}</strong></p>}
-          </div>
+        {/* Chat e storico: finestre a scomparsa dall'alto, si aprono dai link della barra */}
+        <Cassetto lato="alto" aperto={pannello === 'chat'} onChiudi={() => setPannello(null)} titolo="Chat del tavolo">
+          <Chat messaggi={messaggi} invia={invia} nomeDi={nomeDi} io={io} />
+        </Cassetto>
+        <Cassetto lato="alto" aperto={pannello === 'storico'} onChiudi={() => setPannello(null)}
+          titolo={mano ? `Mano ${mano.numero}` : 'Storico'}>
+          {mano && <p className="piatto">Piatto <strong>{fmt(mano.piatto)}</strong> · {fase}</p>}
           <p className="sotto-pannello">{tavolo.nome}, in gioco da {durata(tavolo.avviato_il)}</p>
-          {mano && <p className="fase">{fase}</p>}
-
-          <div className="pannello-scorre">
-            {mano && !conclusa && mio && (
-              <dl className="dati-mano">
-                <div><dt>Le tue fiches</dt><dd>{fmt(fichesDi(io.id))}</dd></div>
-                {mano.puntata > 0 && <div><dt>Puntata da pareggiare</dt><dd>{fmt(mano.puntata)}</dd></div>}
-                {daVedere > 0 && <div><dt>Per vedere ti servono</dt><dd>{fmt(daVedere)}</dd></div>}
-              </dl>
-            )}
-
-            {conclusa && mano && mostrate.length > 0 && (
-              <ul className="esito">
-                {mostrate.map((p) => (
-                  <li key={p.giocatore_id} className={p.vincita > 0 ? 'vincente' : ''}>
-                    <span>{nomeDi(p.giocatore_id)}</span>
-                    <span>{p.punto ?? 'non mostra le carte'}{p.vincita > 0 ? `: vince ${fmt(p.vincita)}` : ''}</span>
-                  </li>
-                ))}
-              </ul>
-            )}
-
-            <Chat messaggi={messaggi} invia={invia} nomeDi={nomeDi} io={io} />
-
-            {registro.length > 0 && (
-              <details className="cronaca-box">
-                <summary>Cronaca della mano</summary>
-                <ol className="cronaca">
-                  {registro.slice(0, 10).map((r) => <li key={r.id}>{r.testo}</li>)}
-                </ol>
-              </details>
-            )}
-          </div>
-        </aside>
+          {mano && !conclusa && mio && (
+            <dl className="dati-mano">
+              <div><dt>Le tue fiches</dt><dd>{fmt(fichesDi(io.id))}</dd></div>
+              {mano.puntata > 0 && <div><dt>Puntata da pareggiare</dt><dd>{fmt(mano.puntata)}</dd></div>}
+              {daVedere > 0 && <div><dt>Per vedere ti servono</dt><dd>{fmt(daVedere)}</dd></div>}
+            </dl>
+          )}
+          {conclusa && mano && mostrate.length > 0 && (
+            <ul className="esito">
+              {mostrate.map((p) => (
+                <li key={p.giocatore_id} className={p.vincita > 0 ? 'vincente' : ''}>
+                  <span>{nomeDi(p.giocatore_id)}</span>
+                  <span>{p.punto ?? 'non mostra le carte'}{p.vincita > 0 ? `: vince ${fmt(p.vincita)}` : ''}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+          <h3 className="storico-titolo">Cosa è successo in questa mano</h3>
+          {registro.length === 0
+            ? <p className="tenue">Ancora niente.</p>
+            : <ol className="cronaca">{registro.map((r) => <li key={r.id}>{r.testo}</li>)}</ol>}
+        </Cassetto>
       </div>
     </section>
   )
