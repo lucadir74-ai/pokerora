@@ -156,6 +156,25 @@ export default function Gioco({ tavolo, giocatori, io, bot = new Set() }) {
   // Nessuna mano ancora, oppure mano conclusa
   const conclusa = !mano || mano.fase === 'finita' || mano.fase === 'annullata'
 
+  // Mano successiva in automatico: qualche secondo per guardare com'è finita, poi si distribuisce.
+  // La avvia il primo giocatore vero al tavolo; gli altri subentrano solo se lui non c'è.
+  const [traSecondi, setTraSecondi] = useState(null)
+  const prontaNuova = caricato.current && (idMano ? (mano?.id === idMano && conclusa) : true)
+  useEffect(() => {
+    if (!prontaNuova) { setTraSecondi(null); return }
+    const pausa = idMano ? 7000 : 3000
+    const ritardo = pausa + (regista ? 0 : 6000)
+    const fine = Date.now() + pausa
+    setTraSecondi(Math.ceil(pausa / 1000))
+    const conta = setInterval(() => setTraSecondi(Math.max(0, Math.ceil((fine - Date.now()) / 1000))), 250)
+    const via = setTimeout(async () => {
+      // Se un altro giocatore l'ha già distribuita, il server risponde con un errore che si può ignorare
+      const { error } = await supabase.rpc('nuova_mano', { p_tavolo: tavolo.id })
+      if (!error) carica()
+    }, ritardo)
+    return () => { clearInterval(conta); clearTimeout(via) }
+  }, [prontaNuova, idMano, regista, tavolo.id])
+
   const mio = posti.find((p) => p.giocatore_id === io.id)
   const mioTurno = !!mano && !!mio && mio.stato === 'attivo' && mano.turno === mio.posto
   const diTurno = posti.find((p) => p.posto === mano?.turno)
@@ -408,10 +427,12 @@ export default function Gioco({ tavolo, giocatori, io, bot = new Set() }) {
 
             {azioni()}
 
-            {conclusa && (
-              <button className="principale" disabled={attesa} onClick={() => rpc('nuova_mano', { p_tavolo: tavolo.id })}>
-                {mano ? 'Distribuisci la prossima mano' : 'Distribuisci la prima mano'}
-              </button>
+            {conclusa && traSecondi !== null && (
+              <p className="prossima-mano" role="status">
+                {traSecondi > 0
+                  ? `${mano ? 'Prossima mano' : 'Prima mano'} tra ${traSecondi} ${traSecondi === 1 ? 'secondo' : 'secondi'}…`
+                  : 'Si distribuiscono le carte…'}
+              </p>
             )}
           </div>
 
