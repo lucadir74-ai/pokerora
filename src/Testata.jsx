@@ -24,7 +24,11 @@ export default function Testata({ io, indietro }) {
   }, [io.id])
 
   const verso = typeof indietro === 'string' ? indietro : '/'
+<<<<<<< HEAD
   const etichetta = verso === '/giocatori' ? '‹ Giocatori' : '‹ Home'
+=======
+  const etichetta = verso === '/giocatori' ? '‹ Giocatori' : '‹ I tuoi tavoli'
+>>>>>>> a8c4b772e6d31a9c80eb8120cef34eb81e6904a4
 
   return (
     <header className="testata">

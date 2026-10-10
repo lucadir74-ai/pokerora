@@ -5,6 +5,8 @@ import NuovaPassword from './NuovaPassword'
 import Lobby from './Lobby'
 import Invito from './Invito'
 import Tavolo from './Tavolo'
+import Giocatori from './Giocatori'
+import Messaggi from './Messaggi'
 import { useRotta, salvaInvito, prendiInvito, vai } from './rotte'
 
 export default function App() {
@@ -42,5 +44,7 @@ export default function App() {
   const io = { id: sessione.user.id, nickname: profilo?.nickname ?? '' }
   if (rotta.pagina === 'invito') return <Invito codice={rotta.param} io={io} />
   if (rotta.pagina === 'tavolo') return <Tavolo id={rotta.param} io={io} />
+  if (rotta.pagina === 'giocatori') return <Giocatori io={io} />
+  if (rotta.pagina === 'messaggi') return <Messaggi altroId={rotta.param} io={io} />
   return <Lobby io={io} />
 }

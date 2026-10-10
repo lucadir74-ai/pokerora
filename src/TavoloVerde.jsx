@@ -2,6 +2,60 @@ import { useEffect, useRef, useState } from 'react'
 import Carta from './Carta'
 import { fmt } from './regole'
 import { valutaMano, nomePunto, puoAprire } from './punti'
+import { gira } from './suoni'
+
+// Una mia carta ancora coperta: si guarda toccandola o trascinando il dorso verso l'alto
+function Spizza({ c, onVedi }) {
+  const [alza, setAlza] = useState(0)
+  const [tengo, setTengo] = useState(false)
+  const inizio = useRef(null)
+  const ref = useRef(null)
+  const scopri = () => { gira(); onVedi() }
+  return (
+    <span ref={ref} className={`spizza${tengo ? '' : ' mollata'}`} role="button" tabIndex={0}
+      aria-label="Carta coperta: tocca o trascina in su per guardarla"
+      onPointerDown={(e) => {
+        inizio.current = { y: e.clientY, mosso: false }
+        setTengo(true)
+        e.currentTarget.setPointerCapture?.(e.pointerId)
+      }}
+      onPointerMove={(e) => {
+        const i = inizio.current
+        if (!i) return
+        const d = i.y - e.clientY
+        if (Math.abs(d) > 6) i.mosso = true
+        setAlza(Math.min(1, Math.max(0, d / (ref.current?.offsetHeight || 80))))
+      }}
+      onPointerUp={() => {
+        const i = inizio.current
+        inizio.current = null
+        setTengo(false)
+        if (i && (!i.mosso || alza > 0.45)) scopri()
+        setAlza(0)
+      }}
+      onPointerCancel={() => { inizio.current = null; setTengo(false); setAlza(0) }}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); scopri() } }}>
+      <span aria-hidden="true"><Carta c={c} /></span>
+      <span className="copertura" style={{ transform: `translateY(${(-alza * 100).toFixed(1)}%)` }} />
+    </span>
+  )
+}
+
+// Carte già guardate in questa mano (restano scoperte anche se ricarichi la pagina)
+function useViste(idMano) {
+  const chiave = `pokerora_viste_${idMano}`
+  const leggi = () => {
+    try { return new Set(JSON.parse(sessionStorage.getItem(chiave) || '[]')) } catch { return new Set() }
+  }
+  const [viste, setViste] = useState(leggi)
+  useEffect(() => { setViste(leggi()) }, [idMano])
+  const salva = (nuove) => {
+    try { sessionStorage.setItem(chiave, JSON.stringify([...nuove])) } catch {}
+    return nuove
+  }
+  const vedi = (cc) => setViste((v) => salva(new Set([...v, ...[].concat(cc)])))
+  return [viste, vedi]
+}
 
 // Posizioni in percentuale del tavolo (x sulla larghezza, y sull'altezza)
 const CENTRO = { x: 50, y: 48 }
@@ -15,7 +69,10 @@ function posizioni(n, stretto) {
   const ry = stretto ? 44 : 45
   return Array.from({ length: n }, (_, k) => {
     const a = ((90 + (k * 360) / n) * Math.PI) / 180
-    return { x: 50 + rx * Math.cos(a), y: 50 + ry * Math.sin(a) }
+    const x = 50 + rx * Math.cos(a)
+    const y = 50 + ry * Math.sin(a)
+    // Telefono: i posti laterali bassi salgono un po', per non coprire le mie carte
+    return { x, y: stretto && (x < 20 || x > 80) && y > 62 ? 64 : y }
   })
 }
 
@@ -143,6 +200,7 @@ function Fondo({ stretto }) {
 
 export default function TavoloVerde({ mano, posti, giocatori, io, carte, scelte, onScegli, azioni, conclusa, fumetti = {} }) {
   const [fantasmi, setFantasmi] = useState([])
+  const [viste, vedi] = useViste(mano?.id)
   const prevCambio = useRef({})
   const stretto = useStretto()
   const stile = (pos, extra = {}) => {
@@ -213,7 +271,7 @@ export default function TavoloVerde({ mano, posti, giocatori, io, carte, scelte,
   const alCentro = mano.piatto - inGiro
   const vincitori = mano.esito?.vincitori ?? []
   const piattoVerso = conclusa && vincitori.length === 1 && posDi[vincitori[0]]
-    ? verso(CENTRO, posDi[vincitori[0]], 0.34) : CENTRO
+    ? verso(CENTRO, posDi[vincitori[0]], stretto ? 0.18 : 0.34) : CENTRO
   const mostraPiatto = mano.fase !== 'finita' || vincitori.length === 1
 
   return (
@@ -228,7 +286,8 @@ export default function TavoloVerde({ mano, posti, giocatori, io, carte, scelte,
         </span>
 
         {/* Di chi è il turno */}
-        {!conclusa && mano.turno != null && (() => {
+        {/* Sul telefono a 5-6 giocatori lo dice già la barra dei comandi e il posto illuminato */}
+        {!conclusa && mano.turno != null && !(stretto && giro.length >= 5) && (() => {
           const t = posti.find((p) => p.posto === mano.turno)
           if (!t) return null
           const mio = t.giocatore_id === io.id
@@ -253,8 +312,16 @@ export default function TavoloVerde({ mano, posti, giocatori, io, carte, scelte,
           const fuori = p.stato === 'fuori'
           const diTurno = mano.turno === p.posto && !conclusa
           const vince = conclusa && p.vincita > 0
-          const puntataPos = verso(s, CENTRO, sonoIo ? 0.42 : 0.4)
-          const cartePos = sonoIo ? { x: 50, y: stretto ? 77 : 74 } : verso(s, CENTRO, stretto ? 0.3 : 0.24)
+          // Telefono in verticale: i posti laterali stanno attaccati al bordo dello schermo,
+          // le loro carte vanno sopra o sotto il posto (verso il centro), la puntata dall'altro lato
+          const bordo = stretto && !sonoIo && (s.x < 20 || s.x > 80)
+          const sx = s.x < 50
+          const dir = s.y > 55 ? -1 : 1
+          const puntataPos = bordo ? { x: sx ? 18 : 82, y: s.y - dir * (dir < 0 ? 14 : 11) } : verso(s, CENTRO, sonoIo ? 0.42 : 0.4)
+          const cartePos = sonoIo ? { x: 50, y: stretto ? (conclusa && p.carte_mostrate ? 72 : 75) : 74 }
+            : bordo ? { x: sx ? 26 : 74, y: s.y + dir * (dir < 0 ? 13 : 11) }
+            : verso(s, CENTRO, stretto ? 0.3 : 0.24)
+          const sopra = bordo ? dir < 0 : s.y > 50
           const scoperte = conclusa && p.carte_mostrate
           const primaDelleCarte = mano.fase === 'buio'
 
@@ -273,10 +340,17 @@ export default function TavoloVerde({ mano, posti, giocatori, io, carte, scelte,
                 <div className={`mano-mia${fuori ? ' piegata' : ''}`} style={stile(cartePos)}>
                   {carte.map((c, k) => (
                     <span key={`${mano.id}-${c}`} className={`volo${gia(`${mano.id}-${c}`)}`} style={{ ...delta(MAZZO, cartePos), '--ritardo': `${k * giro.length * 70 + 40}ms`, '--rot': `${(k - 2) * 3}deg` }}>
-                      <Carta c={c} scelta={scelte.includes(c)} onClick={onScegli ? () => onScegli(c) : undefined} />
+                      {viste.has(c) || fuori
+                        ? <Carta c={c} scelta={scelte.includes(c)} onClick={onScegli ? () => onScegli(c) : undefined} />
+                        : <Spizza c={c} onVedi={() => vedi(c)} />}
                     </span>
                   ))}
-                  {carte.length === 5 && (
+                  {carte.length === 5 && !fuori && carte.some((c) => !viste.has(c)) && (
+                    <button type="button" className="mio-punto scopri-tutte" onClick={() => { gira(); vedi(carte) }}>
+                      Spizza le carte · scopri tutte
+                    </button>
+                  )}
+                  {carte.length === 5 && !fuori && carte.every((c) => viste.has(c)) && (
                     <span className="mio-punto">
                       {nomePunto(valutaMano(carte, mano.bassa))}
                       {mano.fase === 'apertura' && (puoAprire(carte, mano.requisito, mano.bassa)
@@ -285,14 +359,14 @@ export default function TavoloVerde({ mano, posti, giocatori, io, carte, scelte,
                   )}
                 </div>
               ) : scoperte ? (
-                <div className={`mano-scoperta${vince ? ' vincente' : ''}${sonoIo ? ' mia' : ''}${!sonoIo && s.y > 50 ? ' sopra' : ''}`} style={stile(sonoIo ? cartePos : verso(s, CENTRO, 0.36))}>
+                <div className={`mano-scoperta${vince ? ' vincente' : ''}${sonoIo ? ' mia' : ''}${!sonoIo && sopra ? ' sopra' : ''}`} style={stile(sonoIo || bordo ? cartePos : verso(s, CENTRO, 0.36))}>
                   {p.carte_mostrate.map((c, k) => (
                     <span key={c} className={`gira${gia(`${mano.id}-g-${c}`)}`} style={{ '--ritardo': `${k * 90}ms` }}><Carta c={c} piccola={!sonoIo} /></span>
                   ))}
                   <span className="punto-mostrato">{p.punto}</span>
                 </div>
               ) : (
-                <div className={`mano-coperta${fuori ? ' piegata' : ''}`} style={{ ...stile(cartePos), '--ang': `${(Math.atan2(CENTRO.y - s.y, CENTRO.x - s.x) * 180) / Math.PI - 90}deg` }}>
+                <div className={`mano-coperta${fuori ? ' piegata' : ''}`} style={{ ...stile(cartePos), '--ang': bordo ? '0deg' : `${(Math.atan2(CENTRO.y - s.y, CENTRO.x - s.x) * 180) / Math.PI - 90}deg` }}>
                   {dorsi.map((k, j) => (
                     <span key={`${mano.id}-${k}`} className={`volo dorso${gia(`${mano.id}-${p.giocatore_id}-${k}`)}`}
                       style={{ ...delta(MAZZO, cartePos), '--ritardo': k.startsWith('v') ? `${j * giro.length * 70 + i * 70}ms` : `${j * 60}ms`, '--rot': `${(j - 2) * 6}deg` }} />
@@ -318,7 +392,7 @@ export default function TavoloVerde({ mano, posti, giocatori, io, carte, scelte,
               )}
 
               {/* Il posto */}
-              <div className={`posto-tavolo${s.x < 35 ? ' lato-sx' : s.x > 65 ? ' lato-dx' : ''}${sonoIo ? ' io' : ''}${diTurno ? ' di-turno' : ''}${fuori ? ' fuori' : ''}${vince ? ' vince' : ''}`} style={stile(s)}>
+              <div className={`posto-tavolo${s.x < 35 ? ' lato-sx' : s.x > 65 ? ' lato-dx' : ''}${bordo ? (sx ? ' bordo-sx' : ' bordo-dx') : ''}${sonoIo ? ' io' : ''}${diTurno ? ' di-turno' : ''}${fuori ? ' fuori' : ''}${vince ? ' vince' : ''}`} style={stile(s)}>
                 {fumetti[p.giocatore_id] ? (
                   <span key={`chat-${fumetti[p.giocatore_id].id}`} className="bolla chat-bolla">
                     {fumetti[p.giocatore_id].testo.length > 60 ? fumetti[p.giocatore_id].testo.slice(0, 58) + '…' : fumetti[p.giocatore_id].testo}

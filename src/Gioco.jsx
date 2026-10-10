@@ -6,6 +6,7 @@ import { fmt, invitoDi } from './regole'
 import { durata } from './tempo'
 import Chat from './Chat'
 import { useChat } from './chat'
+import * as suoni from './suoni'
 
 const COPPIA = { 11: 'fanti', 12: 'donne', 13: 're' }
 
@@ -13,6 +14,7 @@ export default function Gioco({ tavolo, giocatori, io }) {
   const [mano, setMano] = useState(null)
   const [posti, setPosti] = useState([])
   const [carte, setCarte] = useState([])
+  const [carteDi, setCarteDi] = useState(null) // mano a cui appartengono le carte caricate
   const [registro, setRegistro] = useState([])
   const [scelte, setScelte] = useState([])
   const [importo, setImporto] = useState('')
@@ -51,6 +53,11 @@ export default function Gioco({ tavolo, giocatori, io }) {
     return () => clearInterval(t)
   }, [])
 
+  // Suoni: si suonano solo le azioni arrivate dopo l'apertura della pagina
+  const caricato = useRef(false)
+  const ultimaSuonata = useRef(null)
+  const carteSuonate = useRef(new Set())
+
   const carica = useCallback(async () => {
     if (!idMano) { setMano(null); return }
     const [m, g, c, r] = await Promise.all([
@@ -62,7 +69,9 @@ export default function Gioco({ tavolo, giocatori, io }) {
     setMano(m.data ?? null)
     setPosti(g.data ?? [])
     setCarte(c.data?.carte ?? [])
+    setCarteDi(idMano)
     setRegistro(r.data ?? [])
+    caricato.current = true
   }, [idMano, io.id])
 
   useEffect(() => {
@@ -73,6 +82,43 @@ export default function Gioco({ tavolo, giocatori, io }) {
       .subscribe()
     return () => { supabase.removeChannel(canale) }
   }, [tavolo.id, carica])
+
+  useEffect(() => {
+    if (!caricato.current) return
+    const massimo = registro.reduce((m, a) => Math.max(m, a.id), 0)
+    if (ultimaSuonata.current === null) {
+      ultimaSuonata.current = massimo
+      if (idMano) carteSuonate.current.add(idMano) // la mano già in corso non si ridistribuisce
+      return
+    }
+    const nuove = registro.filter((a) => a.id > ultimaSuonata.current).sort((a, b) => a.id - b.id)
+    ultimaSuonata.current = Math.max(ultimaSuonata.current, massimo)
+    const inv = invitoDi(tavolo)
+    const suona = (a) => {
+      switch (a.tipo) {
+        case 'mano': suoni.mescola(); break
+        case 'apro': case 'vedo': case 'rilancio': case 'punto':
+        case 'buio': case 'controbuio': case 'over': case 'posta':
+          suoni.fiches(suoni.quanteFiches(a.importo, inv)); break
+        case 'cambio':
+          if (a.importo > 0) { suoni.scarta(); setTimeout(() => suoni.distribuisci(a.importo, 0.1), 300) }
+          break
+        case 'lascio': suoni.lascia(); break
+        case 'vince': suoni.vincita(); break
+        default: break
+      }
+    }
+    // La prima subito (così il mescolare parte prima della distribuzione), le altre in fila
+    nuove.forEach((a, k) => (k === 0 ? suona(a) : setTimeout(() => suona(a), k * 220)))
+  }, [registro])
+
+  // Carte distribuite: un flic per ogni carta data al tavolo, una volta per mano
+  useEffect(() => {
+    if (!caricato.current || ultimaSuonata.current === null || carteDi !== idMano || !idMano) return
+    if (carte.length !== 5 || carteSuonate.current.has(idMano)) return
+    carteSuonate.current.add(idMano)
+    suoni.distribuisci(5 * Math.max(posti.length, 1), 0.07)
+  }, [carte, carteDi, idMano, posti.length])
 
   // Nuova fase o nuovo turno: azzera scelte e importo
   useEffect(() => { setScelte([]); setImporto('') }, [mano?.fase, mano?.turno, idMano])
