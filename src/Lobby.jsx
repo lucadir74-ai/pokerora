@@ -21,7 +21,7 @@ function NuovoTavolo({ onChiudi }) {
     e.preventDefault()
     setErrore('')
     const v = Number(posta)
-    if (!nome.trim()) return setErrore('Dai un nome al tavolo, per esempio “Venerdì da Luca”.')
+    if (!nome.trim()) return setErrore('Dai un nome al tavolo.')
     if (!Number.isInteger(v) || v < 100) return setErrore('La posta deve essere di almeno 100 Vardis.')
     const inv = invito === '' ? Math.max(1, Math.floor(v / 100)) : Number(invito)
     if (!Number.isInteger(inv) || inv < 1 || inv > v) return setErrore('L’invito deve essere un numero intero tra 1 e il valore della posta.')
@@ -43,7 +43,7 @@ function NuovoTavolo({ onChiudi }) {
       <form onSubmit={crea} noValidate>
         <label>
           Nome del tavolo
-          <input value={nome} maxLength={40} placeholder="Venerdì da Luca" onChange={(e) => setNome(e.target.value)} />
+          <input value={nome} maxLength={40} onChange={(e) => setNome(e.target.value)} />
         </label>
         <fieldset className="scelta">
           <legend>Posti al tavolo</legend>
