@@ -397,6 +397,16 @@ export default function Tavolo({ id, io }) {
         <>
           <Cassetto aperto={cassetto === 'poste'} onChiudi={chiudiCassetto} titolo="Poste e saldi">
             {contenutoPoste}
+            {organizzo && (
+              <div className="chiudi-tavolo">
+                <button className="secondario" disabled={attesa}
+                  onClick={() => window.confirm('Chiudere il tavolo? La partita finisce: nessuno potrà più giocare né prendere poste. Resta il riepilogo con i saldi.')
+                    && chiama('chiudi_tavolo', { p_tavolo: id }, 'Tavolo chiuso.').then((ok) => ok && chiudiCassetto())}>
+                  Chiudi il tavolo
+                </button>
+                <p className="tenue">Lo può fare solo chi ha aperto il tavolo.</p>
+              </div>
+            )}
           </Cassetto>
           <Cassetto aperto={cassetto === 'regole'} onChiudi={chiudiCassetto} titolo="Posta e regole">
             <Fiches valore={tavolo.valore_posta} />
@@ -408,10 +418,11 @@ export default function Tavolo({ id, io }) {
             {organizzo && (
               <div className="chiudi-tavolo">
                 <button className="secondario" disabled={attesa}
-                  onClick={() => window.confirm('Chiudere il tavolo? Nessuno potrà più sedersi né prendere poste.')
+                  onClick={() => window.confirm('Chiudere il tavolo? La partita finisce: nessuno potrà più giocare né prendere poste. Resta il riepilogo con i saldi.')
                     && chiama('chiudi_tavolo', { p_tavolo: id }, 'Tavolo chiuso.').then((ok) => ok && chiudiCassetto())}>
                   Chiudi il tavolo
                 </button>
+                <p className="tenue">Lo può fare solo chi ha aperto il tavolo.</p>
               </div>
             )}
           </Cassetto>

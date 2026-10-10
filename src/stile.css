@@ -1178,3 +1178,13 @@ button.carta-gioco { cursor: pointer; transition: transform 120ms ease; }
   .posto-tavolo.io .bolla.bolla-punto.vincente::after { border-top-color: transparent; border-right-color: #f2d77a; }
   .posto-tavolo.io .bolla.bolla-punto { white-space: nowrap; max-width: none; }
 }
+
+/* Esito della mano nella barra dei comandi */
+.esito-mano {
+  margin: 0; padding: 0.7rem 0.9rem; border-radius: 12px; font-size: 1.05rem; line-height: 1.35;
+  background: rgba(255, 255, 255, 0.08); color: #eef3ef; border-left: 4px solid #6fbf93;
+}
+.esito-mano strong { color: #f2d77a; }
+.esito-mano.mio { background: #f2d77a; color: var(--inchiostro); border-left-color: #fff; }
+.esito-mano.mio strong { color: var(--inchiostro); }
+.chiudi-tavolo .tenue { margin: 0.4rem 0 0; font-size: 0.85rem; }

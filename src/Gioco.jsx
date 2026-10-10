@@ -531,6 +531,29 @@ export default function Gioco({ tavolo, giocatori, io, bot = new Set(), pannello
 
             {azioni()}
 
+            {/* Esito della mano: chi ha vinto, con cosa e quanto */}
+            {conclusa && mano && (() => {
+              if (mano.fase === 'annullata') {
+                return <p className="esito-mano">{mano.esito?.tipo === 'parol' ? 'Tutti dicono parola: il piatto resta per la prossima mano.' : 'Nessuno apre: il piatto resta per la prossima mano.'}</p>
+              }
+              const vincitori = posti.filter((p) => (mano.esito?.vincitori ?? []).includes(p.giocatore_id))
+              if (!vincitori.length) return null
+              const io_ = vincitori.some((p) => p.giocatore_id === io.id)
+              return (
+                <p className={`esito-mano${io_ ? ' mio' : ''}`} role="status">
+                  <span aria-hidden="true">🏆 </span>
+                  {vincitori.map((p, i) => (
+                    <span key={p.giocatore_id}>
+                      {i > 0 && ' e '}
+                      <strong>{p.giocatore_id === io.id ? 'Hai vinto' : `Vince ${nomeDi(p.giocatore_id)}`}</strong>
+                      {' '}{fmt(p.vincita)}
+                      {p.punto ? ` con ${p.punto.charAt(0).toLowerCase()}${p.punto.slice(1)}` : mano.esito?.tipo === 'unico' ? ': gli altri hanno lasciato' : ''}
+                    </span>
+                  ))}
+                </p>
+              )
+            })()}
+
             {/* Ho vinto perché gli altri hanno lasciato: posso scoprire le carte, se voglio */}
             {conclusa && mano?.esito?.tipo === 'unico' && (mano.esito.vincitori ?? []).includes(io.id) && mio && !mio.carte_mostrate && (
               <button className="secondario mostra-carte" disabled={attesa} onClick={() => rpc('mostra_carte', { p_mano: mano.id })}>
