@@ -109,8 +109,9 @@ const REGOLE = [
   )],
   ['Buio, controbuio e over', (
     <>
-      <p>Prima di vedere le carte, il primo dopo il mazziere può fare il buio: punta quanto c’è nel piatto. Il successivo può fare il controbuio (il doppio), il terzo l’over (il doppio del controbuio).</p>
-      <p>Dopo la distribuzione gli altri possono solo vedere o lasciare. Chi ha fatto l’ultimo buio parla per ultimo: chiude il giro o rilancia. Niente buio dopo una mano finita a parola.</p>
+      <p>Solo nelle mani che si aprono ai fanti, prima di vedere le carte, il primo dopo il mazziere può fare il buio: punta quanto c’è nel piatto. Il successivo può fare il controbuio (il doppio), il terzo l’over (il doppio del controbuio). Il mazziere non deve mai parlare per primo: per questo l’over si fa solo da 5 giocatori in su.</p>
+      <p>Chi ha fatto il buio può coprire subito il controbuio, prima delle carte, e così conserva il diritto di rilanciare. Con l’over lo copre prima il controbuio, poi il buio, ma solo se aveva già coperto il controbuio.</p>
+      <p>Dopo la distribuzione gli altri possono solo vedere o lasciare; rilancia solo chi ha fatto l’ultimo buio o l’ha coperto. Dopo il cambio l’ultimo buio parla per ultimo. Niente buio dopo una mano finita a parola.</p>
     </>
   )],
   ['Il cambio', (
@@ -118,7 +119,7 @@ const REGOLE = [
   )],
   ['Secondo giro e parola', (
     <>
-      <p>Dopo il cambio parla per primo chi ha aperto (o chi ha fatto l’ultimo buio). Si può puntare, bussare (si va avanti senza puntare) o dire parola.</p>
+      <p>Dopo il cambio parla per primo chi ha aperto. Nelle mani al buio comincia chi siede a sinistra dell’ultimo buio, che così parla per ultimo. Si può puntare, bussare (si va avanti senza puntare) o dire parola.</p>
       <p>Se tutti dicono parola la mano si annulla: il piatto resta, la mano dopo si apre con coppia di re e senza buio. Chi era uscito al primo giro, per rientrare, versa la differenza.</p>
     </>
   )],

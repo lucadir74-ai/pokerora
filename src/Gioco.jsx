@@ -98,7 +98,7 @@ export default function Gioco({ tavolo, giocatori, io, bot = new Set() }) {
       switch (a.tipo) {
         case 'mano': suoni.mescola(); break
         case 'apro': case 'vedo': case 'rilancio': case 'punto':
-        case 'buio': case 'controbuio': case 'over': case 'posta':
+        case 'buio': case 'controbuio': case 'over': case 'copro': case 'posta':
           suoni.fiches(suoni.quanteFiches(a.importo, inv)); break
         case 'cambio':
           if (a.importo > 0) { suoni.scarta(); setTimeout(() => suoni.distribuisci(a.importo, 0.1), 300) }
@@ -229,6 +229,25 @@ export default function Gioco({ tavolo, giocatori, io, bot = new Set() }) {
     if (!mano || conclusa) return null
     if (!mio || mio.stato !== 'attivo') return <p className="tenue">Sei fuori da questa mano.</p>
     if (!mioTurno) return preAzioni()
+    if (mano.fase === 'buio' && mano.buio_da_chiedere?.[0] === io.id) {
+      // Prima delle carte: coprire il controbuio o l'over per conservare il diritto di rilancio
+      const cosa = mano.buio_livello === 2 ? 'il controbuio' : 'l’over'
+      const diff = mano.buio_importo - (mio.versato_giro ?? 0)
+      return (
+        <div className="azioni-gioco">
+          <p>
+            {nomeDi(mano.buio_di)} ha fatto {cosa}. Se lo copri adesso, prima di vedere le carte, aggiungi {fmt(diff)} e
+            conservi il diritto di rilanciare.
+          </p>
+          <div className="griglia-azioni due">
+            {grande('Non copro', 'neutro', () => rpc('copri_buio', { p_mano: mano.id, p_copro: false }),
+              'Dopo aver visto le carte potrai solo vedere o lasciare')}
+            {grande(`Copro ${cosa} +${fmt(diff)}`, 'oro', () => rpc('copri_buio', { p_mano: mano.id, p_copro: true }),
+              'Metti la differenza al buio e potrai rilanciare')}
+          </div>
+        </div>
+      )
+    }
     if (mano.fase === 'buio') {
       const nome = ['buio', 'controbuio', 'over'][mano.buio_livello]
       const quanto = mano.buio_livello === 0 ? mano.piatto : mano.buio_importo * 2
@@ -246,7 +265,8 @@ export default function Gioco({ tavolo, giocatori, io, bot = new Set() }) {
         </div>
       )
     }
-    if (mano.buio_aperto && mano.buio_di !== io.id) {
+    const hoDiritto = mano.buio_di === io.id || (mano.buio_coperti ?? []).includes(io.id)
+    if (mano.buio_aperto && !hoDiritto) {
       // Coprire il buio: chi non ha messo buii paga l'ultimo per intero,
       // chi aveva già messo buio o controbuio aggiunge solo la differenza
       const cosa = ['', 'il buio', 'il controbuio', 'l’over'][mano.buio_livello]
@@ -283,7 +303,9 @@ export default function Gioco({ tavolo, giocatori, io, bot = new Set() }) {
     let pulsanti
     if (mano.buio_aperto) {
       pulsanti = [
-        grande('Chiudo il giro', 'verde', () => azione('vedo'), 'Tutti hanno coperto: non rilanci e si passa al cambio'),
+        mano.buio_di === io.id
+          ? grande('Chiudo il giro', 'verde', () => azione('vedo'), 'Non rilanci e si passa al cambio')
+          : grande('Non rilancio', 'verde', () => azione('vedo'), 'Hai coperto il buio: resti in gioco senza rilanciare'),
         grande(`Rilancio +${fmt(valore)}`, 'oro', () => azione('rilancio', valore), 'Alzi la puntata: gli altri devono pareggiare'),
       ]
     } else if (mano.fase === 'apertura') {
