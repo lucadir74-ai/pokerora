@@ -7,6 +7,7 @@ import { durata } from './tempo'
 import Chat from './Chat'
 import { useChat } from './chat'
 import Cassetto from './Cassetto'
+import { EMOTICON } from './emoticon'
 import * as suoni from './suoni'
 
 const COPPIA = { 11: 'fanti', 12: 'donne', 13: 're' }
@@ -73,6 +74,30 @@ export default function Gioco({ tavolo, giocatori, io, bot = new Set(), pannello
     window.addEventListener('resize', calcola)
     return () => { ro?.disconnect(); window.removeEventListener('resize', calcola) }
   }, [])
+
+  // Emoticon per commentare la mano: passano in tempo reale, non restano salvate
+  const [reazioni, setReazioni] = useState({})
+  const canaleReazioni = useRef(null)
+  const ultimaReazione = useRef(0)
+  useEffect(() => {
+    const ch = supabase.channel(`reazioni-${tavolo.id}`, { config: { broadcast: { self: true } } })
+    ch.on('broadcast', { event: 'reazione' }, ({ payload }) => {
+      const { g, e, id } = payload || {}
+      if (!EMOTICON.some((x) => x.e === e) || !giocatoriRef.current.some((x) => x.giocatore_id === g)) return
+      setReazioni((r) => ({ ...r, [g]: { e, id } }))
+      setTimeout(() => setReazioni((r) => (r[g]?.id === id ? { ...r, [g]: undefined } : r)), 3500)
+    })
+    ch.subscribe()
+    canaleReazioni.current = ch
+    return () => { supabase.removeChannel(ch) }
+  }, [tavolo.id])
+  const giocatoriRef = useRef(giocatori)
+  useEffect(() => { giocatoriRef.current = giocatori }, [giocatori])
+  const reagisci = (e) => {
+    if (Date.now() - ultimaReazione.current < 1500) return      // niente raffiche
+    ultimaReazione.current = Date.now()
+    canaleReazioni.current?.send({ type: 'broadcast', event: 'reazione', payload: { g: io.id, e, id: `${io.id}-${Date.now()}` } })
+  }
 
   // Chat: i messaggi nuovi compaiono anche come fumetto sul tavolo per qualche secondo
   const [fumetti, setFumetti] = useState({})
@@ -154,6 +179,7 @@ export default function Gioco({ tavolo, giocatori, io, bot = new Set(), pannello
           if (a.importo > 0) { suoni.scarta(); setTimeout(() => suoni.distribuisci(a.importo, 0.1), 300) }
           break
         case 'lascio': suoni.lascia(); break
+        case 'mostra': suoni.gira(); break
         case 'vince': suoni.vincita(); break
         default: break
       }
@@ -479,7 +505,7 @@ export default function Gioco({ tavolo, giocatori, io, bot = new Set(), pannello
         <TavoloVerde
             mano={mano} posti={posti} giocatori={giocatori} io={io} carte={carte}
             scelte={scelte} onScegli={mano?.fase === 'cambio' && mioTurno ? scegli : null}
-            azioni={registro} conclusa={conclusa} fumetti={fumetti}
+            azioni={registro} conclusa={conclusa} fumetti={fumetti} reazioni={reazioni} onReagisci={reagisci}
           />
 
           <div className="comandi console" ref={comandiRef} aria-label="Comandi di gioco">
@@ -504,6 +530,13 @@ export default function Gioco({ tavolo, giocatori, io, bot = new Set(), pannello
             )}
 
             {azioni()}
+
+            {/* Ho vinto perché gli altri hanno lasciato: posso scoprire le carte, se voglio */}
+            {conclusa && mano?.esito?.tipo === 'unico' && (mano.esito.vincitori ?? []).includes(io.id) && mio && !mio.carte_mostrate && (
+              <button className="secondario mostra-carte" disabled={attesa} onClick={() => rpc('mostra_carte', { p_mano: mano.id })}>
+                Mostra le carte
+              </button>
+            )}
 
             {conclusa && traSecondi !== null && (
               <p className="prossima-mano" role="status">

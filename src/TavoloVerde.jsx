@@ -3,6 +3,7 @@ import Carta from './Carta'
 import { fmt } from './regole'
 import { valutaMano, nomePunto, puoAprire } from './punti'
 import Spizzata from './Spizzata'
+import { EMOTICON } from './emoticon'
 import { spizzataAttiva, ascoltaSpizzata } from './preferenze'
 
 // Spizzata: le mie carte arrivano chiuse una sopra l'altra, a faccia in su.
@@ -26,6 +27,35 @@ function useSpizzata(idMano, carte) {
     return nuovo
   })
   return { ordine, viste, aperto, vedi }
+}
+
+// Tasto delle emoticon nell'angolo del tavolo: si apre la tavolozza, un tocco e l'emoticon
+// compare sopra il tuo posto per tutti
+function Emoticon({ onReagisci }) {
+  const [aperta, setAperta] = useState(false)
+  const ref = useRef(null)
+  useEffect(() => {
+    if (!aperta) return
+    const fuori = (e) => { if (!ref.current?.contains(e.target)) setAperta(false) }
+    const esc = (e) => { if (e.key === 'Escape') setAperta(false) }
+    document.addEventListener('pointerdown', fuori)
+    document.addEventListener('keydown', esc)
+    return () => { document.removeEventListener('pointerdown', fuori); document.removeEventListener('keydown', esc) }
+  }, [aperta])
+  return (
+    <div className="emoticon" ref={ref}>
+      {aperta && (
+        <div className="emoticon-tavolozza" role="menu" aria-label="Commenta con un’emoticon">
+          {EMOTICON.map((x) => (
+            <button key={x.e} type="button" role="menuitem" title={x.nome} aria-label={x.nome}
+              onClick={() => { onReagisci(x.e); setAperta(false) }}>{x.e}</button>
+          ))}
+        </div>
+      )}
+      <button type="button" className="emoticon-tasto" aria-expanded={aperta} aria-label="Emoticon"
+        onClick={() => setAperta((a) => !a)}>😀</button>
+    </div>
+  )
 }
 
 // Posizioni in percentuale del tavolo (x sulla larghezza, y sull'altezza)
@@ -169,7 +199,7 @@ function Fondo({ stretto }) {
   )
 }
 
-export default function TavoloVerde({ mano, posti, giocatori, io, carte, scelte, onScegli, azioni, conclusa, fumetti = {} }) {
+export default function TavoloVerde({ mano, posti, giocatori, io, carte, scelte, onScegli, azioni, conclusa, fumetti = {}, reazioni = {}, onReagisci }) {
   const [fantasmi, setFantasmi] = useState([])
   // ── Spizzata delle mie carte ──
   const { ordine, viste, aperto, vedi } = useSpizzata(mano?.id, carte)
@@ -263,6 +293,7 @@ export default function TavoloVerde({ mano, posti, giocatori, io, carte, scelte,
 
   return (
     <div className="scena">
+      {onReagisci && <Emoticon onReagisci={onReagisci} />}
     <div className="tavolo-verde">
       <Fondo stretto={stretto} />
       <div className="panno" aria-label={`Tavolo: mano ${mano.numero}, piatto ${fmt(mano.piatto)}`}>
@@ -405,6 +436,12 @@ export default function TavoloVerde({ mano, posti, giocatori, io, carte, scelte,
                   </span>
                 ) : ultima[p.giocatore_id] && !(conclusa && !vince && !scoperte) && (
                   <span key={`${ultima[p.giocatore_id]}-${azioni[0]?.id}`} className="bolla">{ultima[p.giocatore_id]}</span>
+                )}
+                {reazioni[p.giocatore_id] && (
+                  <span key={reazioni[p.giocatore_id].id} className="reazione" role="img"
+                    aria-label={`${nomeDi(p.giocatore_id)}: ${EMOTICON.find((x) => x.e === reazioni[p.giocatore_id].e)?.nome ?? ''}`}>
+                    {reazioni[p.giocatore_id].e}
+                  </span>
                 )}
                 <span className="avatar" aria-hidden="true">{nomeDi(p.giocatore_id).slice(0, 1).toUpperCase()}</span>
                 <span className="posto-testo">
