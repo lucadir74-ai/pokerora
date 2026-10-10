@@ -1,60 +1,30 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import Carta from './Carta'
 import { fmt } from './regole'
 import { valutaMano, nomePunto, puoAprire } from './punti'
-import { gira } from './suoni'
+import Spizzata from './Spizzata'
 
-// Una mia carta ancora coperta: si guarda toccandola o trascinando il dorso verso l'alto
-function Spizza({ c, onVedi }) {
-  const [alza, setAlza] = useState(0)
-  const [tengo, setTengo] = useState(false)
-  const inizio = useRef(null)
-  const ref = useRef(null)
-  const scopri = () => { gira(); onVedi() }
-  return (
-    <span ref={ref} className={`spizza${tengo ? '' : ' mollata'}`} role="button" tabIndex={0}
-      aria-label="Carta coperta: tocca o trascina in su per guardarla"
-      onPointerDown={(e) => {
-        inizio.current = { y: e.clientY, mosso: false }
-        setTengo(true)
-        e.currentTarget.setPointerCapture?.(e.pointerId)
-      }}
-      onPointerMove={(e) => {
-        const i = inizio.current
-        if (!i) return
-        const d = i.y - e.clientY
-        if (Math.abs(d) > 6) i.mosso = true
-        setAlza(Math.min(1, Math.max(0, d / (ref.current?.offsetHeight || 80))))
-      }}
-      onPointerUp={() => {
-        const i = inizio.current
-        inizio.current = null
-        setTengo(false)
-        if (i && (!i.mosso || alza > 0.45)) scopri()
-        setAlza(0)
-      }}
-      onPointerCancel={() => { inizio.current = null; setTengo(false); setAlza(0) }}
-      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); scopri() } }}>
-      <span aria-hidden="true"><Carta c={c} /></span>
-      <span className="copertura" style={{ transform: `translateY(${(-alza * 100).toFixed(1)}%)` }} />
-    </span>
-  )
-}
-
-// Carte già guardate in questa mano (restano scoperte anche se ricarichi la pagina)
-function useViste(idMano) {
-  const chiave = `pokerora_viste_${idMano}`
+// Spizzata: le mie carte arrivano chiuse una sopra l'altra, a faccia in su.
+// Si spizzano a tutto schermo, una carta alla volta (vedi Spizzata.jsx).
+// Ordine: la prima è quella davanti; le carte nuove dopo il cambio finiscono dietro.
+function useSpizzata(idMano, carte) {
+  const chiave = `pokerora_spizza_${idMano}`
   const leggi = () => {
-    try { return new Set(JSON.parse(sessionStorage.getItem(chiave) || '[]')) } catch { return new Set() }
+    try { return JSON.parse(sessionStorage.getItem(chiave) || 'null') || { ordine: [], viste: [] } }
+    catch { return { ordine: [], viste: [] } }
   }
-  const [viste, setViste] = useState(leggi)
-  useEffect(() => { setViste(leggi()) }, [idMano])
-  const salva = (nuove) => {
-    try { sessionStorage.setItem(chiave, JSON.stringify([...nuove])) } catch {}
-    return nuove
-  }
-  const vedi = (cc) => setViste((v) => salva(new Set([...v, ...[].concat(cc)])))
-  return [viste, vedi]
+  const [salvato, setSalvato] = useState(leggi)
+  useEffect(() => { setSalvato(leggi()) }, [idMano])
+  const unisci = (base) => [...(base.ordine || []).filter((c) => carte.includes(c)), ...carte.filter((c) => !(base.ordine || []).includes(c))]
+  const ordine = unisci(salvato)
+  const viste = new Set((salvato.viste || []).filter((c) => carte.includes(c)))
+  const aperto = carte.length > 0 && carte.every((c) => viste.has(c))
+  const vedi = (cc) => setSalvato((prima) => {
+    const nuovo = { ordine: unisci(prima), viste: [...new Set([...(prima.viste || []), ...[].concat(cc)])] }
+    try { sessionStorage.setItem(chiave, JSON.stringify(nuovo)) } catch {}
+    return nuovo
+  })
+  return { ordine, viste, aperto, vedi }
 }
 
 // Posizioni in percentuale del tavolo (x sulla larghezza, y sull'altezza)
@@ -200,7 +170,21 @@ function Fondo({ stretto }) {
 
 export default function TavoloVerde({ mano, posti, giocatori, io, carte, scelte, onScegli, azioni, conclusa, fumetti = {} }) {
   const [fantasmi, setFantasmi] = useState([])
-  const [viste, vedi] = useViste(mano?.id)
+  // ── Spizzata delle mie carte ──
+  const { ordine, viste, aperto, vedi } = useSpizzata(mano?.id, carte)
+  const [spizzo, setSpizzo] = useState(false)
+  const [passoCarte, setPassoCarte] = useState(0)      // distanza tra due carte aperte, in pixel
+  const manoRef = useRef(null)
+  useEffect(() => { setSpizzo(false) }, [mano?.id])
+  useLayoutEffect(() => {
+    const misura = () => {
+      const v = manoRef.current?.querySelectorAll(':scope > .volo')
+      if (v && v.length > 1) setPassoCarte(v[1].offsetLeft - v[0].offsetLeft)
+    }
+    misura()
+    window.addEventListener('resize', misura)
+    return () => window.removeEventListener('resize', misura)
+  }, [carte.length, mano?.id])
   const prevCambio = useRef({})
   const stretto = useStretto()
   const stile = (pos, extra = {}) => {
@@ -337,20 +321,33 @@ export default function TavoloVerde({ mano, posti, giocatori, io, carte, scelte,
             <div key={p.giocatore_id} className="posto-gruppo">
               {/* Carte */}
               {primaDelleCarte ? null : sonoIo && !scoperte ? (
-                <div className={`mano-mia${fuori ? ' piegata' : ''}`} style={stile(cartePos)}>
-                  {carte.map((c, k) => (
-                    <span key={`${mano.id}-${c}`} className={`volo${gia(`${mano.id}-${c}`)}`} style={{ ...delta(MAZZO, cartePos), '--ritardo': `${k * giro.length * 70 + 40}ms`, '--rot': `${(k - 2) * 3}deg` }}>
-                      {viste.has(c) || fuori
-                        ? <Carta c={c} scelta={scelte.includes(c)} onClick={onScegli ? () => onScegli(c) : undefined} />
-                        : <Spizza c={c} onVedi={() => vedi(c)} />}
+                (() => {
+                  const chiuse = carte.length === 5 && !fuori && !aperto
+                  const ap = chiuse ? 0 : 1
+                  const punto = carte.length === 5 ? nomePunto(valutaMano(carte, mano.bassa)) : ''
+                  return (
+                <div ref={manoRef} className={`mano-mia${fuori ? ' piegata' : ''}${chiuse ? ' chiuse' : ''}`}
+                  style={stile(cartePos)} onClick={chiuse ? () => setSpizzo(true) : undefined}
+                  onKeyDown={chiuse ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSpizzo(true) } } : undefined}
+                  role={chiuse ? 'button' : undefined} tabIndex={chiuse ? 0 : undefined}
+                  aria-label={chiuse ? 'Le tue carte sono chiuse: tocca per spizzarle' : undefined}>
+                  {ordine.map((c, k) => (
+                    <span key={`${mano.id}-${c}`} className={`volo${gia(`${mano.id}-${c}`)}`}
+                      style={{ ...delta(MAZZO, cartePos), '--ritardo': `${k * giro.length * 70 + 40}ms`, '--rot': `${(k - 2) * 3 * ap}deg`, zIndex: 10 - k }}>
+                      <span className="strato" style={{ transform: `translate(${((2 - k) * passoCarte + (k - 2) * -2) * (1 - ap)}px, ${chiuse ? (4 - k) * -1.5 : Math.abs(k - 2) * 2}px)` }}>
+                        <Carta c={c} indice scelta={scelte.includes(c)}
+                          onClick={onScegli && !chiuse ? () => onScegli(c) : undefined} />
+                      </span>
                     </span>
                   ))}
-                  {carte.length === 5 && !fuori && carte.some((c) => !viste.has(c)) && (
-                    <button type="button" className="mio-punto scopri-tutte" onClick={() => { gira(); vedi(carte) }}>
-                      Spizza le carte · scopri tutte
-                    </button>
+                  {chiuse && (
+                    <span className="mio-punto spizza-aiuto" aria-hidden="true">Tocca le carte per spizzarle</span>
                   )}
-                  {carte.length === 5 && !fuori && carte.every((c) => viste.has(c)) && (
+                  {spizzo && carte.length === 5 && !fuori && (
+                    <Spizzata ordine={ordine} viste={viste} onVedi={vedi} punto={punto}
+                      onChiudi={() => setSpizzo(false)} />
+                  )}
+                  {carte.length === 5 && !fuori && aperto && (
                     <span className="mio-punto">
                       {nomePunto(valutaMano(carte, mano.bassa))}
                       {mano.fase === 'apertura' && (puoAprire(carte, mano.requisito, mano.bassa)
@@ -358,6 +355,8 @@ export default function TavoloVerde({ mano, posti, giocatori, io, carte, scelte,
                     </span>
                   )}
                 </div>
+                  )
+                })()
               ) : scoperte ? (
                 <div className={`mano-scoperta${vince ? ' vincente' : ''}${sonoIo ? ' mia' : ''}${!sonoIo && sopra ? ' sopra' : ''}`} style={stile(sonoIo || bordo ? cartePos : verso(s, CENTRO, 0.36))}>
                   {p.carte_mostrate.map((c, k) => (
