@@ -1081,3 +1081,52 @@ button.carta-gioco { cursor: pointer; transition: transform 120ms ease; }
 .interruttore-spizza.acceso .interruttore-pallino { background: #c9a227; }
 .interruttore-spizza.acceso .interruttore-pallino::after { transform: translateX(0.9rem); }
 .interruttore-spizza:focus-visible { outline: 2px solid #f2d77a; outline-offset: 3px; border-radius: 6px; }
+
+/* Punti a fine mano: nel fumetto sopra il giocatore, grandi */
+.bolla.bolla-punto {
+  font-size: clamp(1.05rem, 4.1cqw, 1.5rem); font-weight: 700; line-height: 1.15;
+  white-space: normal; width: max-content; max-width: 58cqw; text-align: center; padding: 0.25em 0.7em; border-radius: 14px;
+}
+.bolla.bolla-punto.vincente { background: #f2d77a; color: #2a1d05; box-shadow: 0 0 0 2px #fff, 0 4px 14px rgba(0, 0, 0, 0.4); }
+.bolla.bolla-punto.vincente::after { border-top-color: #f2d77a; }
+
+/* Carte cambiate, fisse fino a fine mano */
+.posto-cambio {
+  display: block; font-size: clamp(0.85rem, 3cqw, 1.05rem); font-weight: 700; color: #f2d77a; white-space: nowrap; line-height: 1.2;
+}
+/* Giocatori in alto e in basso al centro: c'è spazio, il punto sta su una riga */
+.posto-tavolo:not(.lato-sx):not(.lato-dx) .bolla.bolla-punto { max-width: 92cqw; white-space: nowrap; }
+
+/* ═════════ Tavolo a misura di schermo, senza far scorrere la pagina ═════════ */
+.zona-tavolo .tavolo-verde { width: var(--tv-w, 100%); height: var(--tv-h, auto); aspect-ratio: auto; max-width: 100%; margin-inline: auto; }
+.zona-tavolo:not([style*="--tv-h"]) .tavolo-verde { aspect-ratio: 3 / 4.2; }
+@media (min-width: 640px) { .zona-tavolo:not([style*="--tv-h"]) .tavolo-verde { aspect-ratio: 16 / 10.5; } }
+.gioco-griglia { gap: 0; }
+@media (max-width: 959px) {
+  .pagina.ampia { padding-bottom: 0; }
+  .gioco { padding-bottom: var(--h-comandi, 0px); }
+}
+/* Computer: tavolo a sinistra, comandi in colonna a destra in basso */
+@media (min-width: 960px) {
+  .pagina.ampia { max-width: min(100%, 124rem); padding-bottom: 0; gap: 0.5rem; }
+  .zona-tavolo {
+    display: grid; grid-template-columns: minmax(0, 1fr) minmax(19rem, 24rem); gap: 1.25rem; align-items: end;
+  }
+  .zona-tavolo > .scena { width: 100%; min-width: 0; }
+  .zona-tavolo > .console { width: 100%; margin: 0 0 0.6rem; align-self: end; }
+  .zona-tavolo > .console:empty { display: block; visibility: hidden; }
+}
+/* Computer: tavolo grande, quindi carte, dorsi e fiches più grandi */
+@media (min-width: 960px) {
+  .mano-mia .carta-gioco, .mano-scoperta.mia .carta-gioco { width: clamp(52px, 6.2cqw, 104px); }
+  .mano-mia .cg-valore, .mano-scoperta.mia .cg-valore { font-size: clamp(1rem, 2.3cqw, 2rem); }
+  .mano-mia .cg-seme, .mano-scoperta.mia .cg-seme { font-size: clamp(1.2rem, 2.9cqw, 2.6rem); }
+  .mano-scoperta .carta-gioco.piccola { width: clamp(24px, 3.3cqw, 56px); }
+  .mano-scoperta .carta-gioco.piccola .cg-valore { font-size: clamp(0.7rem, 1.6cqw, 1.4rem); }
+  .mano-scoperta .carta-gioco.piccola .cg-seme { font-size: clamp(0.8rem, 2cqw, 1.7rem); }
+  .panno .dorso { width: clamp(22px, 3.4cqw, 56px); }
+  .mano-coperta > .dorso { margin-left: calc(clamp(22px, 3.4cqw, 56px) * -0.55); }
+  .mano-coperta > .dorso:first-child { margin-left: 0; }
+  .pila { --d: clamp(16px, 2.8cqw, 40px); }
+  .piatto-centro .pila { --d: clamp(22px, 3.8cqw, 54px); }
+}

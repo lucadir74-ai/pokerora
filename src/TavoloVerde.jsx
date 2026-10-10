@@ -258,7 +258,7 @@ export default function TavoloVerde({ mano, posti, giocatori, io, carte, scelte,
   const alCentro = mano.piatto - inGiro
   const vincitori = mano.esito?.vincitori ?? []
   const piattoVerso = conclusa && vincitori.length === 1 && posDi[vincitori[0]]
-    ? verso(CENTRO, posDi[vincitori[0]], stretto ? 0.18 : 0.34) : CENTRO
+    ? verso(CENTRO, posDi[vincitori[0]], stretto ? 0 : 0.34) : CENTRO
   const mostraPiatto = mano.fase !== 'finita' || vincitori.length === 1
 
   return (
@@ -361,11 +361,10 @@ export default function TavoloVerde({ mano, posti, giocatori, io, carte, scelte,
                   )
                 })()
               ) : scoperte ? (
-                <div className={`mano-scoperta${vince ? ' vincente' : ''}${sonoIo ? ' mia' : ''}${!sonoIo && sopra ? ' sopra' : ''}`} style={stile(sonoIo || bordo ? cartePos : verso(s, CENTRO, 0.36))}>
+                <div className={`mano-scoperta${vince ? ' vincente' : ''}${sonoIo ? ' mia' : ''}${sonoIo || sopra ? ' sopra' : ''}`} style={stile(sonoIo || bordo ? cartePos : verso(s, CENTRO, 0.36))}>
                   {p.carte_mostrate.map((c, k) => (
                     <span key={c} className={`gira${gia(`${mano.id}-g-${c}`)}`} style={{ '--ritardo': `${k * 90}ms` }}><Carta c={c} piccola={!sonoIo} /></span>
                   ))}
-                  <span className="punto-mostrato">{p.punto}</span>
                 </div>
               ) : (
                 <div className={`mano-coperta${fuori ? ' piegata' : ''}`} style={{ ...stile(cartePos), '--ang': bordo ? '0deg' : `${(Math.atan2(CENTRO.y - s.y, CENTRO.x - s.x) * 180) / Math.PI - 90}deg` }}>
@@ -399,6 +398,11 @@ export default function TavoloVerde({ mano, posti, giocatori, io, carte, scelte,
                   <span key={`chat-${fumetti[p.giocatore_id].id}`} className="bolla chat-bolla">
                     {fumetti[p.giocatore_id].testo.length > 60 ? fumetti[p.giocatore_id].testo.slice(0, 58) + '…' : fumetti[p.giocatore_id].testo}
                   </span>
+                ) : conclusa && p.carte_mostrate && p.punto ? (
+                  // A fine mano il fumetto mostra il punto (e quanto vince), grande e leggibile
+                  <span className={`bolla bolla-punto${vince ? ' vincente' : ''}`}>
+                    {p.punto}{vince && p.vincita > 0 ? ` · vince ${fmt(p.vincita)}` : ''}
+                  </span>
                 ) : ultima[p.giocatore_id] && !(conclusa && !vince && !scoperte) && (
                   <span key={`${ultima[p.giocatore_id]}-${azioni[0]?.id}`} className="bolla">{ultima[p.giocatore_id]}</span>
                 )}
@@ -406,6 +410,10 @@ export default function TavoloVerde({ mano, posti, giocatori, io, carte, scelte,
                 <span className="posto-testo">
                   <span className="posto-nick">{sonoIo ? 'Tu' : nomeDi(p.giocatore_id)}</span>
                   <span className="posto-fiches">{fmt(fichesDi(p.giocatore_id))}</span>
+                  {/* Quante carte ha cambiato: resta visibile fino alla fine della mano */}
+                  {p.cambio != null && p.stato === 'attivo' && (
+                    <span className="posto-cambio">{p.cambio === 0 ? 'Servito' : p.cambio === 1 ? 'Cambia 1 carta' : `Cambia ${p.cambio} carte`}</span>
+                  )}
                 </span>
                 {p.posto === mano.mazziere && <span className="bottone-mazziere" title="Mazziere">M</span>}
               </div>

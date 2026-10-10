@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { supabase } from './supabase'
 import TavoloVerde from './TavoloVerde'
 import { messaggioErrore } from './rotte'
@@ -37,6 +37,41 @@ export default function Gioco({ tavolo, giocatori, io, bot = new Set(), pannello
       document.documentElement.style.setProperty('--h-comandi', `${el.offsetHeight}px`))
     ro.observe(el)
     return () => { ro.disconnect(); document.documentElement.style.removeProperty('--h-comandi') }
+  }, [])
+
+  // Grandezza del tavolo: riempie lo spazio libero dello schermo, senza far scorrere la pagina.
+  // Telefono: tutta la larghezza e l'altezza fino alla barra dei comandi.
+  // Computer: tavolo a sinistra alto quanto lo schermo, comandi in una colonna a destra.
+  const zonaRef = useRef(null)
+  useLayoutEffect(() => {
+    const z = zonaRef.current
+    if (!z) return
+    const calcola = () => {
+      const scena = z.querySelector('.scena')
+      if (!scena) return
+      const telefono = window.matchMedia('(max-width: 959px)').matches
+      const stretto = window.matchMedia('(max-width: 639px)').matches
+      const alto = z.getBoundingClientRect().top + window.scrollY
+      const comandi = telefono ? (comandiRef.current?.offsetHeight || 0) : 0
+      const H = Math.max(260, window.innerHeight - alto - comandi - (telefono ? 14 : 18))
+      const W = scena.clientWidth
+      let w = W, h = H
+      if (stretto) {
+        h = Math.min(Math.max(H, W * 1.05), W * 1.6)      // ovale verticale, né troppo schiacciato né troppo lungo
+      } else if (W / H > 1.8) {
+        w = H * 1.8                                       // schermo larghissimo: il tavolo si ferma
+      } else if (W / H < 1.3) {
+        h = W / 1.3
+      }
+      z.style.setProperty('--tv-w', `${Math.round(w)}px`)
+      z.style.setProperty('--tv-h', `${Math.round(h)}px`)
+    }
+    calcola()
+    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(calcola) : null
+    ro?.observe(z)
+    if (comandiRef.current) ro?.observe(comandiRef.current)
+    window.addEventListener('resize', calcola)
+    return () => { ro?.disconnect(); window.removeEventListener('resize', calcola) }
   }, [])
 
   // Chat: i messaggi nuovi compaiono anche come fumetto sul tavolo per qualche secondo
@@ -424,7 +459,7 @@ export default function Gioco({ tavolo, giocatori, io, bot = new Set(), pannello
   return (
     <section className="gioco">
       <div className="gioco-griglia">
-        <div className="zona-tavolo">
+        <div className="zona-tavolo" ref={zonaRef}>
         <TavoloVerde
             mano={mano} posti={posti} giocatori={giocatori} io={io} carte={carte}
             scelte={scelte} onScegli={mano?.fase === 'cambio' && mioTurno ? scegli : null}
