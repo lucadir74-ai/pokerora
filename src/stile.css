@@ -908,3 +908,90 @@ button.carta-gioco { cursor: pointer; transition: transform 120ms ease; }
 .regole-testo p { margin: 0 0 0.55rem; }
 .regole-testo ul, .regole-testo ol { margin: 0 0 0.6rem; padding-left: 1.3rem; }
 .regole-testo li { margin: 0.15rem 0; }
+
+/* ═════════ Copertina d'apertura ═════════ */
+.copertina {
+  position: fixed; inset: 0; z-index: 100; overflow: hidden;
+  display: grid; grid-template-rows: auto 1fr auto; justify-items: center;
+  padding: calc(env(safe-area-inset-top, 0px) + 1.6rem) 1.2rem calc(env(safe-area-inset-bottom, 0px) + 1.6rem);
+  color: #fff; text-align: center;
+  background:
+    radial-gradient(ellipse 80% 55% at 50% 58%, rgba(255, 236, 170, 0.16), transparent 70%),
+    radial-gradient(ellipse at 50% 50%, transparent 35%, rgba(0, 0, 0, 0.7) 100%),
+    url('/img/panno.webp') center / 420px repeat, var(--panno);
+  transition: opacity 450ms ease, transform 450ms ease;
+}
+.copertina.esce { opacity: 0; transform: scale(1.04); pointer-events: none; }
+.cop-luce {
+  position: absolute; inset: -20% -10% auto; height: 70%; pointer-events: none;
+  background: radial-gradient(ellipse 45% 60% at 50% 0%, rgba(255, 244, 210, 0.22), transparent 70%);
+}
+.cop-testa { position: relative; animation: cop-su 700ms 150ms cubic-bezier(.2, .8, .25, 1) backwards; }
+.cop-semi { margin: 0 0 0.4rem; letter-spacing: 0.6em; color: var(--ottone); font-size: 0.95rem; padding-left: 0.6em; }
+.cop-logo {
+  margin: 0; font-family: 'Bodoni Moda', Georgia, serif; font-weight: 700; line-height: 0.95;
+  font-size: clamp(3rem, 15vw, 5.4rem); letter-spacing: -0.01em; text-shadow: 0 4px 18px rgba(0, 0, 0, 0.45);
+}
+.cop-logo span { color: #e9c75a; }
+.cop-motto { margin: 0.7rem 0 0; font-size: clamp(0.95rem, 4vw, 1.15rem); color: rgba(255, 255, 255, 0.82); }
+
+.cop-scena { position: relative; width: min(100%, 30rem); min-height: 16rem; --w: clamp(78px, min(23vw, 15vh), 132px); --d: clamp(42px, min(12.5vw, 8vh), 70px); }
+/* carte e fiches stanno insieme, al centro dello spazio libero */
+.cop-ventaglio { position: absolute; left: 50%; top: calc(50% - var(--w) * 0.35); }
+.cop-carta {
+  position: absolute; left: calc(var(--w) / -2); top: calc(var(--w) * -0.95);
+  width: var(--w); aspect-ratio: 5 / 7; border-radius: 9px; padding: 0.4rem;
+  display: flex; flex-direction: column; justify-content: space-between;
+  background: linear-gradient(160deg, #fff 0%, #fbf6ea 100%); color: var(--cuori);
+  border: 1px solid rgba(0, 0, 0, 0.12); box-shadow: 0 10px 22px rgba(0, 0, 0, 0.45);
+  font-family: 'Bodoni Moda', Georgia, serif; font-weight: 700;
+  transform-origin: 50% 135%; transform: rotate(var(--a));
+  animation: cop-ventaglio 750ms calc(350ms + var(--i) * 90ms) cubic-bezier(.2, .8, .25, 1) backwards;
+}
+.cop-indice { font-size: calc(var(--w) * 0.17); line-height: 0.95; text-align: left; }
+.cop-indice.basso { transform: rotate(180deg); }
+.cop-centro { position: absolute; inset: 0; display: grid; place-items: center; font-size: calc(var(--w) * 0.42); }
+@keyframes cop-ventaglio { from { transform: translateY(60px) rotate(0deg); opacity: 0; } }
+
+.cop-pile { position: absolute; left: 50%; top: calc(50% + var(--w) * 1.05 + var(--d) * 0.9); }
+.cop-pila {
+  position: absolute; bottom: 0; left: calc(var(--d) / -2);
+  width: var(--d); height: calc(var(--d) * 1.6);
+  transform: translateX(calc(var(--x) / 34 * 1.12 * var(--d)));
+  animation: cop-cade 520ms calc(950ms + var(--k) * 130ms) cubic-bezier(.3, 1.4, .5, 1) backwards;
+}
+.cop-disco {
+  position: absolute; left: 0; bottom: calc(var(--i) * var(--d) * 0.085);
+  width: var(--d); height: calc(var(--d) * 0.56); border-radius: 50%;
+  background: var(--c); border: 3px dashed rgba(255, 255, 255, 0.85);
+  box-shadow: 0 calc(var(--d) * 0.06) 0 color-mix(in srgb, var(--c) 60%, #000), 0 calc(var(--d) * 0.1) 10px rgba(0, 0, 0, 0.35);
+}
+.cop-gettone {
+  position: absolute; bottom: calc(var(--d) * -0.35); left: calc(var(--d) * -2.55);
+  width: calc(var(--d) * 0.95); aspect-ratio: 1; border-radius: 50%; display: grid; place-items: center;
+  background: var(--c); border: 4px dashed rgba(255, 255, 255, 0.85);
+  box-shadow: 0 0 0 3px var(--c), 0 6px 14px rgba(0, 0, 0, 0.45);
+  transform: rotate(-18deg) scaleY(0.62);
+  animation: cop-cade 520ms calc(950ms + var(--k) * 130ms) cubic-bezier(.3, 1.4, .5, 1) backwards;
+}
+.cop-gettone span { font-weight: 700; font-size: calc(var(--d) * 0.26); color: #fff; }
+@keyframes cop-cade { from { translate: 0 -70px; opacity: 0; } }
+
+.cop-piede { width: min(100%, 22rem); animation: cop-su 600ms 1400ms ease-out backwards; }
+.cop-entra {
+  width: 100%; padding: 1rem 1.5rem; border: 0; border-radius: 999px; cursor: pointer;
+  font: inherit; font-family: 'Bodoni Moda', Georgia, serif; font-weight: 700; font-size: 1.45rem; letter-spacing: 0.04em;
+  color: #2a1d05; background: linear-gradient(180deg, #f3d77b 0%, #c9a227 60%, #a8841a 100%);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  animation: cop-respiro 2.4s 2.2s ease-in-out infinite;
+}
+.cop-entra:hover { filter: brightness(1.06); }
+.cop-entra:active { transform: translateY(1px); }
+.cop-entra:focus-visible { outline: 3px solid #fff; outline-offset: 3px; }
+.cop-nota { margin: 0.8rem 0 0; font-size: 0.85rem; color: rgba(255, 255, 255, 0.6); }
+@keyframes cop-su { from { transform: translateY(18px); opacity: 0; } }
+@keyframes cop-respiro { 50% { box-shadow: 0 8px 30px rgba(233, 199, 90, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.6); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .copertina *, .copertina { animation: none !important; transition: opacity 200ms !important; }
+}

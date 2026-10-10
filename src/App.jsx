@@ -7,12 +7,14 @@ import Invito from './Invito'
 import Tavolo from './Tavolo'
 import Giocatori from './Giocatori'
 import Messaggi from './Messaggi'
+import Copertina, { mostraCopertina } from './Copertina'
 import { useRotta, salvaInvito, prendiInvito, vai } from './rotte'
 
 export default function App() {
   const [sessione, setSessione] = useState(undefined)
   const [profilo, setProfilo] = useState(null)
   const [recupero, setRecupero] = useState(false)
+  const [copertina, setCopertina] = useState(mostraCopertina)
   const rotta = useRotta()
 
   useEffect(() => {
@@ -37,6 +39,7 @@ export default function App() {
     if (sessione === null && rotta.pagina === 'invito' && rotta.param) salvaInvito(rotta.param)
   }, [sessione, rotta.pagina, rotta.param])
 
+  if (copertina) return <Copertina onEntra={() => setCopertina(false)} />
   if (sessione === undefined) return <main className="tavolo" />
   if (recupero && sessione) return <NuovaPassword onFatto={() => setRecupero(false)} />
   if (!sessione) return <Accesso />
