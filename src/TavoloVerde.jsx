@@ -288,7 +288,7 @@ export default function TavoloVerde({ mano, posti, giocatori, io, carte, scelte,
   const alCentro = mano.piatto - inGiro
   const vincitori = mano.esito?.vincitori ?? []
   const piattoVerso = conclusa && vincitori.length === 1 && posDi[vincitori[0]]
-    ? verso(CENTRO, posDi[vincitori[0]], stretto ? 0 : 0.34) : CENTRO
+    ? verso(CENTRO, posDi[vincitori[0]], stretto ? 0 : 0.12) : CENTRO
   const mostraPiatto = mano.fase !== 'finita' || vincitori.length === 1
 
   return (
@@ -335,10 +335,13 @@ export default function TavoloVerde({ mano, posti, giocatori, io, carte, scelte,
           const bordo = stretto && !sonoIo && (s.x < 20 || s.x > 80)
           const sx = s.x < 50
           const dir = s.y > 55 ? -1 : 1
-          const puntataPos = bordo ? { x: sx ? 18 : 82, y: s.y - dir * (dir < 0 ? 14 : 11) } : verso(s, CENTRO, sonoIo ? 0.42 : 0.4)
-          const cartePos = sonoIo ? { x: 50, y: stretto ? (conclusa && p.carte_mostrate ? 72 : 75) : 74 }
+          // Computer: carte e puntate più verso il centro, così non finiscono sotto i nomi (ora più grandi)
+          const puntataPos = bordo ? { x: sx ? 18 : 82, y: s.y - dir * (dir < 0 ? 14 : 11) }
+            : verso(s, CENTRO, sonoIo ? (stretto ? 0.42 : 0.5) : (stretto ? 0.4 : 0.52))
+          const cartePos = sonoIo ? { x: 50, y: stretto ? (conclusa && p.carte_mostrate ? 72 : 75) : 69 }
             : bordo ? { x: sx ? 26 : 74, y: s.y + dir * (dir < 0 ? 13 : 11) }
-            : verso(s, CENTRO, stretto ? 0.3 : 0.24)
+            : verso(s, CENTRO, stretto ? 0.3 : 0.36)
+          const basso = !stretto && !sonoIo && s.y > 60   // computer: il fumetto dei posti in basso va sotto il nome
           const sopra = bordo ? dir < 0 : s.y > 50
           const scoperte = conclusa && p.carte_mostrate
           const primaDelleCarte = mano.fase === 'buio'
@@ -392,7 +395,7 @@ export default function TavoloVerde({ mano, posti, giocatori, io, carte, scelte,
                   )
                 })()
               ) : scoperte ? (
-                <div className={`mano-scoperta${vince ? ' vincente' : ''}${sonoIo ? ' mia' : ''}${sonoIo || sopra ? ' sopra' : ''}`} style={stile(sonoIo || bordo ? cartePos : verso(s, CENTRO, 0.36))}>
+                <div className={`mano-scoperta${vince ? ' vincente' : ''}${sonoIo ? ' mia' : ''}${sonoIo || sopra ? ' sopra' : ''}`} style={stile(sonoIo || bordo ? cartePos : stretto ? verso(s, CENTRO, 0.36) : basso ? { x: s.x + (50 - s.x) * 0.3, y: s.y - 18 } : verso(s, CENTRO, 0.4))}>
                   {p.carte_mostrate.map((c, k) => (
                     <span key={c} className={`gira${gia(`${mano.id}-g-${c}`)}`} style={{ '--ritardo': `${k * 90}ms` }}><Carta c={c} piccola={!sonoIo} /></span>
                   ))}
@@ -424,7 +427,7 @@ export default function TavoloVerde({ mano, posti, giocatori, io, carte, scelte,
               )}
 
               {/* Il posto */}
-              <div className={`posto-tavolo${s.x < 35 ? ' lato-sx' : s.x > 65 ? ' lato-dx' : ''}${bordo ? (sx ? ' bordo-sx' : ' bordo-dx') : ''}${sonoIo ? ' io' : ''}${diTurno ? ' di-turno' : ''}${fuori ? ' fuori' : ''}${vince ? ' vince' : ''}`} style={stile(s)}>
+              <div className={`posto-tavolo${s.x < 35 ? ' lato-sx' : s.x > 65 ? ' lato-dx' : ''}${bordo ? (sx ? ' bordo-sx' : ' bordo-dx') : ''}${sonoIo ? ' io' : ''}${diTurno ? ' di-turno' : ''}${fuori ? ' fuori' : ''}${vince ? ' vince' : ''}${basso ? ' basso' : ''}`} style={stile(s)}>
                 {fumetti[p.giocatore_id] ? (
                   <span key={`chat-${fumetti[p.giocatore_id].id}`} className="bolla chat-bolla">
                     {fumetti[p.giocatore_id].testo.length > 60 ? fumetti[p.giocatore_id].testo.slice(0, 58) + '…' : fumetti[p.giocatore_id].testo}

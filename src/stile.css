@@ -1119,7 +1119,7 @@ button.carta-gioco { cursor: pointer; transition: transform 120ms ease; }
 }
 /* Computer: tavolo grande, quindi carte, dorsi e fiches più grandi */
 @media (min-width: 960px) {
-  .mano-mia .carta-gioco, .mano-scoperta.mia .carta-gioco { width: clamp(52px, 6.2cqw, 104px); }
+  .mano-mia .carta-gioco, .mano-scoperta.mia .carta-gioco { width: clamp(50px, 5.4cqw, 86px); }
   .mano-mia .cg-valore, .mano-scoperta.mia .cg-valore { font-size: clamp(1rem, 2.3cqw, 2rem); }
   .mano-mia .cg-seme, .mano-scoperta.mia .cg-seme { font-size: clamp(1.2rem, 2.9cqw, 2.6rem); }
   .mano-scoperta .carta-gioco.piccola { width: clamp(24px, 3.3cqw, 56px); }
@@ -1164,3 +1164,17 @@ button.carta-gioco { cursor: pointer; transition: transform 120ms ease; }
 }
 @media (prefers-reduced-motion: reduce) { .reazione { animation: none; transform: translate(-50%, -50%); } }
 .mostra-carte { width: 100%; }
+
+/* Computer: per i posti in basso il fumetto sta sotto il nome, lontano dalle carte */
+.posto-tavolo.basso .bolla { bottom: auto; top: calc(100% + 8px); }
+.posto-tavolo.basso .bolla::after { top: auto; bottom: 100%; border-top-color: transparent; border-bottom-color: var(--carta); }
+.posto-tavolo.basso .bolla.bolla-punto.vincente::after { border-bottom-color: #f2d77a; border-top-color: transparent; }
+.posto-tavolo.basso .reazione { top: 0; }
+
+/* Computer: il mio fumetto sta a destra del mio nome, così non va sotto le mie carte */
+@media (min-width: 640px) {
+  .posto-tavolo.io .bolla { bottom: auto; top: 50%; left: calc(100% + 12px); transform: translateY(-50%); }
+  .posto-tavolo.io .bolla::after { top: 50%; left: auto; right: 100%; transform: translateY(-50%); border-top-color: transparent; border-right-color: var(--carta); }
+  .posto-tavolo.io .bolla.bolla-punto.vincente::after { border-top-color: transparent; border-right-color: #f2d77a; }
+  .posto-tavolo.io .bolla.bolla-punto { white-space: nowrap; max-width: none; }
+}
