@@ -270,6 +270,18 @@ export default function Gioco({ tavolo, giocatori, io, bot = new Set() }) {
     if (mano.fase === 'buio') {
       const nome = ['buio', 'controbuio', 'over'][mano.buio_livello]
       const quanto = mano.buio_livello === 0 ? mano.piatto : mano.buio_importo * 2
+      // Protezione: chi ha già fatto un buio in questa mano non può rilanciarlo (l'over spetta al terzo)
+      const giaBuio = registro.some((a) => a.giocatore_id === io.id && ['buio', 'controbuio', 'over'].includes(a.tipo))
+      if (giaBuio) {
+        return (
+          <div className="azioni-gioco">
+            <p>Hai già fatto un buio in questa mano: non puoi rispondere con il {nome}.</p>
+            <div className="griglia-azioni">
+              {grande('Avanti', 'neutro', () => rpc('buio', { p_mano: mano.id, p_faccio: false }), 'Si prosegue e si distribuiscono le carte')}
+            </div>
+          </div>
+        )
+      }
       return (
         <div className="azioni-gioco">
           <p>
