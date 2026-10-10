@@ -21,6 +21,87 @@ function ChatAttesa({ tavoloId, io, nomeDi }) {
   )
 }
 
+// Inviti dalla chat di PokerOra: chi è stato invitato e non si è ancora seduto, e nuovi inviti
+function InvitiTavolo({ tavolo, giocatori, bot }) {
+  const [invitati, setInvitati] = useState([])
+  const [iscritti, setIscritti] = useState([])
+  const [scelto, setScelto] = useState('')
+  const [nota, setNota] = useState('')
+  const [invio, setInvio] = useState(false)
+
+  const carica = useCallback(async () => {
+    const [i, g] = await Promise.all([
+      supabase.rpc('invitati_tavolo', { p_tavolo: tavolo.id }),
+      supabase.rpc('elenco_giocatori'),
+    ])
+    setInvitati(i.data ?? [])
+    setIscritti(g.data ?? [])
+  }, [tavolo.id])
+
+  // Si aggiorna quando qualcuno si siede, e ogni tanto per vedere chi ha letto l'invito
+  useEffect(() => {
+    carica()
+    const t = setInterval(carica, 20000)
+    return () => clearInterval(t)
+  }, [carica, giocatori.length])
+
+  const seduti = new Set(giocatori.map((g) => g.giocatore_id))
+  const giaInvitati = new Set(invitati.map((x) => x.giocatore_id))
+  const invitabili = iscritti.filter((p) => !seduti.has(p.id) && !giaInvitati.has(p.id) && !bot.has(p.id))
+  const pieno = giocatori.length >= tavolo.posti
+
+  async function invita() {
+    if (!scelto || invio) return
+    setInvio(true)
+    setNota('')
+    const { error } = await supabase.from('messaggi_privati').insert({
+      destinatario: scelto, testo: `Ti invito al mio tavolo “${tavolo.nome}”.`, codice_invito: tavolo.codice_invito,
+    })
+    setInvio(false)
+    if (error) return setNota('Invito non inviato. Riprova.')
+    setScelto('')
+    setNota('Invito inviato: lo trova nei messaggi e nella sua home.')
+    carica()
+  }
+
+  return (
+    <>
+      <h3 className="inviti-titolo">Invita un iscritto</h3>
+      {pieno ? (
+        <p className="tenue">Il tavolo è al completo.</p>
+      ) : invitabili.length === 0 ? (
+        <p className="tenue">Non ci sono altri iscritti da invitare.</p>
+      ) : (
+        <div className="invita-riga">
+          <select value={scelto} onChange={(e) => setScelto(e.target.value)} aria-label="Iscritto da invitare">
+            <option value="">Scegli chi invitare…</option>
+            {invitabili.map((p) => <option key={p.id} value={p.id}>{p.nickname}</option>)}
+          </select>
+          <button className="secondario" disabled={!scelto || invio} onClick={invita}>Invita</button>
+        </div>
+      )}
+      {nota && <p className="tenue" role="status">{nota}</p>}
+
+      <h3 className="inviti-titolo">Invitati</h3>
+      {invitati.length === 0 ? (
+        <p className="tenue">Nessun invito in sospeso.</p>
+      ) : (
+        <ul className="elenco invitati">
+          {invitati.map((x) => (
+            <li key={x.giocatore_id}>
+              <span className="riga-nome">{x.nickname}</span>
+              <span className="riga-info">
+                Invitato da {x.invitato_da} · {x.letto ? 'ha visto l’invito' : 'non l’ha ancora visto'}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+      <p className="tenue piccola-nota">Chi riceve il link su WhatsApp compare tra i posti appena si siede.</p>
+    </>
+  )
+}
+
 export default function Tavolo({ id, io }) {
   const [tavolo, setTavolo] = useState(undefined)
   const [giocatori, setGiocatori] = useState([])
@@ -281,6 +362,7 @@ export default function Tavolo({ id, io }) {
               Invia su WhatsApp
             </a>
           </div>
+          <InvitiTavolo tavolo={tavolo} giocatori={giocatori} bot={bot} />
         </section>
       )}
 

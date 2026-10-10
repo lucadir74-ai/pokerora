@@ -1004,3 +1004,8 @@ button.carta-gioco { cursor: pointer; transition: transform 120ms ease; }
 }
 .togli-bot:hover { color: var(--cuori); border-color: var(--cuori); }
 .aggiungi-bot { width: 100%; margin: -0.4rem 0 1rem; }
+
+/* Invitati in sala d'attesa */
+.inviti-titolo { margin: 1.4rem 0 0.5rem; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--grigio); }
+.invitati li { display: flex; flex-direction: column; gap: 0.15rem; padding: 0.6rem 0.2rem; border-bottom: 1px solid var(--bordo); }
+.piccola-nota { font-size: 0.85rem; margin-top: 0.8rem; }
