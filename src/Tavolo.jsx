@@ -45,6 +45,13 @@ export default function Tavolo({ id, io }) {
     setPoste(p.data ?? [])
   }, [id])
 
+  // Giocatori automatici (per le prove): l'elenco non cambia, basta caricarlo una volta
+  const [bot, setBot] = useState(() => new Set())
+  useEffect(() => {
+    supabase.from('giocatori_automatici').select('id')
+      .then(({ data }) => setBot(new Set((data ?? []).map((b) => b.id))))
+  }, [])
+
   useEffect(() => {
     carica()
     const canale = supabase
@@ -226,13 +233,25 @@ export default function Tavolo({ id, io }) {
               <span className="posto-numero">{i + 1}</span>
               <span className="posto-nome">
                 {g ? g.profili?.nickname : 'Posto libero'}
-                {g && (g.giocatore_id === tavolo.organizzatore || g.giocatore_id === io.id) && (
-                  <small>{[g.giocatore_id === tavolo.organizzatore && 'organizzatore', g.giocatore_id === io.id && 'tu'].filter(Boolean).join(', ')}</small>
+                {g && (g.giocatore_id === tavolo.organizzatore || g.giocatore_id === io.id || bot.has(g.giocatore_id)) && (
+                  <small>{[g.giocatore_id === tavolo.organizzatore && 'organizzatore', g.giocatore_id === io.id && 'tu',
+                    bot.has(g.giocatore_id) && 'automatico'].filter(Boolean).join(', ')}</small>
                 )}
               </span>
+              {g && organizzo && bot.has(g.giocatore_id) && (
+                <button className="togli-bot" disabled={attesa} aria-label={`Togli ${g.profili?.nickname}`}
+                  onClick={() => chiama('togli_bot', { p_tavolo: id, p_bot: g.giocatore_id })}>×</button>
+              )}
             </li>
           ))}
         </ul>}
+
+        {inAttesa && organizzo && giocatori.length < tavolo.posti && (
+          <button className="secondario aggiungi-bot" disabled={attesa}
+            onClick={() => chiama('aggiungi_bot', { p_tavolo: id }, 'Giocatore automatico seduto.')}>
+            + Giocatore automatico (per le prove)
+          </button>
+        )}
 
         {inAttesa && messaggi}
 
@@ -267,7 +286,7 @@ export default function Tavolo({ id, io }) {
 
       {inAttesa && <ChatAttesa tavoloId={id} io={io} nomeDi={nomeDi} />}
 
-      {tavolo.stato === 'in_corso' && <Gioco tavolo={tavolo} giocatori={giocatori} io={io} />}
+      {tavolo.stato === 'in_corso' && <Gioco tavolo={tavolo} giocatori={giocatori} io={io} bot={bot} />}
 
       {tavolo.stato === 'chiuso' && (
         <section className="carta">

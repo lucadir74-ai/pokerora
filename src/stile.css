@@ -995,3 +995,12 @@ button.carta-gioco { cursor: pointer; transition: transform 120ms ease; }
 @media (prefers-reduced-motion: reduce) {
   .copertina *, .copertina { animation: none !important; transition: opacity 200ms !important; }
 }
+
+/* Giocatori automatici in sala d'attesa */
+.posti li { position: relative; }
+.togli-bot {
+  margin-left: auto; flex: none; width: 1.7rem; height: 1.7rem; border-radius: 50%; cursor: pointer;
+  border: 1px solid var(--bordo); background: transparent; color: var(--grigio); font-size: 1.1rem; line-height: 1;
+}
+.togli-bot:hover { color: var(--cuori); border-color: var(--cuori); }
+.aggiungi-bot { width: 100%; margin: -0.4rem 0 1rem; }

@@ -10,7 +10,7 @@ import * as suoni from './suoni'
 
 const COPPIA = { 11: 'fanti', 12: 'donne', 13: 're' }
 
-export default function Gioco({ tavolo, giocatori, io }) {
+export default function Gioco({ tavolo, giocatori, io, bot = new Set() }) {
   const [mano, setMano] = useState(null)
   const [posti, setPosti] = useState([])
   const [carte, setCarte] = useState([])
@@ -119,6 +119,23 @@ export default function Gioco({ tavolo, giocatori, io }) {
     carteSuonate.current.add(idMano)
     suoni.distribuisci(5 * Math.max(posti.length, 1), 0.07)
   }, [carte, carteDi, idMano, posti.length])
+
+  // Giocatori automatici: quando tocca a uno di loro, un giocatore vero chiede al server di farlo giocare.
+  // Lo fa il primo giocatore vero al tavolo; gli altri subentrano solo se lui non risponde.
+  const [tentativoBot, setTentativoBot] = useState(0)
+  const turnoDi = posti.find((p) => p.posto === mano?.turno)?.giocatore_id
+  const tocca_a_bot = !!(mano && turnoDi && bot.has(turnoDi) &&
+    ['buio', 'apertura', 'primo_giro', 'cambio', 'secondo_giro'].includes(mano.fase))
+  const regista = giocatori.filter((g) => !bot.has(g.giocatore_id)).sort((a, b) => a.posto - b.posto)[0]?.giocatore_id === io.id
+  useEffect(() => {
+    if (!tocca_a_bot) return
+    const t = setTimeout(async () => {
+      const { error } = await supabase.rpc('gioca_bot', { p_mano: mano.id })
+      if (error) setTimeout(() => setTentativoBot((n) => n + 1), 2000)
+      else carica()
+    }, regista ? 900 + Math.random() * 900 : 8000 + Math.random() * 2000)
+    return () => clearTimeout(t)
+  }, [tocca_a_bot, mano?.id, mano?.turno, mano?.fase, registro.length, regista, tentativoBot])
 
   // Nuova fase o nuovo turno: azzera scelte e importo
   useEffect(() => { setScelte([]); setImporto('') }, [mano?.fase, mano?.turno, idMano])
