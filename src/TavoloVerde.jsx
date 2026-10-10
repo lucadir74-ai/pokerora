@@ -90,7 +90,7 @@ const BOLLE = {
 // Il tavolo è descritto "dall'alto" (x, y da 0 a 100) e proiettato sullo schermo:
 // in fondo (y piccolo) è più stretto e gli oggetti sono un po' più piccoli.
 const PROSPETTIVA = {
-  largo: { fondo: 0.74, alto: 7, altezza: 84 },
+  largo: { fondo: 1, alto: 7, altezza: 84 },   // computer: ovale regolare, senza prospettiva
   stretto: { fondo: 0.84, alto: 5, altezza: 88 },
 }
 function proietta(p, stretto) {
