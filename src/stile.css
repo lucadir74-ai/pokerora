@@ -1192,3 +1192,6 @@ button.carta-gioco { cursor: pointer; transition: transform 120ms ease; }
 @media (min-width: 640px) {
   .mano-mia .mio-punto:not(.spizza-aiuto) { bottom: auto; top: calc(100% + 8px); }
 }
+
+/* "Tocca a…" nell'angolo in alto a sinistra del tavolo, fuori dall'ovale: non copre niente */
+.scena .turno-centro { left: 0.5rem; top: 0.4rem; transform: none; z-index: 20; }

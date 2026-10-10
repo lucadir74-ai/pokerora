@@ -305,12 +305,13 @@ export default function TavoloVerde({ mano, posti, giocatori, io, carte, scelte,
 
         {/* Di chi è il turno */}
         {/* Sul telefono a 5-6 giocatori lo dice già la barra dei comandi e il posto illuminato */}
-        {!conclusa && mano.turno != null && !(stretto && giro.length >= 5) && (() => {
+        {/* Sul telefono lo dice già la barra dei comandi in basso, e il posto di turno è illuminato */}
+        {!conclusa && mano.turno != null && !stretto && (() => {
           const t = posti.find((p) => p.posto === mano.turno)
           if (!t) return null
           const mio = t.giocatore_id === io.id
           return (
-            <span key={`${mano.id}-${mano.fase}-${mano.turno}`} className={`turno-centro${mio ? ' mio' : ''}`} style={stile({ x: 50, y: 32 })}>
+            <span key={`${mano.id}-${mano.fase}-${mano.turno}`} className={`turno-centro${mio ? ' mio' : ''}`}>
               {mio ? 'Tocca a te' : `Tocca a ${nomeDi(t.giocatore_id)}`}
             </span>
           )
