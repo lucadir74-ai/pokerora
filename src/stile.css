@@ -1037,9 +1037,14 @@ button.carta-gioco { cursor: pointer; transition: transform 120ms ease; }
 
 /* Mano successiva automatica */
 .prossima-mano {
-  margin: 0.4rem 0 0; padding: 0.7rem 1rem; border-radius: 12px; text-align: center; font-weight: 600;
+  display: block; width: 100%; margin: 0.4rem 0 0; padding: 0.7rem 1rem; border-radius: 12px; text-align: center;
+  font: inherit; font-weight: 600; cursor: pointer;
   background: rgba(242, 215, 122, 0.14); color: #f2d77a; border: 1px solid rgba(201, 162, 39, 0.4);
+  transition: background 150ms ease;
 }
+.prossima-mano:hover:not(:disabled) { background: rgba(242, 215, 122, 0.26); }
+.prossima-mano:disabled { cursor: default; }
+.prossima-subito { font-weight: 500; opacity: 0.8; }
 
 /* Il tavolo occupa tutto lo schermo: chat e storico sono finestre a scomparsa */
 .gioco-griglia, .gioco-griglia { grid-template-columns: minmax(0, 1fr) !important; }

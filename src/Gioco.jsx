@@ -562,11 +562,13 @@ export default function Gioco({ tavolo, giocatori, io, bot = new Set(), pannello
             )}
 
             {conclusa && traSecondi !== null && (
-              <p className="prossima-mano" role="status">
+              // Si può toccare per partire subito; se un altro l'ha già fatto, il server non ne distribuisce due
+              <button type="button" className="prossima-mano" disabled={traSecondi === 0 || attesa}
+                onClick={async () => { setTraSecondi(0); const { error } = await supabase.rpc('nuova_mano', { p_tavolo: tavolo.id }); if (!error) carica() }}>
                 {traSecondi > 0
-                  ? `${mano ? 'Prossima mano' : 'Prima mano'} tra ${traSecondi} ${traSecondi === 1 ? 'secondo' : 'secondi'}…`
+                  ? <>{mano ? 'Prossima mano' : 'Prima mano'} tra {traSecondi} {traSecondi === 1 ? 'secondo' : 'secondi'} <span className="prossima-subito">· tocca per iniziare subito</span></>
                   : 'Si distribuiscono le carte…'}
-              </p>
+              </button>
             )}
           </div>
 
