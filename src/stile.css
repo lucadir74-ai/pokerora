@@ -872,7 +872,6 @@ button.carta-gioco { cursor: pointer; transition: transform 120ms ease; }
 
 /* Pulsante dei suoni nella barra del tavolo */
 .suoni-tasto { background: none; border: 0; padding: 0.2rem; font-size: 1.15rem; line-height: 1; cursor: pointer; }
-<<<<<<< HEAD
 
 /* ═════════ Home ═════════ */
 .home-benvenuto { padding-top: 2.4rem; }
@@ -909,5 +908,3 @@ button.carta-gioco { cursor: pointer; transition: transform 120ms ease; }
 .regole-testo p { margin: 0 0 0.55rem; }
 .regole-testo ul, .regole-testo ol { margin: 0 0 0.6rem; padding-left: 1.3rem; }
 .regole-testo li { margin: 0.15rem 0; }
-=======
->>>>>>> a8c4b772e6d31a9c80eb8120cef34eb81e6904a4
