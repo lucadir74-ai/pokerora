@@ -69,9 +69,11 @@ export default function Gioco({ tavolo, giocatori, io, bot = new Set(), pannello
   const caricato = useRef(false)
   const ultimaSuonata = useRef(null)
   const carteSuonate = useRef(new Set())
+  // Stato (non solo ref) così il componente si ridisegna appena il primo caricamento è finito
+  const [pronto, setPronto] = useState(false)
 
   const carica = useCallback(async () => {
-    if (!idMano) { setMano(null); return }
+    if (!idMano) { setMano(null); caricato.current = true; setPronto(true); return }
     const [m, g, c, r] = await Promise.all([
       supabase.from('mani').select('*').eq('id', idMano).maybeSingle(),
       supabase.from('mani_giocatori').select('*').eq('mano_id', idMano).order('posto'),
@@ -84,6 +86,7 @@ export default function Gioco({ tavolo, giocatori, io, bot = new Set(), pannello
     setCarteDi(idMano)
     setRegistro(r.data ?? [])
     caricato.current = true
+    setPronto(true)
   }, [idMano, io.id])
 
   useEffect(() => {
@@ -171,7 +174,7 @@ export default function Gioco({ tavolo, giocatori, io, bot = new Set(), pannello
   // Mano successiva in automatico: qualche secondo per guardare com'è finita, poi si distribuisce.
   // La avvia il primo giocatore vero al tavolo; gli altri subentrano solo se lui non c'è.
   const [traSecondi, setTraSecondi] = useState(null)
-  const prontaNuova = caricato.current && (idMano ? (mano?.id === idMano && conclusa) : true)
+  const prontaNuova = pronto && (idMano ? (mano?.id === idMano && conclusa) : true)
   useEffect(() => {
     if (!prontaNuova) { setTraSecondi(null); return }
     const pausa = idMano ? 7000 : 3000
