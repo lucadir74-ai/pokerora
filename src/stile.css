@@ -1188,3 +1188,7 @@ button.carta-gioco { cursor: pointer; transition: transform 120ms ease; }
 .esito-mano.mio { background: #f2d77a; color: var(--inchiostro); border-left-color: #fff; }
 .esito-mano.mio strong { color: var(--inchiostro); }
 .chiudi-tavolo .tenue { margin: 0.4rem 0 0; font-size: 0.85rem; }
+/* Computer: il mio punto sta sotto le mie carte, così non copre il piatto */
+@media (min-width: 640px) {
+  .mano-mia .mio-punto:not(.spizza-aiuto) { bottom: auto; top: calc(100% + 8px); }
+}
