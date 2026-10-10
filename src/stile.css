@@ -1053,7 +1053,7 @@ button.carta-gioco { cursor: pointer; transition: transform 120ms ease; }
   transform: translateY(-105%);
 }
 .cassetto.alto.aperto { transform: none; }
-.cassetto.alto .cassetto-corpo { overflow-y: auto; }
+.cassetto.alto .cassetto-corpo { overflow-y: auto; min-height: 0; overscroll-behavior: contain; }  /* scorre dentro la finestra */
 .cassetto.alto .chat { margin-top: 0; padding-top: 0; border-top: 0; }
 .storico-titolo { margin: 1.2rem 0 0.4rem; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--grigio); }
 .barra-link .link-chiaro .segnale { margin-left: 0.25rem; }

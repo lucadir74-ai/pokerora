@@ -138,7 +138,7 @@ export default function Gioco({ tavolo, giocatori, io, bot = new Set(), pannello
       supabase.from('mani').select('*').eq('id', idMano).maybeSingle(),
       supabase.from('mani_giocatori').select('*').eq('mano_id', idMano).order('posto'),
       supabase.from('mani_carte').select('carte').eq('mano_id', idMano).eq('giocatore_id', io.id).maybeSingle(),
-      supabase.from('mani_azioni').select('id, testo, giocatore_id, tipo, importo').eq('mano_id', idMano).order('id', { ascending: false }).limit(40),
+      supabase.from('mani_azioni').select('id, testo, giocatore_id, tipo, importo').eq('mano_id', idMano).order('id', { ascending: false }).limit(500),   // tutta la mano
     ])
     setMano(m.data ?? null)
     setPosti(g.data ?? [])
