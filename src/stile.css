@@ -428,7 +428,7 @@ button.carta-gioco { cursor: pointer; transition: transform 120ms ease; }
 .gira { display: inline-block; animation: gira 480ms ease-out var(--ritardo, 0ms) backwards; }
 @keyframes gira { from { rotate: y 90deg; } }
 .punto-mostrato {
-  position: absolute; left: 50%; top: calc(100% + 3px); transform: translateX(-50%); white-space: nowrap; text-align: center; font-size: clamp(0.62rem, 1.9cqw, 0.85rem);
+  position: absolute; left: 50%; top: calc(100% + 3px); transform: translateX(-50%); white-space: nowrap; text-align: center; font-size: clamp(0.81rem, 2.47cqw, 1.1rem);
   color: #e9f2ec; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
 }
 .mano-scoperta.sopra .punto-mostrato { top: auto; bottom: calc(100% + 3px); }
@@ -445,12 +445,12 @@ button.carta-gioco { cursor: pointer; transition: transform 120ms ease; }
 .puntata-posto { animation: dal-posto 450ms cubic-bezier(.2, .8, .25, 1) backwards; }
 @keyframes dal-posto { from { translate: calc(var(--dx) * 1cqw) calc(var(--dy) * 1cqh); opacity: 0; } }
 .cifra {
-  font-size: clamp(0.62rem, 2cqw, 0.85rem); font-weight: 600; color: #fff;
+  font-size: clamp(0.81rem, 2.6cqw, 1.1rem); font-weight: 600; color: #fff;
   background: rgba(0, 0, 0, 0.35); padding: 1px 6px; border-radius: 999px; white-space: nowrap;
 }
 .piatto-centro { transition: left 800ms cubic-bezier(.3, .7, .2, 1), top 800ms cubic-bezier(.3, .7, .2, 1); z-index: 2; }
 .piatto-centro .pila { --d: clamp(18px, 4.6cqw, 38px); }
-.piatto-centro .cifra { font-size: clamp(0.75rem, 2.6cqw, 1.05rem); background: rgba(0, 0, 0, 0.5); }
+.piatto-centro .cifra { font-size: clamp(0.98rem, 3.38cqw, 1.37rem); background: rgba(0, 0, 0, 0.5); }
 .pila-grande { display: block; animation: battito 380ms ease-out; }
 @keyframes battito { 40% { scale: 1.15; } }
 
@@ -464,12 +464,12 @@ button.carta-gioco { cursor: pointer; transition: transform 120ms ease; }
 .avatar {
   flex: none; display: grid; place-items: center; width: clamp(30px, 7.5cqw, 42px); aspect-ratio: 1;
   border-radius: 50%; background: var(--carta); color: var(--panno);
-  font-family: 'Bodoni Moda', Georgia, serif; font-weight: 700; font-size: clamp(0.95rem, 3.4cqw, 1.25rem);
+  font-family: 'Bodoni Moda', Georgia, serif; font-weight: 700; font-size: clamp(1.23rem, 4.42cqw, 1.62rem);
 }
 .posto-tavolo.io .avatar { background: var(--ottone); color: #fff; }
 .posto-testo { display: flex; flex-direction: column; min-width: 0; line-height: 1.15; }
-.posto-nick { font-weight: 600; font-size: clamp(0.92rem, 3.6cqw, 1.15rem); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.posto-fiches { font-size: clamp(0.78rem, 2.8cqw, 0.95rem); color: #cfe0d6; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.posto-nick { font-weight: 600; font-size: clamp(1.2rem, 4.68cqw, 1.49rem); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.posto-fiches { font-size: clamp(1.01rem, 3.64cqw, 1.23rem); color: #cfe0d6; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .posto-tavolo.di-turno { box-shadow: 0 0 0 3px var(--ottone), 0 0 18px 2px rgba(201, 162, 39, 0.6); animation: pulsa 1.4s ease-in-out infinite; }
 @keyframes pulsa { 50% { box-shadow: 0 0 0 4px #f2d77a, 0 0 30px 8px rgba(242, 215, 122, 0.75); } }
 .posto-tavolo.fuori { opacity: 0.55; }
@@ -477,12 +477,12 @@ button.carta-gioco { cursor: pointer; transition: transform 120ms ease; }
 .bottone-mazziere {
   position: absolute; right: -8px; top: -8px; display: grid; place-items: center;
   width: clamp(16px, 4cqw, 22px); aspect-ratio: 1; border-radius: 50%;
-  background: #fff; color: var(--inchiostro); font-size: clamp(0.55rem, 1.8cqw, 0.72rem); font-weight: 700;
+  background: #fff; color: var(--inchiostro); font-size: clamp(0.72rem, 2.34cqw, 0.94rem); font-weight: 700;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
 }
 .bolla {
   position: absolute; left: 50%; bottom: calc(100% + 6px); transform: translateX(-50%);
-  background: var(--carta); color: var(--inchiostro); font-size: clamp(0.88rem, 3.4cqw, 1.08rem); font-weight: 700;
+  background: var(--carta); color: var(--inchiostro); font-size: clamp(1.14rem, 4.42cqw, 1.4rem); font-weight: 700;
   padding: 3px 11px; border-radius: 999px; white-space: nowrap; box-shadow: 0 2px 5px rgba(0, 0, 0, 0.35);
   animation: compare 260ms ease-out;
 }
@@ -519,7 +519,7 @@ button.carta-gioco { cursor: pointer; transition: transform 120ms ease; }
 /* Di chi è il turno */
 .turno-centro {
   z-index: 4; white-space: nowrap; padding: 0.35em 1em; border-radius: 999px;
-  font-weight: 700; font-size: clamp(0.8rem, 2.6cqw, 1.15rem);
+  font-weight: 700; font-size: clamp(1.04rem, 3.38cqw, 1.49rem);
   background: rgba(16, 32, 24, 0.85); color: #fff; box-shadow: 0 0 0 2px var(--ottone);
   animation: compare 300ms ease-out;
 }
@@ -618,7 +618,7 @@ button.carta-gioco { cursor: pointer; transition: transform 120ms ease; }
 .mano-mia { position: absolute; }
 .mio-punto {
   position: absolute; left: 50%; bottom: calc(100% + 10px); transform: translateX(-50%);
-  white-space: nowrap; font-size: clamp(0.68rem, 2.2cqw, 0.92rem); font-weight: 600;
+  white-space: nowrap; font-size: clamp(0.88rem, 2.86cqw, 1.2rem); font-weight: 600;
   color: #fff; background: rgba(16, 32, 24, 0.75); padding: 2px 10px; border-radius: 999px;
 }
 .mio-punto b { font-weight: 600; }
@@ -862,7 +862,7 @@ button.carta-gioco { cursor: pointer; transition: transform 120ms ease; }
 .mano-mia .carta-gioco { box-shadow: -1px 0 3px rgba(0, 0, 0, 0.18), 0 2px 5px rgba(0, 0, 0, 0.12); }
 .cg-valore .cg-mini { display: block; color: inherit; font-size: 0.72em; line-height: 1; margin-top: 0.05em; }
 .spizza-aiuto { color: #f2d77a; font-weight: 700; animation: invito-spizza 1.8s ease-in-out infinite; }
-@keyframes invito-spizza { 50% { opacity: 0.55; } }
+@keyframes invito-spizza { 50% { box-shadow: 0 0 0 4px rgba(242, 215, 122, 0.35); } }
 
 .spizzata {
   position: fixed; inset: 0; z-index: 200; touch-action: none; overscroll-behavior: contain;
@@ -1039,3 +1039,45 @@ button.carta-gioco { cursor: pointer; transition: transform 120ms ease; }
   margin: 0.4rem 0 0; padding: 0.7rem 1rem; border-radius: 12px; text-align: center; font-weight: 600;
   background: rgba(242, 215, 122, 0.14); color: #f2d77a; border: 1px solid rgba(201, 162, 39, 0.4);
 }
+
+/* Il tavolo occupa tutto lo schermo: chat e storico sono finestre a scomparsa */
+.gioco-griglia, .gioco-griglia { grid-template-columns: minmax(0, 1fr) !important; }
+@media (max-width: 639px) { .posto-tavolo { max-width: 44cqw; } }
+
+/* Finestra a scomparsa dall'alto (chat, storico) */
+.cassetto.alto {
+  top: 0; right: 0; left: 0; bottom: auto; margin: 0 auto;
+  width: min(40rem, 100vw); max-height: min(78vh, 46rem);
+  border-radius: 0 0 18px 18px; box-shadow: 0 18px 40px rgba(0, 0, 0, 0.5);
+  transform: translateY(-105%);
+}
+.cassetto.alto.aperto { transform: none; }
+.cassetto.alto .cassetto-corpo { overflow-y: auto; }
+.cassetto.alto .chat { margin-top: 0; padding-top: 0; border-top: 0; }
+.storico-titolo { margin: 1.2rem 0 0.4rem; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--grigio); }
+.barra-link .link-chiaro .segnale { margin-left: 0.25rem; }
+@media (max-width: 639px) {
+  .barra-gioco .barra-nome { flex: 1 1 0; }
+  .barra-link { gap: 0.75rem; flex-wrap: wrap; flex: 1 1 100%; justify-content: space-between; order: 3; }
+}
+/* Invito a spizzare: sopra il mazzetto chiuso, davanti a tutto */
+.posto-gruppo:has(.mano-mia.chiuse) { z-index: 30; }
+.mano-mia.chiuse { z-index: 30; }
+.mano-mia.chiuse .spizza-aiuto { bottom: auto; top: 50%; transform: translate(-50%, -50%); z-index: 40; padding: 4px 12px; background: rgba(16, 32, 24, 0.88); }
+
+/* Interruttore della spizzata nella barra del tavolo */
+.interruttore-spizza {
+  display: inline-flex; align-items: center; gap: 0.4rem; background: none; border: 0; padding: 0.1rem 0;
+  font: inherit; color: inherit; cursor: pointer;
+}
+.interruttore-pallino {
+  position: relative; width: 2.1rem; height: 1.2rem; border-radius: 999px; background: rgba(255, 255, 255, 0.25);
+  transition: background 200ms ease;
+}
+.interruttore-pallino::after {
+  content: ''; position: absolute; top: 0.15rem; left: 0.15rem; width: 0.9rem; height: 0.9rem; border-radius: 50%;
+  background: #fff; transition: transform 200ms ease;
+}
+.interruttore-spizza.acceso .interruttore-pallino { background: #c9a227; }
+.interruttore-spizza.acceso .interruttore-pallino::after { transform: translateX(0.9rem); }
+.interruttore-spizza:focus-visible { outline: 2px solid #f2d77a; outline-offset: 3px; border-radius: 6px; }

@@ -7,6 +7,7 @@ import { durata, ora } from './tempo'
 import Chat from './Chat'
 import Cassetto from './Cassetto'
 import { suoniAttivi, impostaSuoni, ascoltaSuoni } from './suoni'
+import { spizzataAttiva, impostaSpizzata, ascoltaSpizzata } from './preferenze'
 import { useChat } from './chat'
 import { messaggioErrore, vai } from './rotte'
 import { REGOLE_BASE, OPZIONI, descriviRegole, descriviMazzo, fmt, invitoDi } from './regole'
@@ -113,6 +114,8 @@ export default function Tavolo({ id, io }) {
   const [cassetto, setCassetto] = useState(null) // 'poste' | 'regole' | null
   const chiudiCassetto = useCallback(() => setCassetto(null), [])
   const [suoni, setSuoni] = useState(suoniAttivi())
+  const [spizzata, setSpizzata] = useState(spizzataAttiva())
+  useEffect(() => ascoltaSpizzata(setSpizzata), [])
   const [pannello, setPannello] = useState(null)   // 'chat' | 'storico' | null
   const [nonLetti, setNonLetti] = useState(0)
   useEffect(() => ascoltaSuoni(setSuoni), [])
@@ -285,6 +288,11 @@ export default function Tavolo({ id, io }) {
       {tavolo.stato === 'in_corso' && (
         <nav className="barra-gioco" aria-label="Tavolo">
           <span className="barra-nome">{tavolo.nome}</span>
+          <button className={`interruttore-spizza${spizzata ? ' acceso' : ''}`} role="switch" aria-checked={spizzata}
+            onClick={() => impostaSpizzata(!spizzata)}
+            title={spizzata ? 'Le carte arrivano chiuse e si spizzano: tocca per riceverle già aperte' : 'Le carte arrivano già aperte: tocca per spizzarle'}>
+            Spizza <span className="interruttore-pallino" aria-hidden="true" />
+          </button>
           <button className="chip-posta" disabled={attesa} title={`Prendi un’altra posta da ${fmt(tavolo.valore_posta)}`}
               onClick={() => window.confirm(`Prendi un’altra posta da ${fmt(tavolo.valore_posta)}? Resterà nel report.`)
                 && chiama('prendi_posta', { p_tavolo: id }, `Posta da ${fmt(tavolo.valore_posta)} aggiunta.`)}>

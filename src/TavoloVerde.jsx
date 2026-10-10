@@ -3,6 +3,7 @@ import Carta from './Carta'
 import { fmt } from './regole'
 import { valutaMano, nomePunto, puoAprire } from './punti'
 import Spizzata from './Spizzata'
+import { spizzataAttiva, ascoltaSpizzata } from './preferenze'
 
 // Spizzata: le mie carte arrivano chiuse una sopra l'altra, a faccia in su.
 // Si spizzano a tutto schermo, una carta alla volta (vedi Spizzata.jsx).
@@ -173,6 +174,8 @@ export default function TavoloVerde({ mano, posti, giocatori, io, carte, scelte,
   // ── Spizzata delle mie carte ──
   const { ordine, viste, aperto, vedi } = useSpizzata(mano?.id, carte)
   const [spizzo, setSpizzo] = useState(false)
+  const [conSpizzata, setConSpizzata] = useState(spizzataAttiva())   // spizzata facoltativa
+  useEffect(() => ascoltaSpizzata(setConSpizzata), [])
   const [passoCarte, setPassoCarte] = useState(0)      // distanza tra due carte aperte, in pixel
   const manoRef = useRef(null)
   useEffect(() => { setSpizzo(false) }, [mano?.id])
@@ -322,7 +325,7 @@ export default function TavoloVerde({ mano, posti, giocatori, io, carte, scelte,
               {/* Carte */}
               {primaDelleCarte ? null : sonoIo && !scoperte ? (
                 (() => {
-                  const chiuse = carte.length === 5 && !fuori && !aperto
+                  const chiuse = conSpizzata && carte.length === 5 && !fuori && !aperto
                   const ap = chiuse ? 0 : 1
                   const punto = carte.length === 5 ? nomePunto(valutaMano(carte, mano.bassa)) : ''
                   return (
@@ -343,11 +346,11 @@ export default function TavoloVerde({ mano, posti, giocatori, io, carte, scelte,
                   {chiuse && (
                     <span className="mio-punto spizza-aiuto" aria-hidden="true">Tocca per spizzare</span>
                   )}
-                  {spizzo && carte.length === 5 && !fuori && (
+                  {spizzo && conSpizzata && carte.length === 5 && !fuori && (
                     <Spizzata ordine={ordine} viste={viste} onVedi={vedi} punto={punto}
                       onChiudi={() => setSpizzo(false)} />
                   )}
-                  {carte.length === 5 && !fuori && aperto && (
+                  {carte.length === 5 && !fuori && !chiuse && (
                     <span className="mio-punto">
                       {nomePunto(valutaMano(carte, mano.bassa))}
                       {mano.fase === 'apertura' && (puoAprire(carte, mano.requisito, mano.bassa)
