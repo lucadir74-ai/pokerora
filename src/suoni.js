@@ -201,6 +201,28 @@ export function gira() {
   fruscio(c, c.currentTime + 0.01, { durata: 0.08, freq: 3200, freqFine: 1400, q: 1.2, volume: 0.2 })
 }
 
+// Tocca a te: due note di campanello, morbide ma ben riconoscibili
+function nota(c, quando, freq, volume, durata) {
+  for (const [mult, vol] of [[1, 1], [2, 0.25], [3.01, 0.08]]) {
+    const o = c.createOscillator()
+    o.type = 'sine'
+    o.frequency.value = freq * mult
+    const g = c.createGain()
+    g.gain.setValueAtTime(0.0001, quando)
+    g.gain.exponentialRampToValueAtTime(volume * vol, quando + 0.012)
+    g.gain.exponentialRampToValueAtTime(0.0001, quando + durata)
+    o.connect(g).connect(c.destination)
+    o.start(quando)
+    o.stop(quando + durata + 0.05)
+  }
+}
+export function toccaATe() {
+  const c = pronto(); if (!c) return
+  const t = c.currentTime + 0.03
+  nota(c, t, 784, 0.22, 0.9)          // sol
+  nota(c, t + 0.16, 1175, 0.2, 1.2)   // re, più in alto
+}
+
 // Quantità di fiches da far suonare per un importo, rispetto all'invito
 export const quanteFiches = (importo, invito) =>
   Math.round(2 + Math.log2(Math.max(1, (importo || 1) / Math.max(1, invito || 1))))

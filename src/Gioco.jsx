@@ -230,6 +230,22 @@ export default function Gioco({ tavolo, giocatori, io, bot = new Set(), pannello
   const diTurno = posti.find((p) => p.posto === mano?.turno)
   const invito = invitoDi(tavolo)
   const daVedere = mano && mio ? mano.puntata - mio.versato_giro : 0
+
+  // Segnale quando tocca a me: campanello, vibrazione sul telefono e titolo della scheda
+  const eraMioTurno = useRef(false)
+  useEffect(() => {
+    const ora = mioTurno && mano?.fase !== 'finita' && mano?.fase !== 'annullata'
+    if (ora && !eraMioTurno.current) {
+      suoni.toccaATe()
+      if (suoni.suoniAttivi()) navigator.vibrate?.([90, 60, 90])
+    }
+    eraMioTurno.current = ora
+    const titolo = 'PokerOra'
+    const aggiorna = () => { document.title = ora && document.hidden ? '● Tocca a te · PokerOra' : titolo }
+    aggiorna()
+    document.addEventListener('visibilitychange', aggiorna)
+    return () => { document.removeEventListener('visibilitychange', aggiorna); document.title = titolo }
+  }, [mioTurno, mano?.fase, mano?.id])
   const limite = tavolo.regole?.limite ?? 'apertura'
   const tetto = !mano ? null
     : limite === 'piatto' || (limite === 'apertura' && mano.fase === 'apertura') ? mano.piatto + daVedere
