@@ -1215,3 +1215,62 @@ button.carta-gioco { cursor: pointer; transition: transform 120ms ease; }
 .avviso-tempo p { margin: 0 0 0.45rem; font-size: 0.92rem; }
 .avviso-tempo.notizia { margin-top: 0.2rem; font-size: 0.9rem; background: rgba(242, 215, 122, 0.15); border-color: transparent; color: #f2d77a; }
 .avviso-tempo-tasti { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 0.75rem; }
+
+/* ═════════ Visuale in prima persona (telefono e tablet) ═════════
+   Le mie carte e il mio posto stanno davanti al tavolo, in cima alla barra dei comandi.
+   La zona ha un'altezza fissa, così il tavolo non cambia forma quando le carte arrivano o se ne vanno. */
+.pov { display: none; }
+@media (max-width: 959px) {
+  .comandi { gap: 0.55rem; padding-top: 0.5rem; }
+  .pov { display: block; container-type: inline-size; --cw: clamp(44px, 15cqw, 76px); }
+  .pov-dentro { display: flex; flex-direction: column; gap: 0.35rem; }
+  .pov-io {
+    display: flex; align-items: center; gap: 0.45rem; min-height: 1.9rem; flex-wrap: nowrap; overflow: hidden;
+    padding: 0.15rem 0.5rem 0.15rem 0.2rem; border-radius: 999px; background: rgba(255, 255, 255, 0.06);
+    border: 1px solid transparent; transition: border-color 200ms ease, background 200ms ease;
+  }
+  .pov-dentro.di-turno .pov-io { border-color: #f2d77a; background: rgba(242, 215, 122, 0.14); }
+  .pov-dentro.fuori .pov-io { opacity: 0.55; }
+  .pov-io .avatar {
+    width: 1.6rem; height: 1.6rem; flex: none; display: grid; place-items: center; border-radius: 50%;
+    background: var(--ottone); color: #fff; font-weight: 700; font-size: 0.85rem;
+  }
+  .pov-nick { font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+  .pov-fiches { color: #f2d77a; font-weight: 600; white-space: nowrap; }
+  .pov-io .bottone-mazziere { position: static; transform: none; flex: none; }
+  .pov-cambio, .pov-bolla {
+    font-size: 0.8rem; white-space: nowrap; padding: 0.05rem 0.5rem; border-radius: 999px;
+    background: rgba(255, 255, 255, 0.1); color: #eef3ef;
+  }
+  .pov-bolla { margin-left: auto; background: #eef3ef; color: var(--inchiostro); font-weight: 600; animation: pov-bolla 300ms ease; }
+  .pov-reazione { font-size: 1.3rem; line-height: 1; animation: pov-bolla 300ms ease; }
+  @keyframes pov-bolla { from { opacity: 0; transform: translateY(4px); } }
+
+  /* Zona delle carte: sempre alta uguale, con o senza carte */
+  .pov-carte {
+    height: calc(var(--cw) * 1.4 + 2.1rem); display: flex; flex-direction: column;
+    align-items: center; justify-content: flex-start; padding-top: 0.5rem;
+  }
+  .pov .mano-mia, .pov .mano-scoperta.mia {
+    position: relative; left: auto; top: auto; transform: none; z-index: auto;
+    display: flex; gap: clamp(4px, 1.6cqw, 10px); justify-content: center;
+  }
+  .pov .mano-mia.piegata { transform: scale(0.92); opacity: 0.35; }
+  .pov .mano-mia .carta-gioco, .pov .mano-scoperta.mia .carta-gioco {
+    width: var(--cw); height: auto; aspect-ratio: 5 / 7; padding: 0.3em 0.35em;
+    background: linear-gradient(160deg, #ffffff 0%, #f4f0e6 100%);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 4px 10px rgba(0, 0, 0, 0.45);
+  }
+  .pov .cg-valore { font-size: clamp(0.95rem, 4.6cqw, 1.45rem); }
+  .pov .cg-seme { font-size: clamp(1.1rem, 5.4cqw, 1.75rem); }
+  .pov .volo { animation-name: pov-arriva; }
+  @keyframes pov-arriva { from { translate: 0 -2.5rem; scale: 0.6; opacity: 0; } }
+  /* Il punto sotto le carte, non sopra: sopra c'è il tavolo */
+  .pov .mio-punto { position: absolute; top: calc(100% + 0.3rem); bottom: auto; left: 50%; transform: translateX(-50%); font-size: 0.9rem; }
+  .pov .mano-mia.chiuse .spizza-aiuto { top: 50%; bottom: auto; transform: translate(-50%, -50%); }
+  .pov .mano-scoperta.vincente .carta-gioco { box-shadow: 0 0 0 2px #f2d77a, 0 4px 12px rgba(0, 0, 0, 0.5); }
+  .pov-attesa { margin: auto 0; color: #9fb0a5; font-size: 0.9rem; }
+}
+@media (max-width: 959px) and (prefers-reduced-motion: reduce) {
+  .pov .volo, .pov-bolla, .pov-reazione { animation: none; }
+}

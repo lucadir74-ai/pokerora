@@ -39,6 +39,8 @@ export default function Gioco({ tavolo, giocatori, io, bot = new Set(), pannello
   //   così la barra degli indirizzi che compare/scompare e la tastiera non spostano il tavolo.
   const comandiRef = useRef(null)
   const zonaRef = useRef(null)
+  // Telefono: qui, in cima alla barra dei comandi, il tavolo mette le mie carte e il mio posto
+  const [povEl, setPovEl] = useState(null)
   useLayoutEffect(() => {
     const z = zonaRef.current
     if (!z) return
@@ -60,7 +62,7 @@ export default function Gioco({ tavolo, giocatori, io, bot = new Set(), pannello
       let comandi = 0
       if (el) {
         if (telefono) {
-          const tetto = Math.round(base * 0.45)
+          const tetto = Math.round(base * 0.55)
           el.style.maxHeight = `${tetto}px`
           riserva = Math.min(tetto, Math.max(riserva, el.offsetHeight))
           el.style.minHeight = `${riserva}px`
@@ -76,7 +78,7 @@ export default function Gioco({ tavolo, giocatori, io, bot = new Set(), pannello
       const W = scena.clientWidth
       let w = W, h = H
       if (stretto) {
-        h = Math.min(Math.max(H, W * 1.05), W * 1.6)      // ovale verticale, né troppo schiacciato né troppo lungo
+        h = Math.min(Math.max(H, W * 0.8), W * 1.6)       // ovale verticale, né troppo schiacciato né troppo lungo
       } else if (W / H > 1.8) {
         w = H * 1.8                                       // schermo larghissimo: il tavolo si ferma
       } else if (W / H < 1.3) {
@@ -533,9 +535,11 @@ export default function Gioco({ tavolo, giocatori, io, bot = new Set(), pannello
             mano={mano} posti={posti} giocatori={giocatori} io={io} carte={carte}
             scelte={scelte} onScegli={mano?.fase === 'cambio' && mioTurno ? scegli : null}
             azioni={registro} conclusa={conclusa} fumetti={fumetti} reazioni={reazioni} onReagisci={reagisci}
+            povEl={povEl}
           />
 
           <div className="comandi console" ref={comandiRef} aria-label="Comandi di gioco">
+            <div className="pov" ref={setPovEl} />
             {mano && !conclusa && diTurno && (
               <p className={`turno${mioTurno ? ' mio' : ''}`} role="status">
                 {mioTurno

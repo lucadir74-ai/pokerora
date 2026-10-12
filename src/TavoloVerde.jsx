@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import Carta from './Carta'
 import { fmt } from './regole'
 import { valutaMano, nomePunto, puoAprire } from './punti'
@@ -88,6 +89,20 @@ function useStretto() {
     return () => m.removeEventListener('change', f)
   }, [])
   return stretto
+}
+
+// Telefono e tablet: visuale in prima persona. Le mie carte e il mio posto non stanno sul tavolo
+// ma davanti, nella barra in basso insieme ai tasti; sul tavolo restano gli altri e la mia puntata.
+function usePov() {
+  const q = '(max-width: 959px)'
+  const [pov, setPov] = useState(() => window.matchMedia(q).matches)
+  useEffect(() => {
+    const m = window.matchMedia(q)
+    const f = () => setPov(m.matches)
+    m.addEventListener('change', f)
+    return () => m.removeEventListener('change', f)
+  }, [])
+  return pov
 }
 
 const TAGLI_DISCENDENTI = [100, 50, 20, 10, 5, 1]
@@ -199,7 +214,7 @@ function Fondo({ stretto }) {
   )
 }
 
-export default function TavoloVerde({ mano, posti, giocatori, io, carte, scelte, onScegli, azioni, conclusa, fumetti = {}, reazioni = {}, onReagisci }) {
+export default function TavoloVerde({ mano, posti, giocatori, io, carte, scelte, onScegli, azioni, conclusa, fumetti = {}, reazioni = {}, onReagisci, povEl = null }) {
   const [fantasmi, setFantasmi] = useState([])
   // ── Spizzata delle mie carte ──
   const { ordine, viste, aperto, vedi } = useSpizzata(mano?.id, carte)
@@ -220,6 +235,7 @@ export default function TavoloVerde({ mano, posti, giocatori, io, carte, scelte,
   }, [carte.length, mano?.id])
   const prevCambio = useRef({})
   const stretto = useStretto()
+  const pov = usePov() && !!povEl
   const stile = (pos, extra = {}) => {
     const q = proietta(pos, stretto)
     return { left: `${q.x}%`, top: `${q.y}%`, '--s': q.s.toFixed(3), ...extra }
@@ -268,12 +284,51 @@ export default function TavoloVerde({ mano, posti, giocatori, io, carte, scelte,
     )
   }
 
+  // Le mie carte: sul tavolo (computer) o davanti a me nella barra in basso (telefono)
+  const manoMia = (cartePos, fuori, nGiro) => {
+                  const chiuse = conSpizzata && carte.length === 5 && !fuori && !aperto
+                  const ap = chiuse ? 0 : 1
+                  const punto = carte.length === 5 ? nomePunto(valutaMano(carte, mano.bassa)) : ''
+                  return (
+                <div ref={manoRef} className={`mano-mia${fuori ? ' piegata' : ''}${chiuse ? ' chiuse' : ''}`}
+                  style={cartePos ? stile(cartePos) : undefined} onClick={chiuse ? () => setSpizzo(true) : undefined}
+                  onKeyDown={chiuse ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSpizzo(true) } } : undefined}
+                  role={chiuse ? 'button' : undefined} tabIndex={chiuse ? 0 : undefined}
+                  aria-label={chiuse ? 'Le tue carte sono chiuse: tocca per spizzarle' : undefined}>
+                  {ordine.map((c, k) => (
+                    <span key={`${mano.id}-${c}`} className={`volo${gia(`${mano.id}-${c}`)}`}
+                      style={{ ...(cartePos ? delta(MAZZO, cartePos) : { '--dx': 0, '--dy': -14 }), '--ritardo': `${k * nGiro * 70 + 40}ms`, '--rot': `${(k - 2) * 3 * ap}deg`, zIndex: 10 - k }}>
+                      <span className="strato" style={{ transform: `translate(${((2 - k) * passoCarte + (k - 2) * -2) * (1 - ap)}px, ${chiuse ? (4 - k) * -1.5 : Math.abs(k - 2) * 2}px)` }}>
+                        <Carta c={c} indice scelta={scelte.includes(c)}
+                          onClick={onScegli && !chiuse ? () => onScegli(c) : undefined} />
+                      </span>
+                    </span>
+                  ))}
+                  {chiuse && (
+                    <span className="mio-punto spizza-aiuto" aria-hidden="true">Tocca per spizzare</span>
+                  )}
+                  {spizzo && conSpizzata && carte.length === 5 && !fuori && (
+                    <Spizzata ordine={ordine} viste={viste} onVedi={vedi} punto={punto}
+                      onChiudi={() => setSpizzo(false)} />
+                  )}
+                  {carte.length === 5 && !fuori && !chiuse && (
+                    <span className="mio-punto">
+                      {nomePunto(valutaMano(carte, mano.bassa))}
+                      {mano.fase === 'apertura' && (puoAprire(carte, mano.requisito, mano.bassa)
+                        ? <b className="si"> · puoi aprire</b> : <b className="no"> · non puoi aprire</b>)}
+                    </span>
+                  )}
+                </div>
+                  )
+  }
+
   // Io in basso, gli altri in senso orario
   const ordinati = [...posti].sort((a, b) => a.posto - b.posto)
   const mioIndice = Math.max(0, ordinati.findIndex((p) => p.giocatore_id === io.id))
   const giro = [...ordinati.slice(mioIndice), ...ordinati.slice(0, mioIndice)]
   const pos = posizioni(giro.length, stretto)
   const posDi = Object.fromEntries(giro.map((p, i) => [p.giocatore_id, pos[i]]))
+  const pIo = posti.find((p) => p.giocatore_id === io.id)
 
   const nomeDi = (id) => giocatori.find((g) => g.giocatore_id === id)?.profili?.nickname ?? 'giocatore'
   const fichesDi = (id) => giocatori.find((g) => g.giocatore_id === id)?.fiches ?? 0
@@ -357,44 +412,9 @@ export default function TavoloVerde({ mano, posti, giocatori, io, carte, scelte,
 
           return (
             <div key={p.giocatore_id} className="posto-gruppo">
-              {/* Carte */}
-              {primaDelleCarte ? null : sonoIo && !scoperte ? (
-                (() => {
-                  const chiuse = conSpizzata && carte.length === 5 && !fuori && !aperto
-                  const ap = chiuse ? 0 : 1
-                  const punto = carte.length === 5 ? nomePunto(valutaMano(carte, mano.bassa)) : ''
-                  return (
-                <div ref={manoRef} className={`mano-mia${fuori ? ' piegata' : ''}${chiuse ? ' chiuse' : ''}`}
-                  style={stile(cartePos)} onClick={chiuse ? () => setSpizzo(true) : undefined}
-                  onKeyDown={chiuse ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSpizzo(true) } } : undefined}
-                  role={chiuse ? 'button' : undefined} tabIndex={chiuse ? 0 : undefined}
-                  aria-label={chiuse ? 'Le tue carte sono chiuse: tocca per spizzarle' : undefined}>
-                  {ordine.map((c, k) => (
-                    <span key={`${mano.id}-${c}`} className={`volo${gia(`${mano.id}-${c}`)}`}
-                      style={{ ...delta(MAZZO, cartePos), '--ritardo': `${k * giro.length * 70 + 40}ms`, '--rot': `${(k - 2) * 3 * ap}deg`, zIndex: 10 - k }}>
-                      <span className="strato" style={{ transform: `translate(${((2 - k) * passoCarte + (k - 2) * -2) * (1 - ap)}px, ${chiuse ? (4 - k) * -1.5 : Math.abs(k - 2) * 2}px)` }}>
-                        <Carta c={c} indice scelta={scelte.includes(c)}
-                          onClick={onScegli && !chiuse ? () => onScegli(c) : undefined} />
-                      </span>
-                    </span>
-                  ))}
-                  {chiuse && (
-                    <span className="mio-punto spizza-aiuto" aria-hidden="true">Tocca per spizzare</span>
-                  )}
-                  {spizzo && conSpizzata && carte.length === 5 && !fuori && (
-                    <Spizzata ordine={ordine} viste={viste} onVedi={vedi} punto={punto}
-                      onChiudi={() => setSpizzo(false)} />
-                  )}
-                  {carte.length === 5 && !fuori && !chiuse && (
-                    <span className="mio-punto">
-                      {nomePunto(valutaMano(carte, mano.bassa))}
-                      {mano.fase === 'apertura' && (puoAprire(carte, mano.requisito, mano.bassa)
-                        ? <b className="si"> · puoi aprire</b> : <b className="no"> · non puoi aprire</b>)}
-                    </span>
-                  )}
-                </div>
-                  )
-                })()
+              {/* Carte (in prima persona le mie stanno nella barra in basso) */}
+              {primaDelleCarte || (pov && sonoIo) ? null : sonoIo && !scoperte ? (
+                manoMia(cartePos, fuori, giro.length)
               ) : scoperte ? (
                 <div className={`mano-scoperta${vince ? ' vincente' : ''}${sonoIo ? ' mia' : ''}${sonoIo || sopra ? ' sopra' : ''}`} style={stile(sonoIo || bordo ? cartePos : stretto ? verso(s, CENTRO, 0.36) : basso ? { x: s.x + (50 - s.x) * 0.3, y: s.y - 18 } : verso(s, CENTRO, 0.4))}>
                   {p.carte_mostrate.map((c, k) => (
@@ -411,7 +431,7 @@ export default function TavoloVerde({ mano, posti, giocatori, io, carte, scelte,
               )}
 
               {/* Carte scartate che volano agli scarti */}
-              {fantasmi.filter((f) => f.giocatore === p.giocatore_id).map((f) => (
+              {!(pov && sonoIo) && fantasmi.filter((f) => f.giocatore === p.giocatore_id).map((f) => (
                 <div key={f.id} className="fantasmi" style={stile(cartePos)}>
                   {Array.from({ length: f.n }, (_, k) => (
                     <span key={k} className="dorso via" style={{ ...delta(SCARTI, cartePos), '--ritardo': `${k * 60}ms` }} />
@@ -427,7 +447,8 @@ export default function TavoloVerde({ mano, posti, giocatori, io, carte, scelte,
                 </div>
               )}
 
-              {/* Il posto */}
+              {/* Il posto (in prima persona il mio è nella barra in basso) */}
+              {!(pov && sonoIo) && (
               <div className={`posto-tavolo${s.x < 35 ? ' lato-sx' : s.x > 65 ? ' lato-dx' : ''}${bordo ? (sx ? ' bordo-sx' : ' bordo-dx') : ''}${sonoIo ? ' io' : ''}${diTurno ? ' di-turno' : ''}${fuori ? ' fuori' : ''}${vince ? ' vince' : ''}${basso ? ' basso' : ''}`} style={stile(s)}>
                 {fumetti[p.giocatore_id] ? (
                   <span key={`chat-${fumetti[p.giocatore_id].id}`} className="bolla chat-bolla">
@@ -458,11 +479,43 @@ export default function TavoloVerde({ mano, posti, giocatori, io, carte, scelte,
                 </span>
                 {p.posto === mano.mazziere && <span className="bottone-mazziere" title="Mazziere">M</span>}
               </div>
+              )}
             </div>
           )
         })}
       </div>
     </div>
+    {pov && pIo && createPortal(
+      <div className={`pov-dentro${mano.turno === pIo.posto && !conclusa ? ' di-turno' : ''}${pIo.stato === 'fuori' ? ' fuori' : ''}`}>
+        <div className="pov-io">
+          <span className="avatar" aria-hidden="true">{nomeDi(io.id).slice(0, 1).toUpperCase()}</span>
+          <span className="pov-nick">{nomeDi(io.id)}</span>
+          <span className="pov-fiches">{fmt(fichesDi(io.id))}</span>
+          {pIo.posto === mano.mazziere && <span className="bottone-mazziere" title="Mazziere">M</span>}
+          {pIo.cambio != null && pIo.stato === 'attivo' && (
+            <span className="pov-cambio">{pIo.cambio === 0 ? 'Servito' : pIo.cambio === 1 ? 'Cambia 1' : `Cambia ${pIo.cambio}`}</span>
+          )}
+          {reazioni[io.id] && (
+            <span key={reazioni[io.id].id} className="pov-reazione" role="img"
+              aria-label={EMOTICON.find((x) => x.e === reazioni[io.id].e)?.nome ?? ''}>{reazioni[io.id].e}</span>
+          )}
+          {ultima[io.id] && !conclusa && <span key={`${ultima[io.id]}-${azioni[0]?.id}`} className="pov-bolla">{ultima[io.id]}</span>}
+        </div>
+        <div className="pov-carte">
+          {mano.fase === 'buio' ? (
+            <span className="pov-attesa">Le carte arrivano dopo il buio</span>
+          ) : conclusa && pIo.carte_mostrate ? (
+            <div className={`mano-scoperta mia${pIo.vincita > 0 ? ' vincente' : ''}`}>
+              {pIo.carte_mostrate.map((c, k) => (
+                <span key={c} className={`gira${gia(`${mano.id}-g-${c}`)}`} style={{ '--ritardo': `${k * 90}ms` }}><Carta c={c} /></span>
+              ))}
+              {pIo.punto && <span className="mio-punto">{pIo.punto}{pIo.vincita > 0 ? ` · vinci ${fmt(pIo.vincita)}` : ''}</span>}
+            </div>
+          ) : manoMia(null, pIo.stato === 'fuori', giro.length)}
+        </div>
+      </div>,
+      povEl,
+    )}
     </div>
   )
 }
