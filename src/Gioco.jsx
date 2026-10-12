@@ -29,32 +29,50 @@ export default function Gioco({ tavolo, giocatori, io, bot = new Set(), pannello
 
   const idMano = tavolo.mano_corrente
 
-  // Altezza della barra dei comandi: su telefono è fissa in basso e la pagina lascia spazio sotto
-  const comandiRef = useRef(null)
-  useEffect(() => {
-    const el = comandiRef.current
-    if (!el || typeof ResizeObserver === 'undefined') return
-    const ro = new ResizeObserver(() =>
-      document.documentElement.style.setProperty('--h-comandi', `${el.offsetHeight}px`))
-    ro.observe(el)
-    return () => { ro.disconnect(); document.documentElement.style.removeProperty('--h-comandi') }
-  }, [])
-
   // Grandezza del tavolo: riempie lo spazio libero dello schermo, senza far scorrere la pagina.
-  // Telefono: tutta la larghezza e l'altezza fino alla barra dei comandi.
+  // Telefono: tutta la larghezza e l'altezza fino alla barra dei comandi, che è fissa in basso.
   // Computer: tavolo a sinistra alto quanto lo schermo, comandi in una colonna a destra.
+  // Sul telefono il tavolo non deve cambiare forma quando i tasti compaiono e scompaiono:
+  // - alla barra dei comandi si riserva l'altezza più grande vista finora (cresce, non cala),
+  //   con un tetto oltre il quale i comandi scorrono dentro la barra;
+  // - l'altezza dello schermo si rileva solo quando cambia la larghezza (apertura, rotazione),
+  //   così la barra degli indirizzi che compare/scompare e la tastiera non spostano il tavolo.
+  const comandiRef = useRef(null)
   const zonaRef = useRef(null)
   useLayoutEffect(() => {
     const z = zonaRef.current
     if (!z) return
+    const radice = document.documentElement.style
+    let riserva = 0
+    let base = 0
+    let larghezza = 0
     const calcola = () => {
       const scena = z.querySelector('.scena')
+      const el = comandiRef.current
       if (!scena) return
       const telefono = window.matchMedia('(max-width: 959px)').matches
       const stretto = window.matchMedia('(max-width: 639px)').matches
+      if (!telefono || window.innerWidth !== larghezza) {
+        larghezza = window.innerWidth
+        base = window.innerHeight
+        riserva = 0
+      }
+      let comandi = 0
+      if (el) {
+        if (telefono) {
+          const tetto = Math.round(base * 0.45)
+          el.style.maxHeight = `${tetto}px`
+          riserva = Math.min(tetto, Math.max(riserva, el.offsetHeight))
+          el.style.minHeight = `${riserva}px`
+          comandi = riserva
+        } else {
+          el.style.maxHeight = ''
+          el.style.minHeight = ''
+        }
+      }
+      radice.setProperty('--h-comandi', `${comandi}px`)
       const alto = z.getBoundingClientRect().top + window.scrollY
-      const comandi = telefono ? (comandiRef.current?.offsetHeight || 0) : 0
-      const H = Math.max(260, window.innerHeight - alto - comandi - (telefono ? 14 : 18))
+      const H = Math.max(260, base - alto - comandi - (telefono ? 14 : 18))
       const W = scena.clientWidth
       let w = W, h = H
       if (stretto) {
@@ -72,7 +90,7 @@ export default function Gioco({ tavolo, giocatori, io, bot = new Set(), pannello
     ro?.observe(z)
     if (comandiRef.current) ro?.observe(comandiRef.current)
     window.addEventListener('resize', calcola)
-    return () => { ro?.disconnect(); window.removeEventListener('resize', calcola) }
+    return () => { ro?.disconnect(); window.removeEventListener('resize', calcola); radice.removeProperty('--h-comandi') }
   }, [])
 
   // Emoticon per commentare la mano: passano in tempo reale, non restano salvate
