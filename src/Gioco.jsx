@@ -361,7 +361,6 @@ export default function Gioco({ tavolo, giocatori, io, bot = new Set(), pannello
   const grande = (testo, tono, onClick, spiega) => (
     <button type="button" className={`azione-grande ${tono}`} disabled={attesa} onClick={onClick} title={spiega}>
       <span>{testo}</span>
-      {spiega && <small>{spiega}</small>}
     </button>
   )
 
