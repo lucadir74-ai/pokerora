@@ -3,6 +3,7 @@ import { supabase } from './supabase'
 import Testata from './Testata'
 import Fiches from './Fiches'
 import Gioco from './Gioco'
+import TimerPartita from './TimerPartita'
 import { durata, ora } from './tempo'
 import Chat from './Chat'
 import Cassetto from './Cassetto'
@@ -210,7 +211,7 @@ export default function Tavolo({ id, io }) {
     const r = modifica.regole
     const invito = Number(r.invito)
     if (!Number.isInteger(invito) || invito < 1) return setErrore('L’invito deve essere un numero intero di almeno 1 Vardis.')
-    const regole = { mazzo: r.mazzo, limite: r.limite, cambio_max: Number(r.cambio_max), invito, buio: r.buio ?? 'si' }
+    const regole = { mazzo: r.mazzo, limite: r.limite, cambio_max: Number(r.cambio_max), invito, buio: r.buio ?? 'si', durata: Number(r.durata) || 0 }
     if (r.limite === 'fisso') {
       const massima = Number(r.puntata_massima)
       if (!Number.isInteger(massima) || massima < invito) return setErrore('Indica una puntata massima almeno pari all’invito.')
@@ -244,6 +245,8 @@ export default function Tavolo({ id, io }) {
           {tavolo.stato === 'chiuso' && tavolo.avviato_il && tavolo.chiuso_il && (
             <p className="durata-partita">
               Partita durata {durata(tavolo.avviato_il, tavolo.chiuso_il)}, dalle {ora(tavolo.avviato_il)} alle {ora(tavolo.chiuso_il)}
+              {tavolo.chiuso_per_tempo && ', chiusa allo scadere del tempo'}
+              {tavolo.prolungamenti > 0 && ` (allungata ${tavolo.prolungamenti === 1 ? 'una volta' : `${tavolo.prolungamenti} volte`})`}
             </p>
           )}
           <p className="tenue">Il saldo è la differenza tra le fiches che hai e le poste che hai preso.</p>
@@ -288,6 +291,7 @@ export default function Tavolo({ id, io }) {
       {tavolo.stato === 'in_corso' && (
         <nav className="barra-gioco" aria-label="Tavolo">
           <span className="barra-nome">{tavolo.nome}</span>
+          <TimerPartita tavolo={tavolo} organizzo={organizzo} chiama={chiama} attesa={attesa} />
           <button className={`interruttore-spizza${spizzata ? ' acceso' : ''}`} role="switch" aria-checked={spizzata}
             onClick={() => impostaSpizzata(!spizzata)}
             title={spizzata ? 'Le carte arrivano chiuse e si spizzano: tocca per riceverle già aperte' : 'Le carte arrivano già aperte: tocca per spizzarle'}>
@@ -491,6 +495,12 @@ export default function Tavolo({ id, io }) {
                 Buio, controbuio e over
                 <select value={modifica.regole.buio ?? 'si'} onChange={(e) => regola('buio', e.target.value)}>
                   {OPZIONI.buio.map(([v, t]) => <option key={v} value={v}>{t}</option>)}
+                </select>
+              </label>
+              <label>
+                Durata della partita
+                <select value={String(modifica.regole.durata ?? 0)} onChange={(e) => regola('durata', e.target.value)}>
+                  {OPZIONI.durata.map(([v, t]) => <option key={v} value={v}>{t}</option>)}
                 </select>
               </label>
               <label>

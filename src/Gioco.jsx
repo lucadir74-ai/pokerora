@@ -236,6 +236,18 @@ export default function Gioco({ tavolo, giocatori, io, bot = new Set(), pannello
   // La avvia il primo giocatore vero al tavolo; gli altri subentrano solo se lui non c'è.
   const [traSecondi, setTraSecondi] = useState(null)
   const prontaNuova = pronto && (idMano ? (mano?.id === idMano && conclusa) : true)
+  // Partita a tempo: allo scadere, a mano finita, si chiude invece di distribuire (decide il server)
+  const conTempo = useRef(false)
+  conTempo.current = !!tavolo.fine_prevista
+  const tempoScaduto = !!tavolo.fine_prevista && Date.now() >= Date.parse(tavolo.fine_prevista) && !(tavolo.piatto_riporto > 0)
+  async function prossimaMano() {
+    if (conTempo.current) {
+      const { data } = await supabase.rpc('chiudi_per_tempo', { p_tavolo: tavolo.id })
+      if (data) return
+    }
+    const { error } = await supabase.rpc('nuova_mano', { p_tavolo: tavolo.id })
+    if (!error) carica()
+  }
   useEffect(() => {
     if (!prontaNuova) { setTraSecondi(null); return }
     const pausa = idMano ? 7000 : 3000
@@ -243,11 +255,8 @@ export default function Gioco({ tavolo, giocatori, io, bot = new Set(), pannello
     const fine = Date.now() + pausa
     setTraSecondi(Math.ceil(pausa / 1000))
     const conta = setInterval(() => setTraSecondi(Math.max(0, Math.ceil((fine - Date.now()) / 1000))), 250)
-    const via = setTimeout(async () => {
-      // Se un altro giocatore l'ha già distribuita, il server risponde con un errore che si può ignorare
-      const { error } = await supabase.rpc('nuova_mano', { p_tavolo: tavolo.id })
-      if (!error) carica()
-    }, ritardo)
+    // Se un altro giocatore l'ha già distribuita, il server risponde con un errore che si può ignorare
+    const via = setTimeout(prossimaMano, ritardo)
     return () => { clearInterval(conta); clearTimeout(via) }
   }, [prontaNuova, idMano, regista, tavolo.id])
 
@@ -564,10 +573,14 @@ export default function Gioco({ tavolo, giocatori, io, bot = new Set(), pannello
             {conclusa && traSecondi !== null && (
               // Si può toccare per partire subito; se un altro l'ha già fatto, il server non ne distribuisce due
               <button type="button" className="prossima-mano" disabled={traSecondi === 0 || attesa}
-                onClick={async () => { setTraSecondi(0); const { error } = await supabase.rpc('nuova_mano', { p_tavolo: tavolo.id }); if (!error) carica() }}>
-                {traSecondi > 0
-                  ? <>{mano ? 'Prossima mano' : 'Prima mano'} tra {traSecondi} {traSecondi === 1 ? 'secondo' : 'secondi'} <span className="prossima-subito">· tocca per iniziare subito</span></>
-                  : 'Si distribuiscono le carte…'}
+                onClick={() => { setTraSecondi(0); prossimaMano() }}>
+                {tempoScaduto
+                  ? (traSecondi > 0
+                    ? <>Tempo scaduto: la partita si chiude tra {traSecondi} {traSecondi === 1 ? 'secondo' : 'secondi'} <span className="prossima-subito">· tocca per chiudere subito</span></>
+                    : 'Si chiude la partita…')
+                  : traSecondi > 0
+                    ? <>{mano ? 'Prossima mano' : 'Prima mano'} tra {traSecondi} {traSecondi === 1 ? 'secondo' : 'secondi'} <span className="prossima-subito">· tocca per iniziare subito</span></>
+                    : 'Si distribuiscono le carte…'}
               </button>
             )}
           </div>

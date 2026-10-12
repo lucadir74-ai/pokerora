@@ -1200,3 +1200,18 @@ button.carta-gioco { cursor: pointer; transition: transform 120ms ease; }
 
 /* "Tocca a…" nell'angolo in alto a sinistra del tavolo, fuori dall'ovale: non copre niente */
 .scena .turno-centro { left: 0.5rem; top: 0.4rem; transform: none; z-index: 20; }
+
+/* ═════════ Timer della partita: tempo che manca, avviso a 15 minuti, prolungamento ═════════ */
+.chip-tempo {
+  flex: none; font-weight: 700; font-size: 0.88rem; font-variant-numeric: tabular-nums;
+  padding: 0.3rem 0.7rem; border-radius: 999px; background: rgba(0, 0, 0, 0.3); color: #eef3ef; white-space: nowrap;
+}
+.chip-tempo.ultimi { background: rgba(230, 140, 40, 0.25); color: #ffc46b; }
+.chip-tempo.scaduto { background: rgba(255, 138, 128, 0.18); color: #ff8a80; }
+.avviso-tempo {
+  order: 10; flex-basis: 100%; margin: 0.2rem 0 0; padding: 0.55rem 0.8rem; border-radius: 10px;
+  background: rgba(230, 140, 40, 0.18); border: 1px solid rgba(255, 196, 107, 0.45); color: #ffd79a;
+}
+.avviso-tempo p { margin: 0 0 0.45rem; font-size: 0.92rem; }
+.avviso-tempo.notizia { margin-top: 0.2rem; font-size: 0.9rem; background: rgba(242, 215, 122, 0.15); border-color: transparent; color: #f2d77a; }
+.avviso-tempo-tasti { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 0.75rem; }

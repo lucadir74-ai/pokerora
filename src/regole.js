@@ -12,6 +12,7 @@ export const REGOLE_BASE = {
   limite: 'apertura',
   cambio_max: 4,
   buio: 'si',
+  durata: 0,
 }
 
 export const invitoDi = (tavolo) =>
@@ -32,6 +33,15 @@ export const OPZIONI = {
     ['si', 'Sì: buio, controbuio e over'],
     ['no', 'No'],
   ],
+  durata: [
+    ['0', 'Senza limite di tempo'],
+    ['60', '1 ora'],
+    ['90', '1 ora e mezza'],
+    ['120', '2 ore'],
+    ['150', '2 ore e mezza'],
+    ['180', '3 ore'],
+    ['240', '4 ore'],
+  ],
   cambio_max: [
     ['4', 'Fino a 4 carte: 3 subito e 1 a fine giro'],
     ['5', 'Fino a 5 carte: 3 subito e 2 a fine giro'],
@@ -45,7 +55,12 @@ export function descriviRegole(tavolo) {
     : r.limite === 'libero' ? 'Nessun limite di puntata'
     : r.limite === 'piatto' ? 'Puntata massima: quanto c’è nel piatto'
     : 'Apertura al massimo quanto c’è nel piatto, poi rilanci liberi e illimitati'
+  const durata = Number(r.durata) || 0
+  const testoDurata = OPZIONI.durata.find(([v]) => Number(v) === durata)?.[1] ?? `${durata} minuti`
   return [
+    durata > 0
+      ? `Durata della partita: ${testoDurata}. A 15 minuti dalla fine compare un avviso e l’organizzatore può allungarla di 15, 30 o 60 minuti. Allo scadere si finisce la mano in corso`
+      : 'Nessun limite di tempo',
     `Invito a ogni mano: ${fmt(invitoDi(tavolo))}`,
     limite,
     String(r.cambio_max) === '5'
