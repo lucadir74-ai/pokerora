@@ -1274,3 +1274,41 @@ button.carta-gioco { cursor: pointer; transition: transform 120ms ease; }
 @media (max-width: 959px) and (prefers-reduced-motion: reduce) {
   .pov .volo, .pov-bolla, .pov-reazione { animation: none; }
 }
+
+/* ═════════ Telefono: console più bassa (~25%) e tavolo più grande ═════════
+   - "Tocca a te" sta nella riga del mio posto, non in una fascia a parte
+   - carte, pulsanti e spazi un po' più compatti
+   - posti degli altri più piccoli, così non coprono le loro carte */
+@media (max-width: 959px) {
+  .comandi { gap: 0.45rem; padding: 0.4rem 0.75rem calc(0.5rem + env(safe-area-inset-bottom, 0px)); }
+  .comandi > .turno { display: none; }
+  .pov { --cw: clamp(40px, 12.5cqw, 62px); }
+  .pov-dentro { gap: 0.2rem; }
+  .pov-io { min-height: 1.75rem; padding-block: 0.1rem; }
+  .pov-dentro.di-turno .pov-io { background: rgba(242, 215, 122, 0.22); }
+  .pov-tocca {
+    flex: none; order: -1; padding: 0.1rem 0.6rem; border-radius: 999px; white-space: nowrap;
+    background: #f2d77a; color: var(--inchiostro); font-weight: 700; font-size: 0.85rem;
+  }
+  .pov-dentro.di-turno .avatar { display: none; }
+  .pov-carte { height: calc(var(--cw) * 1.4 + 1.55rem); padding-top: 0.25rem; }
+  .pov .mio-punto { top: calc(100% + 0.15rem); font-size: 0.82rem; padding: 1px 8px; }
+  .azione-grande { min-height: 2.9rem; padding: 0.35rem 0.35rem; border-radius: 12px; }
+  .azione-grande > span { font-size: 0.98rem; }
+  .comandi .azioni-gioco { gap: 0.45rem; }
+  .console .chip { padding: 0.25rem 0.55rem; font-size: 0.85rem; }
+  .freccia { width: 2.3rem; }
+  .importo-frecce .puntata-campo input { padding-block: 0.3rem; font-size: 1rem; }
+  .pre-scelta { padding: 0.4rem 0.7rem; }
+  .prossima-mano { padding: 0.5rem 0.8rem; margin-top: 0.2rem; }
+}
+@media (max-width: 639px) {
+  .posto-tavolo { gap: 5px; padding: 3px 8px 3px 3px; max-width: 36cqw; }
+  .avatar { width: clamp(24px, 6cqw, 34px); font-size: clamp(1rem, 3.5cqw, 1.3rem); }
+  .posto-nick { font-size: clamp(0.95rem, 3.7cqw, 1.2rem); }
+  .posto-fiches { font-size: clamp(0.82rem, 2.9cqw, 1rem); }
+  .posto-cambio { font-size: clamp(0.72rem, 2.5cqw, 0.88rem); }
+  .bolla { font-size: clamp(0.92rem, 3.5cqw, 1.15rem); padding: 2px 9px; }
+  .bolla.bolla-punto { font-size: clamp(0.88rem, 3.3cqw, 1.2rem); }
+  .bottone-mazziere { width: clamp(15px, 3.4cqw, 19px); font-size: clamp(0.65rem, 2cqw, 0.8rem); }
+}

@@ -66,9 +66,20 @@ const SCARTI = { x: 64, y: 48 }
 const verso = (a, b, t) => ({ x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t })
 
 // Senso orario visto dall'alto: io in basso, poi a sinistra, in alto, a destra
-function posizioni(n, stretto) {
+function posizioni(n, stretto, pov = false) {
   const rx = stretto ? 40 : 45
   const ry = stretto ? 44 : 45
+  // Prima persona: il mio posto non è sul tavolo, quindi gli altri si distribuiscono su tutto l'arco
+  // da sinistra a destra passando per l'alto; i laterali scendono un po' e usano lo spazio in basso
+  if (pov) {
+    const m = n - 1
+    const da = stretto ? 162 : 168, a_ = stretto ? 378 : 372
+    const cy = stretto ? 47 : 50
+    return [{ x: 50, y: 95 }, ...Array.from({ length: m }, (_, k) => {
+      const g = ((da + (k * (a_ - da)) / Math.max(1, m - 1)) * Math.PI) / 180
+      return { x: 50 + rx * Math.cos(g), y: cy + (stretto ? 41 : ry) * Math.sin(g) }
+    })]
+  }
   return Array.from({ length: n }, (_, k) => {
     const a = ((90 + (k * 360) / n) * Math.PI) / 180
     const x = 50 + rx * Math.cos(a)
@@ -326,7 +337,7 @@ export default function TavoloVerde({ mano, posti, giocatori, io, carte, scelte,
   const ordinati = [...posti].sort((a, b) => a.posto - b.posto)
   const mioIndice = Math.max(0, ordinati.findIndex((p) => p.giocatore_id === io.id))
   const giro = [...ordinati.slice(mioIndice), ...ordinati.slice(0, mioIndice)]
-  const pos = posizioni(giro.length, stretto)
+  const pos = posizioni(giro.length, stretto, pov)
   const posDi = Object.fromEntries(giro.map((p, i) => [p.giocatore_id, pos[i]]))
   const pIo = posti.find((p) => p.giocatore_id === io.id)
 
@@ -397,7 +408,8 @@ export default function TavoloVerde({ mano, posti, giocatori, io, carte, scelte,
           const cartePos = sonoIo ? { x: 50, y: stretto ? (conclusa && p.carte_mostrate ? 72 : 75) : 69 }
             : bordo ? { x: sx ? 26 : 74, y: s.y + dir * (dir < 0 ? 13 : 11) }
             : verso(s, CENTRO, stretto ? 0.3 : 0.36)
-          const basso = !stretto && !sonoIo && s.y > 60   // computer: il fumetto dei posti in basso va sotto il nome
+          // Fumetto sotto il nome: posti in basso sul computer, e laterali con le carte sopra in prima persona
+          const basso = (!stretto && !sonoIo && s.y > 60) || (pov && bordo && dir < 0)
           const sopra = bordo ? dir < 0 : s.y > 50
           const scoperte = conclusa && p.carte_mostrate
           const primaDelleCarte = mano.fase === 'buio'
@@ -488,6 +500,9 @@ export default function TavoloVerde({ mano, posti, giocatori, io, carte, scelte,
     {pov && pIo && createPortal(
       <div className={`pov-dentro${mano.turno === pIo.posto && !conclusa ? ' di-turno' : ''}${pIo.stato === 'fuori' ? ' fuori' : ''}`}>
         <div className="pov-io">
+          {mano.turno === pIo.posto && !conclusa && (
+            <span className="pov-tocca">{mano.fase === 'cambio' ? 'Tocca a te: scegli le carte' : 'Tocca a te'}</span>
+          )}
           <span className="avatar" aria-hidden="true">{nomeDi(io.id).slice(0, 1).toUpperCase()}</span>
           <span className="pov-nick">{nomeDi(io.id)}</span>
           <span className="pov-fiches">{fmt(fichesDi(io.id))}</span>
@@ -499,7 +514,7 @@ export default function TavoloVerde({ mano, posti, giocatori, io, carte, scelte,
             <span key={reazioni[io.id].id} className="pov-reazione" role="img"
               aria-label={EMOTICON.find((x) => x.e === reazioni[io.id].e)?.nome ?? ''}>{reazioni[io.id].e}</span>
           )}
-          {ultima[io.id] && !conclusa && <span key={`${ultima[io.id]}-${azioni[0]?.id}`} className="pov-bolla">{ultima[io.id]}</span>}
+          {ultima[io.id] && !conclusa && ultima[io.id] !== BOLLE.cambio(pIo.cambio) && <span key={`${ultima[io.id]}-${azioni[0]?.id}`} className="pov-bolla">{ultima[io.id]}</span>}
         </div>
         <div className="pov-carte">
           {mano.fase === 'buio' ? (
