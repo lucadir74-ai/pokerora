@@ -41,6 +41,8 @@ export default function Gioco({ tavolo, giocatori, io, bot = new Set(), pannello
   const zonaRef = useRef(null)
   // Telefono: qui, in cima alla barra dei comandi, il tavolo mette le mie carte e il mio posto
   const [povEl, setPovEl] = useState(null)
+  const povRef = useRef(null)
+  const rifPov = useCallback((el) => { povRef.current = el; setPovEl(el) }, [])
   useLayoutEffect(() => {
     const z = zonaRef.current
     if (!z) return
@@ -72,9 +74,14 @@ export default function Gioco({ tavolo, giocatori, io, bot = new Set(), pannello
           el.style.minHeight = ''
         }
       }
-      radice.setProperty('--h-comandi', `${comandi}px`)
+      // Prima persona: le mie carte stanno sopra la console e per metà entrano sul bordo del tavolo
+      const pov = telefono ? (povRef.current?.offsetHeight || 0) : 0
+      const sovrapposto = Math.round(pov * 0.45)
+      const sotto = comandi + pov - sovrapposto
+      radice.setProperty('--h-console', `${comandi}px`)
+      radice.setProperty('--h-comandi', `${sotto}px`)
       const alto = z.getBoundingClientRect().top + window.scrollY
-      const H = Math.max(260, base - alto - comandi - (telefono ? 14 : 18))
+      const H = Math.max(260, base - alto - sotto - (telefono ? 4 : 18))
       const W = scena.clientWidth
       let w = W, h = H
       if (stretto) {
@@ -91,8 +98,12 @@ export default function Gioco({ tavolo, giocatori, io, bot = new Set(), pannello
     const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(calcola) : null
     ro?.observe(z)
     if (comandiRef.current) ro?.observe(comandiRef.current)
+    if (povRef.current) ro?.observe(povRef.current)
     window.addEventListener('resize', calcola)
-    return () => { ro?.disconnect(); window.removeEventListener('resize', calcola); radice.removeProperty('--h-comandi') }
+    return () => {
+      ro?.disconnect(); window.removeEventListener('resize', calcola)
+      radice.removeProperty('--h-comandi'); radice.removeProperty('--h-console')
+    }
   }, [])
 
   // Emoticon per commentare la mano: passano in tempo reale, non restano salvate
@@ -537,8 +548,9 @@ export default function Gioco({ tavolo, giocatori, io, bot = new Set(), pannello
             povEl={povEl}
           />
 
+          {/* Telefono: le mie carte e il mio posto, davanti al tavolo e sopra i comandi */}
+          <div className="pov" ref={rifPov} />
           <div className="comandi console" ref={comandiRef} aria-label="Comandi di gioco">
-            <div className="pov" ref={setPovEl} />
             {mano && !conclusa && diTurno && (
               <p className={`turno${mioTurno ? ' mio' : ''}`} role="status">
                 {mioTurno

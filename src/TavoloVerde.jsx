@@ -499,6 +499,18 @@ export default function TavoloVerde({ mano, posti, giocatori, io, carte, scelte,
     </div>
     {pov && pIo && createPortal(
       <div className={`pov-dentro${mano.turno === pIo.posto && !conclusa ? ' di-turno' : ''}${pIo.stato === 'fuori' ? ' fuori' : ''}`}>
+        <div className="pov-carte">
+          {mano.fase === 'buio' ? (
+            <span className="pov-attesa">Le carte arrivano dopo il buio</span>
+          ) : conclusa && pIo.carte_mostrate ? (
+            <div className={`mano-scoperta mia${pIo.vincita > 0 ? ' vincente' : ''}`}>
+              {pIo.carte_mostrate.map((c, k) => (
+                <span key={c} className={`gira${gia(`${mano.id}-g-${c}`)}`} style={{ '--ritardo': `${k * 90}ms` }}><Carta c={c} /></span>
+              ))}
+              {pIo.punto && <span className="mio-punto">{pIo.punto}{pIo.vincita > 0 ? ` · vinci ${fmt(pIo.vincita)}` : ''}</span>}
+            </div>
+          ) : manoMia(null, pIo.stato === 'fuori', giro.length)}
+        </div>
         <div className="pov-io">
           {mano.turno === pIo.posto && !conclusa && (
             <span className="pov-tocca">{mano.fase === 'cambio' ? 'Tocca a te: scegli le carte' : 'Tocca a te'}</span>
@@ -515,18 +527,6 @@ export default function TavoloVerde({ mano, posti, giocatori, io, carte, scelte,
               aria-label={EMOTICON.find((x) => x.e === reazioni[io.id].e)?.nome ?? ''}>{reazioni[io.id].e}</span>
           )}
           {ultima[io.id] && !conclusa && ultima[io.id] !== BOLLE.cambio(pIo.cambio) && <span key={`${ultima[io.id]}-${azioni[0]?.id}`} className="pov-bolla">{ultima[io.id]}</span>}
-        </div>
-        <div className="pov-carte">
-          {mano.fase === 'buio' ? (
-            <span className="pov-attesa">Le carte arrivano dopo il buio</span>
-          ) : conclusa && pIo.carte_mostrate ? (
-            <div className={`mano-scoperta mia${pIo.vincita > 0 ? ' vincente' : ''}`}>
-              {pIo.carte_mostrate.map((c, k) => (
-                <span key={c} className={`gira${gia(`${mano.id}-g-${c}`)}`} style={{ '--ritardo': `${k * 90}ms` }}><Carta c={c} /></span>
-              ))}
-              {pIo.punto && <span className="mio-punto">{pIo.punto}{pIo.vincita > 0 ? ` · vinci ${fmt(pIo.vincita)}` : ''}</span>}
-            </div>
-          ) : manoMia(null, pIo.stato === 'fuori', giro.length)}
         </div>
       </div>,
       povEl,

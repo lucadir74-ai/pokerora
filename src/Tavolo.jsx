@@ -290,6 +290,8 @@ export default function Tavolo({ id, io }) {
 
       {tavolo.stato === 'in_corso' && (
         <nav className="barra-gioco" aria-label="Tavolo">
+          {/* Telefono: la testata è nascosta per dare spazio al tavolo, qui si torna alla home */}
+          <button className="link-chiaro barra-home" onClick={() => vai('/')} aria-label="Torna alla home">‹</button>
           <span className="barra-nome">{tavolo.nome}</span>
           <TimerPartita tavolo={tavolo} organizzo={organizzo} chiama={chiama} attesa={attesa} />
           <button className={`interruttore-spizza${spizzata ? ' acceso' : ''}`} role="switch" aria-checked={spizzata}

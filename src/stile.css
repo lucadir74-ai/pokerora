@@ -1312,3 +1312,36 @@ button.carta-gioco { cursor: pointer; transition: transform 120ms ease; }
   .bolla.bolla-punto { font-size: clamp(0.88rem, 3.3cqw, 1.2rem); }
   .bottone-mazziere { width: clamp(15px, 3.4cqw, 19px); font-size: clamp(0.65rem, 2cqw, 0.8rem); }
 }
+
+/* ═════════ Telefono: tavolo grande come nelle app di poker ═════════
+   - la testata del sito sparisce durante la partita (si torna alla home con "‹" nella barra)
+   - le mie carte stanno sopra la console, fisse, e per metà entrano sul bordo del tavolo
+   - la console contiene solo i comandi, quindi è bassa
+   - le emoticon vanno nell'angolo in alto, dove non coprono le mie carte */
+.barra-home { display: none; }
+@media (max-width: 959px) {
+  .pagina.ampia > .testata { display: none; }
+  .barra-home { display: inline-block; flex: none; font-size: 1.6rem; line-height: 1; padding: 0 0.3rem 0 0; text-decoration: none; }
+  .barra-gioco { padding-block: 0.1rem; row-gap: 0.15rem; }
+
+  .pov {
+    display: block; position: fixed; left: 0; right: 0; bottom: var(--h-console, 0px); z-index: 31;
+    height: calc(var(--cw) * 1.4 + 2.4rem); padding: 0 0.75rem 0.2rem; pointer-events: none;
+  }
+  .pov-dentro { height: 100%; justify-content: flex-end; gap: 0.2rem; }
+  .pov-dentro > * { pointer-events: auto; }
+  .pov-carte { height: auto; flex: 1; padding-top: 0; justify-content: flex-end; }
+  .pov-io { background: rgba(10, 14, 12, 0.92); box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5); }
+  .pov-dentro.di-turno .pov-io { background: rgba(60, 50, 20, 0.95); }
+  /* il punto sopra le carte, sul tavolo */
+  .pov .mio-punto {
+    top: auto; bottom: calc(100% + 0.25rem); background: rgba(10, 14, 12, 0.85);
+  }
+  .pov-attesa { margin: auto 0 0.4rem; padding: 0.2rem 0.7rem; border-radius: 999px; background: rgba(10, 14, 12, 0.8); }
+
+  .comandi { border-top: 1px solid rgba(201, 162, 39, 0.45); }
+  .comandi .azioni-gioco > p { font-size: 0.8rem; line-height: 1.25; }
+
+  .scena .emoticon { top: 0.2rem; bottom: auto; flex-direction: column-reverse; }
+  .emoticon-tasto { width: 2.4rem; height: 2.4rem; font-size: 1.3rem; }
+}
