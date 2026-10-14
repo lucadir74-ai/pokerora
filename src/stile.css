@@ -1469,3 +1469,8 @@ audio { display: none; }
   .pov-media .tasto-media { width: 1.9rem; height: 1.9rem; font-size: 0.9rem; }
   .pov-io { overflow: visible; }
 }
+.collegamento-video {
+  position: absolute; right: -6px; bottom: -6px; font-size: 0.7rem; line-height: 1; padding: 2px 4px; border-radius: 999px;
+  background: rgba(0, 0, 0, 0.75); color: #f2d77a; white-space: nowrap;
+}
+.collegamento-video.fallito { color: #ff8a80; }

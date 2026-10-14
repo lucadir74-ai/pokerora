@@ -3,12 +3,15 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 // Il video di un giocatore in un cerchio (muto: l'audio passa da AudioRemoti)
 export function VideoCerchio({ stream, specchio = false, className = '', titolo }) {
   const ref = useRef(null)
+  // Se arriva una traccia nuova, si riassegna il flusso (alcuni telefoni non se ne accorgono da soli)
+  const tracciaVideo = stream?.getVideoTracks()[0]?.id ?? ''
   useEffect(() => {
     const v = ref.current
     if (!v) return
-    if (v.srcObject !== stream) v.srcObject = stream ?? null
+    v.srcObject = null
+    v.srcObject = stream ?? null
     v.play?.().catch(() => {})
-  }, [stream])
+  }, [stream, tracciaVideo])
   return (
     <video ref={ref} className={`video-cerchio${specchio ? ' specchio' : ''} ${className}`} autoPlay playsInline muted
       aria-label={titolo} />

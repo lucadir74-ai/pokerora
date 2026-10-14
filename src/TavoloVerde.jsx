@@ -485,6 +485,18 @@ export default function TavoloVerde({ mano, posti, giocatori, io, carte, scelte,
                   ? <VideoCerchio stream={video.flussi[p.giocatore_id]} className="avatar avatar-video" titolo={`Video di ${nomeDi(p.giocatore_id)}`} />
                   : <span className="avatar" aria-hidden="true">{nomeDi(p.giocatore_id).slice(0, 1).toUpperCase()}</span>}
                 {video?.stati[p.giocatore_id]?.mic && <span className="mic-acceso" title="Microfono acceso" aria-label="Microfono acceso">🎤</span>}
+                {(() => {
+                  // Diagnosi: se qualcuno ha video o audio acceso ma il collegamento con questo giocatore non c'è
+                  const st = video?.stati[p.giocatore_id]
+                  if (!st || st.collegato || !(st.cam || st.mic || video.cam || video.mic)) return null
+                  const fallito = st.stato === 'failed' || st.stato === 'disconnected'
+                  return (
+                    <span className={`collegamento-video${fallito ? ' fallito' : ''}`}
+                      title={fallito ? 'Collegamento video non riuscito' : 'Collegamento video in corso'}>
+                      {fallito ? '📡✕' : '📡…'}
+                    </span>
+                  )
+                })()}
                 <span className="posto-testo">
                   <span className="posto-nick">{sonoIo ? 'Tu' : nomeDi(p.giocatore_id)}</span>
                   <span className="posto-fiches">{fmt(fichesDi(p.giocatore_id))}</span>

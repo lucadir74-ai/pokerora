@@ -33,6 +33,7 @@ export function useVideoTavolo(tavoloId, mioId, attivo) {
   const [ricevuti, setRicevuti] = useState({})     // sessione → MediaStream ricevuto
   const [presenti, setPresenti] = useState({})     // sessione → { id, cam, mic }
   const [errore, setErrore] = useState('')
+  const [collegamenti, setCollegamenti] = useState({}) // sessione → stato del collegamento (per capire cosa non va)
 
   const canale = useRef(null)
   const pcs = useRef(new Map())                    // sessione → RTCPeerConnection
@@ -60,6 +61,7 @@ export function useVideoTavolo(tavoloId, mioId, attivo) {
       pcs.current.delete(s)
       attese.current.delete(s)
       setRicevuti((f) => { if (!(s in f)) return f; const n = { ...f }; delete n[s]; return n })
+      setCollegamenti((f) => { if (!(s in f)) return f; const n = { ...f }; delete n[s]; return n })
     }
 
     const attaccaTracce = async (pc) => {
@@ -87,7 +89,9 @@ export function useVideoTavolo(tavoloId, mioId, attivo) {
           return { ...f, [s]: st }
         })
       }
+      setCollegamenti((f) => ({ ...f, [s]: 'new' }))
       pc.onconnectionstatechange = () => {
+        if (pcs.current.get(s) === pc) setCollegamenti((f) => ({ ...f, [s]: pc.connectionState }))
         // Collegamento perso: lo ricrea chi ha la sessione "minore" (così non lo ricreano in due)
         if (['failed', 'disconnected'].includes(pc.connectionState) && pcs.current.get(s) === pc && me < s) {
           setTimeout(() => { if (vivo && pcs.current.get(s) === pc && pc.connectionState !== 'connected') chiama(s) }, 3000)
@@ -163,7 +167,7 @@ export function useVideoTavolo(tavoloId, mioId, attivo) {
       for (const t of Object.values(tracce.current)) t?.stop()
       tracce.current = { audio: null, video: null }
       mio.current = { cam: false, mic: false }
-      setCam(false); setMic(false); setLocale(null); setPresenti({})
+      setCam(false); setMic(false); setLocale(null); setPresenti({}); setCollegamenti({})
       supabase.removeChannel(ch)
       canale.current = null
     }
@@ -175,13 +179,18 @@ export function useVideoTavolo(tavoloId, mioId, attivo) {
     let doppio = false
     for (const [s, v] of Object.entries(presenti)) {
       if (v.id === mioId) { if (s !== sessione.current) doppio = true; continue }
-      const prima = stati[v.id] ?? { cam: false, mic: false }
-      stati[v.id] = { cam: prima.cam || v.cam, mic: prima.mic || v.mic }
+      const prima = stati[v.id] ?? { cam: false, mic: false, collegato: false, stato: null }
+      const c = collegamenti[s] ?? null
+      stati[v.id] = {
+        cam: prima.cam || v.cam, mic: prima.mic || v.mic,
+        collegato: prima.collegato || c === 'connected',
+        stato: c === 'connected' ? 'connected' : prima.stato === 'connected' ? 'connected' : (c ?? prima.stato),
+      }
       if (ricevuti[s] && (v.cam || !flussi[v.id])) flussi[v.id] = ricevuti[s]
       if (v.mic && ricevuti[s]) audio.push({ chiave: s, stream: ricevuti[s] })
     }
     return { flussi, stati, audio, doppio }
-  }, [presenti, ricevuti, mioId])
+  }, [presenti, ricevuti, collegamenti, mioId])
 
   // Sostituisce la traccia (o la toglie) in tutti i collegamenti aperti
   const sostituisci = async (tipo, traccia) => {
