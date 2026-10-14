@@ -12,7 +12,7 @@ const giorno = (t) => new Date(t).toLocaleDateString('it-IT', { day: 'numeric', 
 // ── Apri un tavolo ──
 function NuovoTavolo({ onChiudi }) {
   const [nome, setNome] = useState('')
-  const [posti, setPosti] = useState(6)
+  const [posti, setPosti] = useState(4)
   const [posta, setPosta] = useState(1000)
   const [invito, setInvito] = useState('')
   const [minuti, setMinuti] = useState(0)
