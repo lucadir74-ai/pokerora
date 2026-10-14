@@ -491,10 +491,11 @@ export default function TavoloVerde({ mano, posti, giocatori, io, carte, scelte,
                   if (!st || st.collegato || !(st.cam || st.mic || video.cam || video.mic)) return null
                   const fallito = st.stato === 'failed' || st.stato === 'disconnected'
                   return (
-                    <span className={`collegamento-video${fallito ? ' fallito' : ''}`}
-                      title={fallito ? 'Collegamento video non riuscito' : 'Collegamento video in corso'}>
+                    <button type="button" className={`collegamento-video${fallito ? ' fallito' : ''}`}
+                      onClick={() => video.mostraDiagnosi(p.giocatore_id)}
+                      title={fallito ? 'Collegamento video non riuscito: tocca per i dettagli' : 'Collegamento video in corso: tocca per i dettagli'}>
                       {fallito ? '📡✕' : '📡…'}
-                    </span>
+                    </button>
                   )
                 })()}
                 <span className="posto-testo">

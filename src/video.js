@@ -34,6 +34,8 @@ export function useVideoTavolo(tavoloId, mioId, attivo) {
   const [presenti, setPresenti] = useState({})     // sessione → { id, cam, mic }
   const [errore, setErrore] = useState('')
   const [collegamenti, setCollegamenti] = useState({}) // sessione → stato del collegamento (per capire cosa non va)
+  const [diagnosi, setDiagnosi] = useState({})         // sessione → dettagli tecnici del collegamento
+  const diag = useRef(new Map())
 
   const canale = useRef(null)
   const pcs = useRef(new Map())                    // sessione → RTCPeerConnection
@@ -77,11 +79,27 @@ export function useVideoTavolo(tavoloId, mioId, attivo) {
       for (const c of lista) await pc.addIceCandidate(c).catch(() => {})
     }
 
+    // Diagnosi: cosa è successo nel collegamento con ogni dispositivo
+    const segna = (s, cambia) => {
+      const d = diag.current.get(s) ?? { offerta: '', risposta: '', ice: '', miei: {}, suoi: {} }
+      cambia(d)
+      diag.current.set(s, d)
+      setDiagnosi((f) => ({ ...f, [s]: { ...d, miei: { ...d.miei }, suoi: { ...d.suoi } } }))
+    }
+    const tipoCandidato = (c) => (c?.candidate ?? '').match(/ typ (\w+)/)?.[1] ?? '?'
+
     const crea = (s) => {
       chiudi(s)
+      diag.current.delete(s)
       const pc = new RTCPeerConnection({ iceServers: serverIce() })
       pcs.current.set(s, pc)
-      pc.onicecandidate = (e) => { if (e.candidate) invia({ tipo: 'ice', a: s, candidate: e.candidate.toJSON() }) }
+      pc.onicecandidate = (e) => {
+        if (!e.candidate) return
+        const tipo = tipoCandidato(e.candidate)
+        segna(s, (d) => { d.miei[tipo] = (d.miei[tipo] ?? 0) + 1 })
+        invia({ tipo: 'ice', a: s, candidate: e.candidate.toJSON() })
+      }
+      pc.oniceconnectionstatechange = () => { if (pcs.current.get(s) === pc) segna(s, (d) => { d.ice = pc.iceConnectionState }) }
       pc.ontrack = (e) => {
         setRicevuti((f) => {
           const st = f[s] ?? new MediaStream()
@@ -109,6 +127,7 @@ export function useVideoTavolo(tavoloId, mioId, attivo) {
         await attaccaTracce(pc)
         await pc.setLocalDescription(await pc.createOffer())
         invia({ tipo: 'offerta', a: s, sdp: pc.localDescription.toJSON() })
+        segna(s, (d) => { d.offerta = 'inviata' })
       } catch { /* si riprova alla prossima presenza */ }
     }
 
@@ -117,19 +136,24 @@ export function useVideoTavolo(tavoloId, mioId, attivo) {
       try {
         if (m.tipo === 'offerta') {
           const pc = crea(m.da)
+          segna(m.da, (d) => { d.offerta = 'ricevuta' })
           await pc.setRemoteDescription(m.sdp)
           for (const t of pc.getTransceivers()) t.direction = 'sendrecv'
           await attaccaTracce(pc)
           await pc.setLocalDescription(await pc.createAnswer())
           invia({ tipo: 'risposta', a: m.da, sdp: pc.localDescription.toJSON() })
+          segna(m.da, (d) => { d.risposta = 'inviata' })
           await svuotaAttese(m.da, pc)
         } else if (m.tipo === 'risposta') {
           const pc = pcs.current.get(m.da)
           if (pc && pc.signalingState === 'have-local-offer') {
+            segna(m.da, (d) => { d.risposta = 'ricevuta' })
             await pc.setRemoteDescription(m.sdp)
             await svuotaAttese(m.da, pc)
           }
         } else if (m.tipo === 'ice') {
+          const tipo = tipoCandidato(m.candidate)
+          if (pcs.current.has(m.da)) segna(m.da, (d) => { d.suoi[tipo] = (d.suoi[tipo] ?? 0) + 1 })
           const pc = pcs.current.get(m.da)
           if (pc && pc.remoteDescription) await pc.addIceCandidate(m.candidate).catch(() => {})
           else attese.current.set(m.da, [...(attese.current.get(m.da) ?? []), m.candidate])
@@ -167,15 +191,16 @@ export function useVideoTavolo(tavoloId, mioId, attivo) {
       for (const t of Object.values(tracce.current)) t?.stop()
       tracce.current = { audio: null, video: null }
       mio.current = { cam: false, mic: false }
-      setCam(false); setMic(false); setLocale(null); setPresenti({}); setCollegamenti({})
+      setCam(false); setMic(false); setLocale(null); setPresenti({}); setCollegamenti({}); setDiagnosi({})
+      diag.current.clear()
       supabase.removeChannel(ch)
       canale.current = null
     }
   }, [attivo, tavoloId, mioId, invia, annunciaStato])
 
   // Per ogni giocatore: acceso se lo è uno dei suoi dispositivi; si mostra il video del dispositivo con la fotocamera accesa
-  const { flussi, stati, audio, doppio } = useMemo(() => {
-    const flussi = {}, stati = {}, audio = []
+  const { flussi, stati, audio, doppio, dettagli } = useMemo(() => {
+    const flussi = {}, stati = {}, audio = [], dettagli = {}
     let doppio = false
     for (const [s, v] of Object.entries(presenti)) {
       if (v.id === mioId) { if (s !== sessione.current) doppio = true; continue }
@@ -188,9 +213,12 @@ export function useVideoTavolo(tavoloId, mioId, attivo) {
       }
       if (ricevuti[s] && (v.cam || !flussi[v.id])) flussi[v.id] = ricevuti[s]
       if (v.mic && ricevuti[s]) audio.push({ chiave: s, stream: ricevuti[s] })
+      dettagli[v.id] = [...(dettagli[v.id] ?? []), {
+        sessione: s, chiamo: sessione.current < s, collegamento: collegamenti[s] ?? 'nessuno', ...(diagnosi[s] ?? {}),
+      }]
     }
-    return { flussi, stati, audio, doppio }
-  }, [presenti, ricevuti, collegamenti, mioId])
+    return { flussi, stati, audio, doppio, dettagli }
+  }, [presenti, ricevuti, collegamenti, diagnosi, mioId])
 
   // Sostituisce la traccia (o la toglie) in tutti i collegamenti aperti
   const sostituisci = async (tipo, traccia) => {
@@ -251,5 +279,11 @@ export function useVideoTavolo(tavoloId, mioId, attivo) {
     annunciaStato()
   }
 
-  return { cam, mic, locale, flussi, stati, audio, doppio, errore, alternaCam, alternaMic }
+  const [diagnosiDi, setDiagnosiDi] = useState(null)   // giocatore di cui mostrare i dettagli tecnici
+
+  return {
+    cam, mic, locale, flussi, stati, audio, doppio, errore, alternaCam, alternaMic,
+    dettagli, diagnosiDi, mostraDiagnosi: setDiagnosiDi,
+    turn: !!import.meta.env.VITE_TURN_URL,
+  }
 }

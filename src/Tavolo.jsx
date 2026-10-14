@@ -5,7 +5,7 @@ import Fiches from './Fiches'
 import Gioco from './Gioco'
 import TimerPartita, { SceltaDurata } from './TimerPartita'
 import { useVideoTavolo } from './video'
-import { AudioRemoti, TastiMedia } from './VideoCerchio'
+import { AudioRemoti, TastiMedia, DiagnosiVideo } from './VideoCerchio'
 import { durata, ora } from './tempo'
 import Chat from './Chat'
 import Cassetto from './Cassetto'
@@ -420,6 +420,10 @@ export default function Tavolo({ id, io }) {
       {tavolo.stato === 'in_corso' && <Gioco tavolo={tavolo} giocatori={giocatori} io={io} bot={bot}
         pannello={pannello} setPannello={setPannello} onNonLetti={setNonLetti} video={video} />}
       {tavolo.stato === 'in_corso' && <AudioRemoti audio={video.audio} />}
+      {tavolo.stato === 'in_corso' && (
+        <DiagnosiVideo video={video}
+          nome={(gid) => giocatori.find((g) => g.giocatore_id === gid)?.profili?.nickname ?? 'giocatore'} />
+      )}
 
       {tavolo.stato === 'chiuso' && (
         <section className="carta">
