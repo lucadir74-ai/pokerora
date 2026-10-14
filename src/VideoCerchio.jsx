@@ -16,17 +16,16 @@ export function VideoCerchio({ stream, specchio = false, className = '', titolo 
 }
 
 // L'audio degli altri giocatori. Se il browser blocca l'audio automatico, compare un tasto per sbloccarlo.
-export function AudioRemoti({ flussi, stati }) {
+export function AudioRemoti({ audio }) {
   const [bloccato, setBloccato] = useState(false)
   const [prova, setProva] = useState(0)
   const blocca = useCallback(() => setBloccato(true), [])
-  const ids = Object.keys(flussi).filter((id) => stati[id]?.mic)
   return (
     <>
-      {ids.map((id) => (
-        <AudioUno key={id} stream={flussi[id]} prova={prova} onBloccato={blocca} />
+      {audio.map((a) => (
+        <AudioUno key={a.chiave} stream={a.stream} prova={prova} onBloccato={blocca} />
       ))}
-      {bloccato && ids.length > 0 && (
+      {bloccato && audio.length > 0 && (
         <button type="button" className="sblocca-audio" onClick={() => { setBloccato(false); setProva((n) => n + 1) }}>
           🔈 Tocca per sentire gli altri
         </button>

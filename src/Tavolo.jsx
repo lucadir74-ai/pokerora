@@ -340,6 +340,11 @@ export default function Tavolo({ id, io }) {
 
           </span>
           {video.errore && <p className="barra-avviso errore" role="alert">{video.errore}</p>}
+          {video.doppio && (
+            <p className="barra-avviso" role="status">
+              Sei al tavolo anche da un altro dispositivo: usa video e microfono da uno solo, e sull’altro tienili spenti.
+            </p>
+          )}
           {cassetto === null && (avviso || errore) && (
             <p className={`barra-avviso${errore ? ' errore' : ''}`} role={errore ? 'alert' : 'status'}>{errore || avviso}</p>
           )}
@@ -414,7 +419,7 @@ export default function Tavolo({ id, io }) {
 
       {tavolo.stato === 'in_corso' && <Gioco tavolo={tavolo} giocatori={giocatori} io={io} bot={bot}
         pannello={pannello} setPannello={setPannello} onNonLetti={setNonLetti} video={video} />}
-      {tavolo.stato === 'in_corso' && <AudioRemoti flussi={video.flussi} stati={video.stati} />}
+      {tavolo.stato === 'in_corso' && <AudioRemoti audio={video.audio} />}
 
       {tavolo.stato === 'chiuso' && (
         <section className="carta">

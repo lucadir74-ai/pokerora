@@ -1,13 +1,14 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from './supabase'
 
-// ── Video e audio al tavolo, diretti tra i telefoni (WebRTC) ──
-// Supabase serve solo a "presentare" i giocatori (segnali e presenza): il video va da telefono a telefono.
-// Ogni coppia di giocatori ha una connessione con un canale audio e uno video già pronti:
-// accendere o spegnere fotocamera e microfono non richiede di rinegoziare, si sostituisce solo la traccia.
-// Fotocamera e microfono partono spenti e si accendono con un tocco.
+// ── Video e audio al tavolo, diretti tra i dispositivi (WebRTC) ──
+// Supabase serve solo a "presentare" i dispositivi (segnali e presenza): il video va da dispositivo a dispositivo.
+// Ogni DISPOSITIVO è un partecipante a sé (sessione), non l'account: chi apre il tavolo da PC e da telefono
+// insieme non confonde i collegamenti. I miei dispositivi non si collegano tra loro (niente eco).
+// Ogni coppia ha un canale audio e uno video già pronti: accendere o spegnere fotocamera e microfono
+// sostituisce solo la traccia, senza rinegoziare. Fotocamera e microfono partono spenti.
 
-// Server per trovare la strada tra i telefoni. Il TURN (facoltativo) si configura su Vercel con
+// Server per trovare la strada tra i dispositivi. Il TURN si configura su Vercel con
 // VITE_TURN_URL (anche più indirizzi separati da virgola), VITE_TURN_USER e VITE_TURN_PASS.
 function serverIce() {
   const lista = [{ urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] }]
@@ -28,22 +29,21 @@ const VINCOLI_AUDIO = { echoCancellation: true, noiseSuppression: true, autoGain
 export function useVideoTavolo(tavoloId, mioId, attivo) {
   const [cam, setCam] = useState(false)
   const [mic, setMic] = useState(false)
-  const [locale, setLocale] = useState(null)     // anteprima del mio video
-  const [flussi, setFlussi] = useState({})       // id giocatore → MediaStream ricevuto
-  const [stati, setStati] = useState({})         // id giocatore → { cam, mic }
+  const [locale, setLocale] = useState(null)       // anteprima del mio video
+  const [ricevuti, setRicevuti] = useState({})     // sessione → MediaStream ricevuto
+  const [presenti, setPresenti] = useState({})     // sessione → { id, cam, mic }
   const [errore, setErrore] = useState('')
 
   const canale = useRef(null)
-  const pcs = useRef(new Map())                  // id → RTCPeerConnection
-  const attese = useRef(new Map())               // id → candidati arrivati prima della connessione
+  const pcs = useRef(new Map())                    // sessione → RTCPeerConnection
+  const attese = useRef(new Map())                 // sessione → candidati arrivati prima della connessione
   const tracce = useRef({ audio: null, video: null })
   const mio = useRef({ cam: false, mic: false })
-  const sessione = useRef(Math.random().toString(36).slice(2))   // cambia se ricarico la pagina
-  const sessioni = useRef(new Map())             // id → sessione vista dell'altro giocatore
+  const sessione = useRef(`${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`)
 
   const invia = useCallback((msg) => {
-    canale.current?.send({ type: 'broadcast', event: 'segnale', payload: { ...msg, da: mioId } })
-  }, [mioId])
+    canale.current?.send({ type: 'broadcast', event: 'segnale', payload: { ...msg, da: sessione.current } })
+  }, [])
 
   const annunciaStato = useCallback(() => {
     canale.current?.track({ id: mioId, sessione: sessione.current, cam: mio.current.cam, mic: mio.current.mic })
@@ -52,13 +52,14 @@ export function useVideoTavolo(tavoloId, mioId, attivo) {
   useEffect(() => {
     if (!attivo || !tavoloId || !mioId) return
     let vivo = true
+    const me = sessione.current
 
-    const chiudi = (id) => {
-      const pc = pcs.current.get(id)
+    const chiudi = (s) => {
+      const pc = pcs.current.get(s)
       if (pc) { pc.onicecandidate = null; pc.ontrack = null; pc.onconnectionstatechange = null; pc.close() }
-      pcs.current.delete(id)
-      attese.current.delete(id)
-      setFlussi((f) => { if (!(id in f)) return f; const n = { ...f }; delete n[id]; return n })
+      pcs.current.delete(s)
+      attese.current.delete(s)
+      setRicevuti((f) => { if (!(s in f)) return f; const n = { ...f }; delete n[s]; return n })
     }
 
     const attaccaTracce = async (pc) => {
@@ -68,45 +69,47 @@ export function useVideoTavolo(tavoloId, mioId, attivo) {
       }
     }
 
-    const svuotaAttese = async (id, pc) => {
-      const lista = attese.current.get(id) ?? []
-      attese.current.delete(id)
+    const svuotaAttese = async (s, pc) => {
+      const lista = attese.current.get(s) ?? []
+      attese.current.delete(s)
       for (const c of lista) await pc.addIceCandidate(c).catch(() => {})
     }
 
-    const crea = (id) => {
-      chiudi(id)
+    const crea = (s) => {
+      chiudi(s)
       const pc = new RTCPeerConnection({ iceServers: serverIce() })
-      pcs.current.set(id, pc)
-      pc.onicecandidate = (e) => { if (e.candidate) invia({ tipo: 'ice', a: id, candidate: e.candidate.toJSON() }) }
+      pcs.current.set(s, pc)
+      pc.onicecandidate = (e) => { if (e.candidate) invia({ tipo: 'ice', a: s, candidate: e.candidate.toJSON() }) }
       pc.ontrack = (e) => {
-        setFlussi((f) => {
-          const s = f[id] ?? new MediaStream()
-          if (!s.getTracks().includes(e.track)) s.addTrack(e.track)
-          return { ...f, [id]: s }
+        setRicevuti((f) => {
+          const st = f[s] ?? new MediaStream()
+          if (!st.getTracks().includes(e.track)) st.addTrack(e.track)
+          return { ...f, [s]: st }
         })
       }
       pc.onconnectionstatechange = () => {
-        // Connessione persa: la ricrea chi ha l'id "minore" (così non la ricreano in due)
-        if (['failed', 'disconnected'].includes(pc.connectionState) && pcs.current.get(id) === pc && mioId < id) {
-          setTimeout(() => { if (vivo && pcs.current.get(id) === pc && pc.connectionState !== 'connected') chiama(id) }, 3000)
+        // Collegamento perso: lo ricrea chi ha la sessione "minore" (così non lo ricreano in due)
+        if (['failed', 'disconnected'].includes(pc.connectionState) && pcs.current.get(s) === pc && me < s) {
+          setTimeout(() => { if (vivo && pcs.current.get(s) === pc && pc.connectionState !== 'connected') chiama(s) }, 3000)
         }
       }
       return pc
     }
 
-    // Chi ha l'id minore chiama, l'altro risponde: niente chiamate incrociate
-    const chiama = async (id) => {
-      const pc = crea(id)
-      pc.addTransceiver('audio', { direction: 'sendrecv' })
-      pc.addTransceiver('video', { direction: 'sendrecv' })
-      await attaccaTracce(pc)
-      await pc.setLocalDescription(await pc.createOffer())
-      invia({ tipo: 'offerta', a: id, sdp: pc.localDescription.toJSON() })
+    // Chiama chi ha la sessione minore, l'altro risponde: niente chiamate incrociate
+    const chiama = async (s) => {
+      try {
+        const pc = crea(s)
+        pc.addTransceiver('audio', { direction: 'sendrecv' })
+        pc.addTransceiver('video', { direction: 'sendrecv' })
+        await attaccaTracce(pc)
+        await pc.setLocalDescription(await pc.createOffer())
+        invia({ tipo: 'offerta', a: s, sdp: pc.localDescription.toJSON() })
+      } catch { /* si riprova alla prossima presenza */ }
     }
 
     const segnale = async ({ payload: m }) => {
-      if (!vivo || !m || m.a !== mioId || m.da === mioId) return
+      if (!vivo || !m || m.a !== me || m.da === me) return
       try {
         if (m.tipo === 'offerta') {
           const pc = crea(m.da)
@@ -127,51 +130,60 @@ export function useVideoTavolo(tavoloId, mioId, attivo) {
           if (pc && pc.remoteDescription) await pc.addIceCandidate(m.candidate).catch(() => {})
           else attese.current.set(m.da, [...(attese.current.get(m.da) ?? []), m.candidate])
         }
-      } catch {
-        // un segnale andato storto non deve bloccare il tavolo: la connessione si ricrea alla prossima presenza
-      }
+      } catch { /* un segnale andato storto non blocca il tavolo */ }
     }
 
     const presenza = () => {
       const stato = canale.current?.presenceState() ?? {}
       const nuovi = {}
       for (const voci of Object.values(stato)) {
-        const v = voci[voci.length - 1]
-        if (v?.id) nuovi[v.id] = { cam: !!v.cam, mic: !!v.mic, sessione: v.sessione }
+        for (const v of voci) {
+          if (v?.id && v?.sessione) nuovi[v.sessione] = { id: v.id, cam: !!v.cam, mic: !!v.mic }
+        }
       }
-      setStati(nuovi)
-      for (const [id, v] of Object.entries(nuovi)) {
-        if (id === mioId) continue
-        // Giocatore nuovo, o che ha ricaricato la pagina: chi ha l'id minore lo chiama
-        const cambiata = sessioni.current.get(id) !== v.sessione
-        sessioni.current.set(id, v.sessione)
-        if (mioId < id && (cambiata || !pcs.current.has(id))) chiama(id)
+      setPresenti(nuovi)
+      for (const [s, v] of Object.entries(nuovi)) {
+        if (s === me || v.id === mioId) continue          // non mi collego a me stesso né ai miei altri dispositivi
+        if (me < s && !pcs.current.has(s)) chiama(s)
       }
-      for (const id of [...pcs.current.keys()]) if (!(id in nuovi)) { chiudi(id); sessioni.current.delete(id) }
+      for (const s of [...pcs.current.keys()]) if (!(s in nuovi)) chiudi(s)
     }
 
     const ch = supabase.channel(`video-${tavoloId}`, {
-      config: { broadcast: { self: false }, presence: { key: mioId } },
+      config: { broadcast: { self: false }, presence: { key: me } },
     })
     canale.current = ch
     ch.on('broadcast', { event: 'segnale' }, segnale)
       .on('presence', { event: 'sync' }, presenza)
-      .subscribe((s) => { if (s === 'SUBSCRIBED') annunciaStato() })
+      .subscribe((st) => { if (st === 'SUBSCRIBED') annunciaStato() })
 
     return () => {
       vivo = false
-      for (const id of [...pcs.current.keys()]) chiudi(id)
+      for (const s of [...pcs.current.keys()]) chiudi(s)
       for (const t of Object.values(tracce.current)) t?.stop()
       tracce.current = { audio: null, video: null }
       mio.current = { cam: false, mic: false }
-      sessioni.current.clear()
-      setCam(false); setMic(false); setLocale(null); setStati({})
+      setCam(false); setMic(false); setLocale(null); setPresenti({})
       supabase.removeChannel(ch)
       canale.current = null
     }
   }, [attivo, tavoloId, mioId, invia, annunciaStato])
 
-  // Sostituisce la traccia (o la toglie) in tutte le connessioni aperte
+  // Per ogni giocatore: acceso se lo è uno dei suoi dispositivi; si mostra il video del dispositivo con la fotocamera accesa
+  const { flussi, stati, audio, doppio } = useMemo(() => {
+    const flussi = {}, stati = {}, audio = []
+    let doppio = false
+    for (const [s, v] of Object.entries(presenti)) {
+      if (v.id === mioId) { if (s !== sessione.current) doppio = true; continue }
+      const prima = stati[v.id] ?? { cam: false, mic: false }
+      stati[v.id] = { cam: prima.cam || v.cam, mic: prima.mic || v.mic }
+      if (ricevuti[s] && (v.cam || !flussi[v.id])) flussi[v.id] = ricevuti[s]
+      if (v.mic && ricevuti[s]) audio.push({ chiave: s, stream: ricevuti[s] })
+    }
+    return { flussi, stati, audio, doppio }
+  }, [presenti, ricevuti, mioId])
+
+  // Sostituisce la traccia (o la toglie) in tutti i collegamenti aperti
   const sostituisci = async (tipo, traccia) => {
     for (const pc of pcs.current.values()) {
       for (const t of pc.getTransceivers()) {
@@ -230,5 +242,5 @@ export function useVideoTavolo(tavoloId, mioId, attivo) {
     annunciaStato()
   }
 
-  return { cam, mic, locale, flussi, stati, errore, alternaCam, alternaMic }
+  return { cam, mic, locale, flussi, stati, audio, doppio, errore, alternaCam, alternaMic }
 }
