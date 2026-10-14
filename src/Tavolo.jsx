@@ -3,7 +3,7 @@ import { supabase } from './supabase'
 import Testata from './Testata'
 import Fiches from './Fiches'
 import Gioco from './Gioco'
-import TimerPartita from './TimerPartita'
+import TimerPartita, { SceltaDurata } from './TimerPartita'
 import { durata, ora } from './tempo'
 import Chat from './Chat'
 import Cassetto from './Cassetto'
@@ -499,12 +499,7 @@ export default function Tavolo({ id, io }) {
                   {OPZIONI.buio.map(([v, t]) => <option key={v} value={v}>{t}</option>)}
                 </select>
               </label>
-              <label>
-                Durata della partita
-                <select value={String(modifica.regole.durata ?? 0)} onChange={(e) => regola('durata', e.target.value)}>
-                  {OPZIONI.durata.map(([v, t]) => <option key={v} value={v}>{t}</option>)}
-                </select>
-              </label>
+              <SceltaDurata minuti={modifica.regole.durata ?? 0} onCambia={(v) => regola('durata', v)} />
               <label>
                 Cambio delle carte
                 <select value={String(modifica.regole.cambio_max)} onChange={(e) => regola('cambio_max', e.target.value)}>

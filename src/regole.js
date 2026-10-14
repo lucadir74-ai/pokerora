@@ -56,10 +56,10 @@ export function descriviRegole(tavolo) {
     : r.limite === 'piatto' ? 'Puntata massima: quanto c’è nel piatto'
     : 'Apertura al massimo quanto c’è nel piatto, poi rilanci liberi e illimitati'
   const durata = Number(r.durata) || 0
-  const testoDurata = OPZIONI.durata.find(([v]) => Number(v) === durata)?.[1] ?? `${durata} minuti`
+  const testoDur = testoDurata(durata)
   return [
     durata > 0
-      ? `Durata della partita: ${testoDurata}. A 15 minuti dalla fine compare un avviso e l’organizzatore può allungarla di 15, 30 o 60 minuti. Allo scadere si finisce la mano in corso`
+      ? `Durata della partita: ${testoDur}. A 15 minuti dalla fine compare un avviso; allo scadere si finisce la mano in corso e l’organizzatore sceglie se continuare (15, 30 o 60 minuti) o terminare`
       : 'Nessun limite di tempo',
     `Invito a ogni mano: ${fmt(invitoDi(tavolo))}`,
     limite,
@@ -109,3 +109,13 @@ export function dividiPosta(valore) {
 export const SEMI = { C: '♥', Q: '♦', F: '♣', P: '♠' }
 export const NOMI_SEMI = { C: 'cuori', Q: 'quadri', F: 'fiori', P: 'picche' }
 export const valoreVisibile = (c) => (c[0] === 'T' ? '10' : c[0])
+
+// Durata in minuti → "2 ore", "1 ora e 45 minuti", "30 minuti"
+export function testoDurata(min) {
+  const m = Number(min) || 0
+  if (m <= 0) return 'senza limite'
+  const h = Math.floor(m / 60), r = m % 60
+  const ore = h === 0 ? '' : h === 1 ? '1 ora' : `${h} ore`
+  const minuti = r === 0 ? '' : `${r} minuti`
+  return [ore, minuti].filter(Boolean).join(' e ')
+}

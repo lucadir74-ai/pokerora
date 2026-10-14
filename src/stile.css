@@ -1345,3 +1345,31 @@ button.carta-gioco { cursor: pointer; transition: transform 120ms ease; }
   .scena .emoticon { top: 0.2rem; bottom: auto; flex-direction: column-reverse; }
   .emoticon-tasto { width: 2.4rem; height: 2.4rem; font-size: 1.3rem; }
 }
+
+/* ═════════ Timer: scelta della durata e finestra allo scadere ═════════ */
+.durata-scelta { border: 0; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.35rem; }
+.durata-scelta legend { font-weight: 600; margin-bottom: 0.35rem; padding: 0; }
+.durata-campi { display: flex; gap: 0.75rem; }
+.durata-campi label { flex: 1; display: flex; flex-direction: column; gap: 0.25rem; font-size: 0.9rem; }
+.durata-campi select { width: 100%; font-size: 1.15rem; font-weight: 700; text-align: center; }
+.durata-scelta small { color: var(--grigio); }
+
+.timer-velo {
+  position: fixed; inset: 0; z-index: 90; display: grid; place-items: center; padding: 1rem;
+  background: rgba(0, 0, 0, 0.6); -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px);
+}
+.timer-scaduto {
+  width: min(100%, 24rem); padding: 1.3rem 1.2rem 1rem; border-radius: 18px; text-align: center;
+  background: linear-gradient(180deg, #1c2621, #0b110e); color: #eef3ef;
+  border: 1px solid rgba(201, 162, 39, 0.7); box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
+  display: flex; flex-direction: column; gap: 0.7rem;
+}
+.timer-scaduto h2 { margin: 0; color: #f2d77a; font-size: 1.5rem; }
+.timer-scaduto p { margin: 0; }
+.timer-sveglia { font-size: 2.6rem; line-height: 1; animation: timer-squilla 0.5s ease-in-out 4; }
+@keyframes timer-squilla { 25% { rotate: -14deg; } 75% { rotate: 14deg; } }
+.timer-scelte { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem; }
+.timer-scaduto .azione-grande { min-height: 3rem; }
+.timer-termina { width: 100%; }
+.timer-dopo { align-self: center; font-size: 0.9rem; }
+@media (prefers-reduced-motion: reduce) { .timer-sveglia { animation: none; } }

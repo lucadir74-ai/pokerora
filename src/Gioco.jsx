@@ -267,20 +267,28 @@ export default function Gioco({ tavolo, giocatori, io, bot = new Set(), pannello
   // La avvia il primo giocatore vero al tavolo; gli altri subentrano solo se lui non c'è.
   const [traSecondi, setTraSecondi] = useState(null)
   const prontaNuova = pronto && (idMano ? (mano?.id === idMano && conclusa) : true)
-  // Partita a tempo: allo scadere, a mano finita, si chiude invece di distribuire (decide il server)
-  const conTempo = useRef(false)
-  conTempo.current = !!tavolo.fine_prevista
+  // Partita a tempo: allo scadere non si distribuisce più (lo blocca anche il server);
+  // si aspetta che l'organizzatore scelga se continuare o terminare.
+  // Unica eccezione: un piatto rimasto da una mano annullata si gioca finché qualcuno non lo vince.
+  const [, setScatto] = useState(0)
+  useEffect(() => {
+    if (!tavolo.fine_prevista) return
+    const ms = Date.parse(tavolo.fine_prevista) - Date.now()
+    if (ms <= 0) return
+    const t = setTimeout(() => setScatto((x) => x + 1), ms + 300)   // ridisegna allo scadere
+    return () => clearTimeout(t)
+  }, [tavolo.fine_prevista])
+  const scade = useRef({})
+  scade.current = { fine: tavolo.fine_prevista, riporto: tavolo.piatto_riporto }
   const tempoScaduto = !!tavolo.fine_prevista && Date.now() >= Date.parse(tavolo.fine_prevista) && !(tavolo.piatto_riporto > 0)
   async function prossimaMano() {
-    if (conTempo.current) {
-      const { data } = await supabase.rpc('chiudi_per_tempo', { p_tavolo: tavolo.id })
-      if (data) return
-    }
+    const { fine, riporto } = scade.current
+    if (fine && Date.now() >= Date.parse(fine) && !(riporto > 0)) return
     const { error } = await supabase.rpc('nuova_mano', { p_tavolo: tavolo.id })
     if (!error) carica()
   }
   useEffect(() => {
-    if (!prontaNuova) { setTraSecondi(null); return }
+    if (!prontaNuova || tempoScaduto) { setTraSecondi(null); return }
     const pausa = idMano ? 7000 : 3000
     const ritardo = pausa + (regista ? 0 : 6000)
     const fine = Date.now() + pausa
@@ -289,7 +297,7 @@ export default function Gioco({ tavolo, giocatori, io, bot = new Set(), pannello
     // Se un altro giocatore l'ha già distribuita, il server risponde con un errore che si può ignorare
     const via = setTimeout(prossimaMano, ritardo)
     return () => { clearInterval(conta); clearTimeout(via) }
-  }, [prontaNuova, idMano, regista, tavolo.id])
+  }, [prontaNuova, idMano, regista, tavolo.id, tempoScaduto, tavolo.fine_prevista])
 
   const mio = posti.find((p) => p.giocatore_id === io.id)
   const mioTurno = !!mano && !!mio && mio.stato === 'attivo' && mano.turno === mio.posto
@@ -603,15 +611,19 @@ export default function Gioco({ tavolo, giocatori, io, bot = new Set(), pannello
               </button>
             )}
 
-            {conclusa && traSecondi !== null && (
+            {conclusa && tempoScaduto && (
+              <p className="prossima-mano" role="status">
+                {tavolo.organizzatore === io.id
+                  ? 'Tempo scaduto: scegli se continuare o terminare la partita.'
+                  : 'Tempo scaduto: l’organizzatore sta decidendo se continuare o terminare.'}
+              </p>
+            )}
+
+            {conclusa && traSecondi !== null && !tempoScaduto && (
               // Si può toccare per partire subito; se un altro l'ha già fatto, il server non ne distribuisce due
               <button type="button" className="prossima-mano" disabled={traSecondi === 0 || attesa}
                 onClick={() => { setTraSecondi(0); prossimaMano() }}>
-                {tempoScaduto
-                  ? (traSecondi > 0
-                    ? <>Tempo scaduto: la partita si chiude tra {traSecondi} {traSecondi === 1 ? 'secondo' : 'secondi'} <span className="prossima-subito">· tocca per chiudere subito</span></>
-                    : 'Si chiude la partita…')
-                  : traSecondi > 0
+                {traSecondi > 0
                     ? <>{mano ? 'Prossima mano' : 'Prima mano'} tra {traSecondi} {traSecondi === 1 ? 'secondo' : 'secondi'} <span className="prossima-subito">· tocca per iniziare subito</span></>
                     : 'Si distribuiscono le carte…'}
               </button>

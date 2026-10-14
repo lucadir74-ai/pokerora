@@ -4,6 +4,7 @@ import Testata from './Testata'
 import Fiches from './Fiches'
 import { vai, messaggioErrore } from './rotte'
 import { durata, ora } from './tempo'
+import { SceltaDurata } from './TimerPartita'
 
 const STATI = { attesa: 'In sala d’attesa', in_corso: 'Partita in corso', chiuso: 'Chiuso' }
 const giorno = (t) => new Date(t).toLocaleDateString('it-IT', { day: 'numeric', month: 'short' })
@@ -14,6 +15,7 @@ function NuovoTavolo({ onChiudi }) {
   const [posti, setPosti] = useState(6)
   const [posta, setPosta] = useState(1000)
   const [invito, setInvito] = useState('')
+  const [minuti, setMinuti] = useState(0)
   const [errore, setErrore] = useState('')
   const [attesa, setAttesa] = useState(false)
 
@@ -29,8 +31,12 @@ function NuovoTavolo({ onChiudi }) {
     const { data, error } = await supabase.rpc('crea_tavolo', {
       p_nome: nome, p_posti: posti, p_valore_posta: v, p_invito: inv,
     })
+    if (error) { setAttesa(false); return setErrore(messaggioErrore(error)) }
+    if (minuti > 0) {
+      const { error: e2 } = await supabase.rpc('imposta_durata', { p_tavolo: data, p_minuti: minuti })
+      if (e2) { setAttesa(false); return setErrore(`Tavolo aperto, ma la durata non è stata salvata: ${messaggioErrore(e2)} Puoi sceglierla in sala d’attesa.`) }
+    }
     setAttesa(false)
-    if (error) return setErrore(messaggioErrore(error))
     vai(`/tavolo/${data}`)
   }
 
@@ -64,6 +70,7 @@ function NuovoTavolo({ onChiudi }) {
             onChange={(e) => setInvito(e.target.value)} />
           <small>Se lo lasci vuoto vale l’1% della posta. Le altre regole si cambiano in sala d’attesa.</small>
         </label>
+        <SceltaDurata minuti={minuti} onCambia={setMinuti} />
         {errore && <p className="errore" role="alert">{errore}</p>}
         <button className="principale" disabled={attesa}>{attesa ? 'Un attimo…' : 'Apri il tavolo'}</button>
       </form>
