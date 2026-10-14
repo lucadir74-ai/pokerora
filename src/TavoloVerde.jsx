@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
+import { VideoCerchio, TastiMedia } from './VideoCerchio'
 import Carta from './Carta'
 import { fmt } from './regole'
 import { valutaMano, nomePunto, puoAprire } from './punti'
@@ -225,7 +226,7 @@ function Fondo({ stretto }) {
   )
 }
 
-export default function TavoloVerde({ mano, posti, giocatori, io, carte, scelte, onScegli, azioni, conclusa, fumetti = {}, reazioni = {}, onReagisci, povEl = null }) {
+export default function TavoloVerde({ mano, posti, giocatori, io, carte, scelte, onScegli, azioni, conclusa, fumetti = {}, reazioni = {}, onReagisci, povEl = null, video = null }) {
   const [fantasmi, setFantasmi] = useState([])
   // ── Spizzata delle mie carte ──
   const { ordine, viste, aperto, vedi } = useSpizzata(mano?.id, carte)
@@ -480,7 +481,10 @@ export default function TavoloVerde({ mano, posti, giocatori, io, carte, scelte,
                     {reazioni[p.giocatore_id].e}
                   </span>
                 )}
-                <span className="avatar" aria-hidden="true">{nomeDi(p.giocatore_id).slice(0, 1).toUpperCase()}</span>
+                {video?.stati[p.giocatore_id]?.cam && video.flussi[p.giocatore_id]
+                  ? <VideoCerchio stream={video.flussi[p.giocatore_id]} className="avatar avatar-video" titolo={`Video di ${nomeDi(p.giocatore_id)}`} />
+                  : <span className="avatar" aria-hidden="true">{nomeDi(p.giocatore_id).slice(0, 1).toUpperCase()}</span>}
+                {video?.stati[p.giocatore_id]?.mic && <span className="mic-acceso" title="Microfono acceso" aria-label="Microfono acceso">🎤</span>}
                 <span className="posto-testo">
                   <span className="posto-nick">{sonoIo ? 'Tu' : nomeDi(p.giocatore_id)}</span>
                   <span className="posto-fiches">{fmt(fichesDi(p.giocatore_id))}</span>
@@ -516,7 +520,9 @@ export default function TavoloVerde({ mano, posti, giocatori, io, carte, scelte,
           {mano.turno === pIo.posto && !conclusa && (
             <span className="pov-tocca">{mano.fase === 'cambio' ? 'Tocca a te: scegli le carte' : 'Tocca a te'}</span>
           )}
-          <span className="avatar" aria-hidden="true">{nomeDi(io.id).slice(0, 1).toUpperCase()}</span>
+          {video?.cam && video.locale
+            ? <VideoCerchio stream={video.locale} specchio className="avatar avatar-video" titolo="Il tuo video" />
+            : <span className="avatar" aria-hidden="true">{nomeDi(io.id).slice(0, 1).toUpperCase()}</span>}
           <span className="pov-nick">{nomeDi(io.id)}</span>
           <span className="pov-fiches">{fmt(fichesDi(io.id))}</span>
           {(() => {
@@ -532,6 +538,7 @@ export default function TavoloVerde({ mano, posti, giocatori, io, carte, scelte,
             <span key={reazioni[io.id].id} className="pov-reazione" role="img"
               aria-label={EMOTICON.find((x) => x.e === reazioni[io.id].e)?.nome ?? ''}>{reazioni[io.id].e}</span>
           )}
+          {video && <TastiMedia video={video} className="pov-media" />}
           {ultima[io.id] && !conclusa && ultima[io.id] !== BOLLE.cambio(pIo.cambio) && <span key={`${ultima[io.id]}-${azioni[0]?.id}`} className="pov-bolla">{ultima[io.id]}</span>}
         </div>
       </div>,

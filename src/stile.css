@@ -1420,3 +1420,52 @@ button.carta-gioco { cursor: pointer; transition: transform 120ms ease; }
 .posto-cambio.tutto-dentro { color: #ff8a80; }
 .pov-cambio.tutto-dentro { background: rgba(179, 38, 30, 0.85); color: #fff; font-weight: 700; }
 .tutto-dentro-avviso { font-size: 0.88rem; line-height: 1.3; margin: 0; }
+
+/* ═════════ Chat laterale: stretta, a destra, il tavolo resta visibile ═════════ */
+.cassetto-velo.trasparente { background: transparent; }
+.cassetto.laterale {
+  top: 0; bottom: 0; right: 0; left: auto; width: min(21rem, 80vw);
+  background: rgba(250, 248, 242, 0.96); border-radius: 18px 0 0 18px;
+  box-shadow: -10px 0 30px rgba(0, 0, 0, 0.45);
+}
+.cassetto.laterale .cassetto-testa { padding-block: 0.6rem; }
+.cassetto.laterale .cassetto-corpo { display: flex; flex-direction: column; min-height: 0; overflow: hidden; padding: 0.5rem 0.8rem calc(0.8rem + env(safe-area-inset-bottom, 0px)); }
+.cassetto.laterale .chat { flex: 1; min-height: 0; display: flex; flex-direction: column; margin: 0; padding: 0; border: 0; }
+.cassetto.laterale .chat h3 { display: none; }
+.cassetto.laterale .chat-lista { flex: 1; min-height: 0; max-height: none; overflow-y: auto; overscroll-behavior: contain; }
+.cassetto.laterale .chat-scrivi { margin-top: 0.5rem; }
+.cassetto.laterale .chat-scrivi .principale { padding: 0.55rem 0.8rem; }
+
+/* ═════════ Video e audio ═════════ */
+.video-cerchio { object-fit: cover; background: #0b110e; display: block; }
+.video-cerchio.specchio { transform: scaleX(-1); }
+.avatar.avatar-video {
+  width: clamp(44px, 11cqw, 64px); height: auto; aspect-ratio: 1; border-radius: 50%; padding: 0;
+  border: 2px solid #f2d77a; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+}
+.pov .avatar.avatar-video { width: 2.6rem; }
+.pov-dentro.di-turno .avatar.avatar-video { display: block; }
+.mic-acceso {
+  position: absolute; left: -4px; bottom: -4px; font-size: 0.75rem; line-height: 1; padding: 2px; border-radius: 50%;
+  background: #1f6f4a; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+}
+.tasti-media { display: inline-flex; gap: 0.35rem; flex: none; }
+.tasto-media {
+  position: relative; width: 2.2rem; height: 2.2rem; border-radius: 50%; cursor: pointer; font-size: 1rem; line-height: 1;
+  background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.3); color: #fff; opacity: 0.85;
+}
+.tasto-media.acceso { background: #1f6f4a; border-color: #6fbf93; opacity: 1; }
+.tasto-media-stato { position: absolute; right: -2px; bottom: -3px; font-size: 0.65rem; font-weight: 700; color: #ff8a80; }
+.sblocca-audio {
+  position: fixed; left: 50%; top: 4.5rem; transform: translateX(-50%); z-index: 60;
+  padding: 0.55rem 1rem; border-radius: 999px; border: 0; cursor: pointer; font: inherit; font-weight: 700;
+  background: #f2d77a; color: var(--inchiostro); box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5);
+}
+audio { display: none; }
+.pov-media { display: none; }
+@media (max-width: 959px) {
+  .barra-media { display: none; }
+  .pov-media { display: inline-flex; margin-left: auto; }
+  .pov-media .tasto-media { width: 1.9rem; height: 1.9rem; font-size: 0.9rem; }
+  .pov-io { overflow: visible; }
+}

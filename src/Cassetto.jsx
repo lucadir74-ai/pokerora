@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 
-// Finestra che scorre da destra (o dall'alto, con lato="alto"). Si chiude con la X, toccando fuori o con Esc.
+// Finestra che scorre da destra (o dall'alto, con lato="alto"; stretta e senza oscurare, con lato="laterale").
+// Si chiude con la X, toccando fuori o con Esc.
 export default function Cassetto({ aperto, onChiudi, titolo, children, lato = 'destra' }) {
   const chiudiRef = useRef(null)
 
@@ -14,8 +15,8 @@ export default function Cassetto({ aperto, onChiudi, titolo, children, lato = 'd
 
   return (
     <>
-      <div className={`cassetto-velo${aperto ? ' aperto' : ''}`} onClick={onChiudi} aria-hidden="true" />
-      <aside className={`cassetto${lato === 'alto' ? ' alto' : ''}${aperto ? ' aperto' : ''}`} role="dialog" aria-modal="true"
+      <div className={`cassetto-velo${lato === 'laterale' ? ' trasparente' : ''}${aperto ? ' aperto' : ''}`} onClick={onChiudi} aria-hidden="true" />
+      <aside className={`cassetto${lato === 'alto' ? ' alto' : ''}${lato === 'laterale' ? ' laterale' : ''}${aperto ? ' aperto' : ''}`} role="dialog" aria-modal="true"
         aria-label={titolo} aria-hidden={!aperto} inert={aperto ? undefined : ''}>
         <div className="cassetto-testa">
           <h2>{titolo}</h2>

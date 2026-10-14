@@ -12,7 +12,7 @@ import * as suoni from './suoni'
 
 const COPPIA = { 11: 'jack', 12: 'donne', 13: 're' }
 
-export default function Gioco({ tavolo, giocatori, io, bot = new Set(), pannello = null, setPannello = () => {}, onNonLetti = () => {} }) {
+export default function Gioco({ tavolo, giocatori, io, bot = new Set(), pannello = null, setPannello = () => {}, onNonLetti = () => {}, video = null }) {
   const [mano, setMano] = useState(null)
   const [posti, setPosti] = useState([])
   const [carte, setCarte] = useState([])
@@ -564,7 +564,7 @@ export default function Gioco({ tavolo, giocatori, io, bot = new Set(), pannello
             mano={mano} posti={posti} giocatori={giocatori} io={io} carte={carte}
             scelte={scelte} onScegli={mano?.fase === 'cambio' && mioTurno ? scegli : null}
             azioni={registro} conclusa={conclusa} fumetti={fumetti} reazioni={reazioni} onReagisci={reagisci}
-            povEl={povEl}
+            povEl={povEl} video={video}
           />
 
           {/* Telefono: le mie carte e il mio posto, davanti al tavolo e sopra i comandi */}
@@ -637,8 +637,8 @@ export default function Gioco({ tavolo, giocatori, io, bot = new Set(), pannello
 
         </div>
 
-        {/* Chat e storico: finestre a scomparsa dall'alto, si aprono dai link della barra */}
-        <Cassetto lato="alto" aperto={pannello === 'chat'} onChiudi={() => setPannello(null)} titolo="Chat del tavolo">
+        {/* Chat: pannello laterale a destra, il tavolo resta visibile. Storico: finestra dall'alto */}
+        <Cassetto lato="laterale" aperto={pannello === 'chat'} onChiudi={() => setPannello(null)} titolo="Chat del tavolo">
           <Chat messaggi={messaggi} invia={invia} nomeDi={nomeDi} io={io} />
         </Cassetto>
         <Cassetto lato="alto" aperto={pannello === 'storico'} onChiudi={() => setPannello(null)}

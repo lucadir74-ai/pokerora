@@ -4,6 +4,8 @@ import Testata from './Testata'
 import Fiches from './Fiches'
 import Gioco from './Gioco'
 import TimerPartita, { SceltaDurata } from './TimerPartita'
+import { useVideoTavolo } from './video'
+import { AudioRemoti, TastiMedia } from './VideoCerchio'
 import { durata, ora } from './tempo'
 import Chat from './Chat'
 import Cassetto from './Cassetto'
@@ -120,6 +122,9 @@ export default function Tavolo({ id, io }) {
   const [pannello, setPannello] = useState(null)   // 'chat' | 'storico' | null
   const [nonLetti, setNonLetti] = useState(0)
   useEffect(() => ascoltaSuoni(setSuoni), [])
+  // Video e audio: solo per chi è seduto, a partita in corso; partono spenti
+  const seduto = giocatori.some((g) => g.giocatore_id === io.id)
+  const video = useVideoTavolo(id, io.id, tavolo?.stato === 'in_corso' && seduto)
 
   const carica = useCallback(async () => {
     const [t, g, p] = await Promise.all([
@@ -320,6 +325,7 @@ export default function Tavolo({ id, io }) {
               aria-label={suoni ? 'Disattiva i suoni' : 'Attiva i suoni'} title={suoni ? 'Suoni attivi' : 'Suoni spenti'}>
               {suoni ? '🔊' : '🔇'}
             </button>
+            <TastiMedia video={video} className="barra-media" />
             <button className={`interruttore-spizza${spizzata ? ' acceso' : ''}`} role="switch" aria-checked={spizzata}
               onClick={() => impostaSpizzata(!spizzata)}
               title={spizzata ? 'Le carte arrivano chiuse e si spizzano: tocca per riceverle già aperte' : 'Le carte arrivano già aperte: tocca per spizzarle'}>
@@ -333,6 +339,7 @@ export default function Tavolo({ id, io }) {
             <button className="link-chiaro" onClick={() => setCassetto('poste')}>Poste</button>
 
           </span>
+          {video.errore && <p className="barra-avviso errore" role="alert">{video.errore}</p>}
           {cassetto === null && (avviso || errore) && (
             <p className={`barra-avviso${errore ? ' errore' : ''}`} role={errore ? 'alert' : 'status'}>{errore || avviso}</p>
           )}
@@ -406,7 +413,8 @@ export default function Tavolo({ id, io }) {
       {inAttesa && <ChatAttesa tavoloId={id} io={io} nomeDi={nomeDi} />}
 
       {tavolo.stato === 'in_corso' && <Gioco tavolo={tavolo} giocatori={giocatori} io={io} bot={bot}
-        pannello={pannello} setPannello={setPannello} onNonLetti={setNonLetti} />}
+        pannello={pannello} setPannello={setPannello} onNonLetti={setNonLetti} video={video} />}
+      {tavolo.stato === 'in_corso' && <AudioRemoti flussi={video.flussi} stati={video.stati} />}
 
       {tavolo.stato === 'chiuso' && (
         <section className="carta">
@@ -574,3 +582,4 @@ export default function Tavolo({ id, io }) {
     </main>
   )
 }
+
