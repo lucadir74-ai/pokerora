@@ -1,6 +1,6 @@
 import { SEMI, NOMI_SEMI, valoreVisibile } from './regole'
 
-const NOMI_VALORI = { J: 'fante', Q: 'donna', K: 're', A: 'asso', T: '10' }
+const NOMI_VALORI = { J: 'jack', Q: 'donna', K: 're', A: 'asso', T: '10' }
 
 export default function Carta({ c, scelta, onClick, piccola, indice }) {
   const rossa = c[1] === 'C' || c[1] === 'Q'

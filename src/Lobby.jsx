@@ -109,14 +109,14 @@ const REGOLE = [
   )],
   ['Invito e apertura', (
     <>
-      <p>A ogni mano tutti mettono l’invito nel piatto. Dopo la distribuzione si apre con almeno una coppia di fanti, oppure con 4 carte di fila dello stesso seme senza asso.</p>
+      <p>A ogni mano tutti mettono l’invito nel piatto. Dopo la distribuzione si apre con almeno una coppia di jack, oppure con 4 carte di fila dello stesso seme senza asso.</p>
       <p>Se passano tutti, il piatto resta e la mano dopo si apre con coppia di donne, poi di re. Si resta al re finché una mano non viene aperta e giocata.</p>
       <p>Dopo l’apertura gli altri vedono, rilanciano o lasciano.</p>
     </>
   )],
   ['Buio, controbuio e over', (
     <>
-      <p>Solo nelle mani che si aprono ai fanti, prima di vedere le carte, il primo dopo il mazziere può fare il buio: punta quanto c’è nel piatto. Il successivo può fare il controbuio (il doppio), il terzo l’over (il doppio del controbuio). Il mazziere non deve mai parlare per primo: per questo l’over si fa solo da 5 giocatori in su.</p>
+      <p>Solo nelle mani che si aprono ai jack, prima di vedere le carte, il primo dopo il mazziere può fare il buio: punta quanto c’è nel piatto. Il successivo può fare il controbuio (il doppio), il terzo l’over (il doppio del controbuio). Il mazziere non deve mai parlare per primo: per questo l’over si fa solo da 5 giocatori in su.</p>
       <p>Chi ha fatto il buio può coprire subito il controbuio, prima delle carte, e così conserva il diritto di rilanciare. Con l’over lo copre prima il controbuio, poi il buio, ma solo se aveva già coperto il controbuio.</p>
       <p>Dopo la distribuzione gli altri possono solo vedere o lasciare; rilancia solo chi ha fatto l’ultimo buio o l’ha coperto. Dopo il cambio l’ultimo buio parla per ultimo. Niente buio dopo una mano finita a parola.</p>
     </>

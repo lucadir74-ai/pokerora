@@ -39,7 +39,7 @@ export function valutaMano(carte, bassa) {
 }
 
 function nomeValore(p, plurale = false) {
-  if (p === 11) return plurale ? 'fanti' : 'fante'
+  if (p === 11) return 'jack'
   if (p === 12) return plurale ? 'donne' : 'donna'
   if (p === 13) return 're'
   if (p === 14) return plurale ? 'assi' : 'asso'
@@ -52,7 +52,7 @@ export function nomePunto(p) {
     case 8: return 'Poker di ' + nomeValore(p[1], true)
     case 7: return 'Colore'
     case 6: return 'Full di ' + nomeValore(p[1], true) + ' e ' + nomeValore(p[2], true)
-    case 5: return p[1] === 14 ? 'Scala all\u2019asso' : 'Scala al ' + nomeValore(p[1])
+    case 5: return p[1] === 14 ? 'Scala all\u2019asso' : p[1] === 12 ? 'Scala a donna' : 'Scala al ' + nomeValore(p[1])
     case 4: return 'Tris di ' + nomeValore(p[1], true)
     case 3: return 'Doppia coppia di ' + nomeValore(p[1], true) + ' e ' + nomeValore(p[2], true)
     case 2: return 'Coppia di ' + nomeValore(p[1], true)

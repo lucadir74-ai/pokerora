@@ -10,7 +10,7 @@ import Cassetto from './Cassetto'
 import { EMOTICON } from './emoticon'
 import * as suoni from './suoni'
 
-const COPPIA = { 11: 'fanti', 12: 'donne', 13: 're' }
+const COPPIA = { 11: 'jack', 12: 'donne', 13: 're' }
 
 export default function Gioco({ tavolo, giocatori, io, bot = new Set(), pannello = null, setPannello = () => {}, onNonLetti = () => {} }) {
   const [mano, setMano] = useState(null)

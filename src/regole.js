@@ -66,10 +66,10 @@ export function descriviRegole(tavolo) {
     String(r.cambio_max) === '5'
       ? 'Si cambiano fino a 5 carte: 3 subito e 2 a fine giro'
       : 'Si cambiano fino a 4 carte: 3 subito e 1 a fine giro',
-    'Si apre con almeno una coppia di fanti, o 4 carte di fila dello stesso seme senza asso. Se passano tutti: donne, poi re, e si resta al re finché una mano non viene aperta e giocata',
+    'Si apre con almeno una coppia di jack, o 4 carte di fila dello stesso seme senza asso. Se passano tutti: donne, poi re, e si resta al re finché una mano non viene aperta e giocata',
     r.buio === 'no'
       ? 'Niente buio'
-      : 'Buio prima di vedere le carte, solo nelle mani che si aprono ai fanti: lo fa il primo dopo il mazziere e vale il piatto; controbuio il doppio, over il doppio del controbuio (da 5 giocatori). Chi ha fatto il buio può coprire il controbuio prima delle carte e conserva il diritto di rilanciare. Dopo il cambio l’ultimo buio parla per ultimo. Non si fa dopo una parola',
+      : 'Buio prima di vedere le carte, solo nelle mani che si aprono ai jack: lo fa il primo dopo il mazziere e vale il piatto; controbuio il doppio, over il doppio del controbuio (da 5 giocatori). Chi ha fatto il buio può coprire il controbuio prima delle carte e conserva il diritto di rilanciare. Dopo il cambio l’ultimo buio parla per ultimo. Non si fa dopo una parola',
     'Se tutti dicono parola: il piatto resta, la mano dopo si apre con coppia di re e senza buio',
     'Il colore batte il full. Semi: cuori, quadri, fiori, picche',
     'Scala reale: la minima batte la massima, la massima batte la media, la media batte la minima',
