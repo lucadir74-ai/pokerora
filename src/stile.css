@@ -1410,3 +1410,13 @@ button.carta-gioco { cursor: pointer; transition: transform 120ms ease; }
   .barra-gioco .chip-posta { padding: 0.3rem 0.6rem; font-size: 0.82rem; }
   .barra-link .interruttore-spizza { font-size: 0.9rem; }
 }
+
+/* Poste prese durante la mano: arrivano a fine mano */
+.pov-arrivo { font-size: 0.75rem; white-space: nowrap; color: #f2d77a; opacity: 0.9; }
+.report .in-arrivo { color: var(--grigio); font-size: 0.8em; white-space: nowrap; }
+@media (max-width: 380px) { .pov-arrivo { display: none; } }
+
+/* Fiches finite: "tutto dentro" */
+.posto-cambio.tutto-dentro { color: #ff8a80; }
+.pov-cambio.tutto-dentro { background: rgba(179, 38, 30, 0.85); color: #fff; font-weight: 700; }
+.tutto-dentro-avviso { font-size: 0.88rem; line-height: 1.3; margin: 0; }

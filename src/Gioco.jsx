@@ -260,6 +260,7 @@ export default function Gioco({ tavolo, giocatori, io, bot = new Set(), pannello
 
   const nomeDi = (id) => giocatori.find((g) => g.giocatore_id === id)?.profili?.nickname ?? 'giocatore'
   const fichesDi = (id) => giocatori.find((g) => g.giocatore_id === id)?.fiches ?? 0
+  const fichesMie = fichesDi(io.id)
 
   // Nessuna mano ancora, oppure mano conclusa
   const conclusa = !mano || mano.fase === 'finita' || mano.fase === 'annullata'
@@ -387,6 +388,15 @@ export default function Gioco({ tavolo, giocatori, io, bot = new Set(), pannello
   function azioni() {
     if (!mano || conclusa) return null
     if (!mio || mio.stato !== 'attivo') return <p className="tenue">Sei fuori da questa mano.</p>
+    // Fiches finite: si gioca solo per la parte coperta (al cambio si cambia normalmente)
+    if (mio.tutto_dentro && mano.fase !== 'cambio') {
+      return (
+        <p className="tenue tutto-dentro-avviso">
+          Hai messo tutte le tue fiches ({fmt(mio.versato_mano)} in questa mano): giochi solo per la parte che hai coperto.
+          Se vinci prendi quella parte da ciascuno; il resto se lo giocano gli altri.
+        </p>
+      )
+    }
     if (!mioTurno) return preAzioni()
     if (mano.fase === 'buio' && mano.buio_da_chiedere?.[0] === io.id) {
       // Prima delle carte: coprire il controbuio o l'over per conservare il diritto di rilancio
@@ -401,7 +411,7 @@ export default function Gioco({ tavolo, giocatori, io, bot = new Set(), pannello
           <div className="griglia-azioni due">
             {grande('Non copro', 'neutro', () => rpc('copri_buio', { p_mano: mano.id, p_copro: false }),
               'Dopo aver visto le carte potrai solo vedere o lasciare')}
-            {grande(`Copro ${cosa} +${fmt(diff)}`, 'oro', () => rpc('copri_buio', { p_mano: mano.id, p_copro: true }),
+            {fichesMie >= diff && grande(`Copro ${cosa} +${fmt(diff)}`, 'oro', () => rpc('copri_buio', { p_mano: mano.id, p_copro: true }),
               'Metti la differenza al buio e potrai rilanciare')}
           </div>
         </div>
@@ -426,12 +436,12 @@ export default function Gioco({ tavolo, giocatori, io, bot = new Set(), pannello
         <div className="azioni-gioco">
           <p>
             {mano.buio_livello === 0
-              ? 'Puoi fare il buio prima di vedere le carte: costa quanto il piatto.'
+              ? (fichesMie >= quanto ? 'Puoi fare il buio prima di vedere le carte: costa quanto il piatto.' : `Per il buio servono ${fmt(quanto)}: non hai abbastanza fiches.`)
               : `${nomeDi(mano.buio_di)} ha fatto il ${['', 'buio', 'controbuio'][mano.buio_livello]}. Puoi rispondere con il ${nome}.`}
           </p>
           <div className="griglia-azioni due">
             {grande(`Niente ${nome}`, 'neutro', () => rpc('buio', { p_mano: mano.id, p_faccio: false }), 'Non punti al buio: si distribuiscono le carte')}
-            {grande(`Faccio il ${nome} ${fmt(quanto)}`, 'oro', () => rpc('buio', { p_mano: mano.id, p_faccio: true }), 'Punti prima di vedere le carte')}
+            {fichesMie >= quanto && grande(`Faccio il ${nome} ${fmt(quanto)}`, 'oro', () => rpc('buio', { p_mano: mano.id, p_faccio: true }), 'Punti prima di vedere le carte')}
           </div>
         </div>
       )
@@ -452,7 +462,7 @@ export default function Gioco({ tavolo, giocatori, io, bot = new Set(), pannello
           <div className="griglia-azioni due">
             {grande('Lascio', 'neutro', () => azione('passo'),
               giaMesso ? 'Esci dalla mano: perdi quanto hai già messo' : 'Esci dalla mano')}
-            {grande(`Copro ${cosa} ${fmt(daVedere)}`, 'verde', () => azione('vedo'),
+            {grande(fichesMie < daVedere ? `Copro con tutto ${fmt(fichesMie)}` : `Copro ${cosa} ${fmt(daVedere)}`, 'verde', () => azione('vedo'),
               giaMesso ? `Aggiungi ${fmt(daVedere)} e resti in gioco` : 'Metti la stessa cifra e resti in gioco')}
           </div>
         </div>
@@ -477,24 +487,24 @@ export default function Gioco({ tavolo, giocatori, io, bot = new Set(), pannello
         mano.buio_di === io.id
           ? grande('Chiudo il giro', 'verde', () => azione('vedo'), 'Non rilanci e si passa al cambio')
           : grande('Non rilancio', 'verde', () => azione('vedo'), 'Hai coperto il buio: resti in gioco senza rilanciare'),
-        grande(`Rilancio +${fmt(valore)}`, 'oro', () => azione('rilancio', valore), 'Alzi la puntata: gli altri devono pareggiare'),
-      ]
+        fichesMie >= daVedere + invito ? grande(`Rilancio +${fmt(valore)}`, 'oro', () => azione('rilancio', valore), 'Alzi la puntata: gli altri devono pareggiare') : null,
+      ].filter(Boolean)
     } else if (mano.fase === 'apertura') {
       pulsanti = [
         grande('Passo', 'neutro', () => azione('passo'), 'Non apri: la parola passa al prossimo'),
-        grande(`Apro ${fmt(valore)}`, 'oro', () => azione('apro', valore), 'Apri il gioco con questa puntata'),
-      ]
+        fichesMie >= invito ? grande(`Apro ${fmt(valore)}`, 'oro', () => azione('apro', valore), 'Apri il gioco con questa puntata') : null,
+      ].filter(Boolean)
     } else if (mano.puntata > 0) {
       pulsanti = [
         grande('Lascio', 'neutro', () => azione('passo'), 'Esci dalla mano: perdi quanto hai già puntato'),
-        daVedere > 0 ? grande(`Vedo ${fmt(daVedere)}`, 'verde', () => azione('vedo'), 'Pareggi la puntata e resti in gioco') : null,
-        grande(`Rilancio +${fmt(valore)}`, 'oro', () => azione('rilancio', valore), 'Alzi la puntata: gli altri devono pareggiare'),
+        daVedere > 0 ? grande(fichesMie < daVedere ? `Vedo con tutto ${fmt(fichesMie)}` : `Vedo ${fmt(daVedere)}`, 'verde', () => azione('vedo'), 'Pareggi la puntata e resti in gioco') : null,
+        fichesMie >= daVedere + invito ? grande(`Rilancio +${fmt(valore)}`, 'oro', () => azione('rilancio', valore), 'Alzi la puntata: gli altri devono pareggiare') : null,
       ].filter(Boolean)
     } else {
       pulsanti = [
         grande('Busso', 'verde', () => azione('busso'), 'Non punti ma resti in gioco'),
         mano.parol_possibile ? grande('Parola', 'neutro', () => azione('parol'), 'Non punti; se la dicono tutti la mano si annulla') : null,
-        grande(`Punto ${fmt(valore)}`, 'oro', () => azione('punto', valore), 'Punti per primo: gli altri devono vedere o lasciare'),
+        fichesMie >= invito ? grande(`Punto ${fmt(valore)}`, 'oro', () => azione('punto', valore), 'Punti per primo: gli altri devono vedere o lasciare') : null,
       ].filter(Boolean)
     }
     return (
@@ -571,12 +581,6 @@ export default function Gioco({ tavolo, giocatori, io, bot = new Set(), pannello
             {errore && (
               <div className="errore-gioco" role="alert">
                 <p className="errore">{errore}</p>
-                {errore.includes('fiches') && (
-                  <button className="secondario" disabled={attesa}
-                    onClick={() => rpc('prendi_posta', { p_tavolo: tavolo.id })}>
-                    Prendi un’altra posta ({fmt(tavolo.valore_posta)})
-                  </button>
-                )}
               </div>
             )}
 

@@ -485,6 +485,7 @@ export default function TavoloVerde({ mano, posti, giocatori, io, carte, scelte,
                   <span className="posto-nick">{sonoIo ? 'Tu' : nomeDi(p.giocatore_id)}</span>
                   <span className="posto-fiches">{fmt(fichesDi(p.giocatore_id))}</span>
                   {/* Quante carte ha cambiato: resta visibile fino alla fine della mano */}
+                  {p.tutto_dentro && p.stato === 'attivo' && <span className="posto-cambio tutto-dentro">Tutto dentro</span>}
                   {p.cambio != null && p.stato === 'attivo' && (
                     <span className="posto-cambio">{p.cambio === 0 ? 'Servito' : p.cambio === 1 ? 'Cambia 1 carta' : `Cambia ${p.cambio} carte`}</span>
                   )}
@@ -518,7 +519,12 @@ export default function TavoloVerde({ mano, posti, giocatori, io, carte, scelte,
           <span className="avatar" aria-hidden="true">{nomeDi(io.id).slice(0, 1).toUpperCase()}</span>
           <span className="pov-nick">{nomeDi(io.id)}</span>
           <span className="pov-fiches">{fmt(fichesDi(io.id))}</span>
+          {(() => {
+            const n = giocatori.find((g) => g.giocatore_id === io.id)?.poste_in_arrivo ?? 0
+            return n > 0 && <span className="pov-arrivo" title="Le fiches arrivano a fine mano">+{n} {n === 1 ? 'posta' : 'poste'} a fine mano</span>
+          })()}
           {pIo.posto === mano.mazziere && <span className="bottone-mazziere" title="Mazziere">M</span>}
+          {pIo.tutto_dentro && pIo.stato === 'attivo' && <span className="pov-cambio tutto-dentro">Tutto dentro</span>}
           {pIo.cambio != null && pIo.stato === 'attivo' && (
             <span className="pov-cambio">{pIo.cambio === 0 ? 'Servito' : pIo.cambio === 1 ? 'Cambia 1' : `Cambia ${pIo.cambio}`}</span>
           )}

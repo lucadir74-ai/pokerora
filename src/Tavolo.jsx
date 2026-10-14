@@ -124,7 +124,7 @@ export default function Tavolo({ id, io }) {
   const carica = useCallback(async () => {
     const [t, g, p] = await Promise.all([
       supabase.from('tavoli').select('*').eq('id', id).maybeSingle(),
-      supabase.from('tavolo_giocatori').select('posto, giocatore_id, fiches, profili(nickname)').eq('tavolo_id', id).order('posto'),
+      supabase.from('tavolo_giocatori').select('posto, giocatore_id, fiches, poste_in_arrivo, profili(nickname)').eq('tavolo_id', id).order('posto'),
       supabase.from('poste').select('id, giocatore_id, numero, valore, presa_il').eq('tavolo_id', id).order('presa_il'),
     ])
     setTavolo(t.data ?? null)
@@ -263,7 +263,7 @@ export default function Tavolo({ id, io }) {
             <tbody>
               {perGiocatore.map((g) => (
                 <tr key={g.giocatore_id}>
-                  <td>{g.profili?.nickname}</td><td>{g.quante}</td><td>{fmt(g.fiches)}</td>
+                  <td>{g.profili?.nickname}</td><td>{g.quante}{g.poste_in_arrivo > 0 && <small className="in-arrivo"> +{g.poste_in_arrivo} in arrivo</small>}</td><td>{fmt(g.fiches)}</td>
                   <td className={g.saldo > 0 ? 'positivo' : g.saldo < 0 ? 'negativo' : ''}>{g.saldo > 0 ? '+' : ''}{fmt(g.saldo)}</td>
                 </tr>
               ))}
@@ -273,7 +273,7 @@ export default function Tavolo({ id, io }) {
             <>
               <button className="secondario" disabled={attesa}
                 onClick={() => window.confirm(`Prendi un’altra posta da ${fmt(tavolo.valore_posta)}? Resterà nel report.`)
-                  && chiama('prendi_posta', { p_tavolo: id }, 'Posta aggiunta.')}>
+                  && chiama('prendi_posta', { p_tavolo: id }, 'Posta presa: se c’è una mano in corso, le fiches arrivano a fine mano.')}>
                 Prendi un’altra posta
               </button>
             </>
@@ -312,7 +312,7 @@ export default function Tavolo({ id, io }) {
           )}
           <button className="chip-posta" disabled={attesa} title={`Prendi un’altra posta da ${fmt(tavolo.valore_posta)}`}
               onClick={() => window.confirm(`Prendi un’altra posta da ${fmt(tavolo.valore_posta)}? Resterà nel report.`)
-                && chiama('prendi_posta', { p_tavolo: id }, `Posta da ${fmt(tavolo.valore_posta)} aggiunta.`)}>
+                && chiama('prendi_posta', { p_tavolo: id }, `Posta da ${fmt(tavolo.valore_posta)} presa: se c’è una mano in corso, le fiches arrivano a fine mano.`)}>
               + Posta
             </button>
           <span className="barra-link">
