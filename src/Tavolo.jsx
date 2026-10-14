@@ -226,6 +226,11 @@ export default function Tavolo({ id, io }) {
 
   const regola = (k, v) => setModifica({ ...modifica, regole: { ...modifica.regole, [k]: v } })
 
+  // Termina la partita (solo l'organizzatore): il tavolo si chiude e compare il report
+  const terminaPartita = () =>
+    window.confirm('Terminare la partita? Il tavolo si chiude, nessuno potrà più giocare né prendere poste, e compare il report con i saldi.')
+      && chiama('chiudi_tavolo', { p_tavolo: id }, 'Partita terminata.').then((ok) => ok && chiudiCassetto())
+
   // Report poste per giocatore
   const perGiocatore = giocatori.map((g) => {
     const mie = poste.filter((p) => p.giocatore_id === g.giocatore_id)
@@ -294,11 +299,17 @@ export default function Tavolo({ id, io }) {
           <button className="link-chiaro barra-home" onClick={() => vai('/')} aria-label="Torna alla home">‹</button>
           <span className="barra-nome">{tavolo.nome}</span>
           <TimerPartita tavolo={tavolo} organizzo={organizzo} chiama={chiama} attesa={attesa} />
-          <button className={`interruttore-spizza${spizzata ? ' acceso' : ''}`} role="switch" aria-checked={spizzata}
-            onClick={() => impostaSpizzata(!spizzata)}
-            title={spizzata ? 'Le carte arrivano chiuse e si spizzano: tocca per riceverle già aperte' : 'Le carte arrivano già aperte: tocca per spizzarle'}>
-            Spizza <span className="interruttore-pallino" aria-hidden="true" />
-          </button>
+          {organizzo && (
+            <span className="barra-org">
+              <button className="tasto-pausa" disabled={attesa}
+                onClick={() => chiama('pausa_partita', { p_tavolo: id, p_pausa: !tavolo.in_pausa_dal })}
+                aria-label={tavolo.in_pausa_dal ? 'Riprendi la partita' : 'Metti in pausa la partita'}
+                title={tavolo.in_pausa_dal ? 'Riprendi la partita' : 'Metti in pausa: si ferma il tavolo e il timer'}>
+                {tavolo.in_pausa_dal ? '▶' : '⏸'}
+              </button>
+              <button className="tasto-termina" disabled={attesa} onClick={terminaPartita}>Termina</button>
+            </span>
+          )}
           <button className="chip-posta" disabled={attesa} title={`Prendi un’altra posta da ${fmt(tavolo.valore_posta)}`}
               onClick={() => window.confirm(`Prendi un’altra posta da ${fmt(tavolo.valore_posta)}? Resterà nel report.`)
                 && chiama('prendi_posta', { p_tavolo: id }, `Posta da ${fmt(tavolo.valore_posta)} aggiunta.`)}>
@@ -308,6 +319,11 @@ export default function Tavolo({ id, io }) {
             <button className="suoni-tasto" onClick={() => impostaSuoni(!suoni)}
               aria-label={suoni ? 'Disattiva i suoni' : 'Attiva i suoni'} title={suoni ? 'Suoni attivi' : 'Suoni spenti'}>
               {suoni ? '🔊' : '🔇'}
+            </button>
+            <button className={`interruttore-spizza${spizzata ? ' acceso' : ''}`} role="switch" aria-checked={spizzata}
+              onClick={() => impostaSpizzata(!spizzata)}
+              title={spizzata ? 'Le carte arrivano chiuse e si spizzano: tocca per riceverle già aperte' : 'Le carte arrivano già aperte: tocca per spizzarle'}>
+              Spizza <span className="interruttore-pallino" aria-hidden="true" />
             </button>
             <button className="link-chiaro" onClick={() => setPannello(pannello === 'chat' ? null : 'chat')}>
               Chat{nonLetti > 0 && <span className="segnale" aria-label={`${nonLetti} messaggi nuovi`}>{nonLetti}</span>}
@@ -399,6 +415,30 @@ export default function Tavolo({ id, io }) {
         </section>
       )}
 
+      {tavolo.stato === 'in_corso' && tavolo.in_pausa_dal && (
+        <div className="pausa-velo">
+          <div className="pausa-finestra" role="dialog" aria-modal="true" aria-labelledby="pausa-titolo">
+            <p className="pausa-icona" aria-hidden="true">⏸</p>
+            <h2 id="pausa-titolo">Partita in pausa</h2>
+            <p>{organizzo
+              ? 'Il tavolo e il timer sono fermi finché non riprendi.'
+              : 'L’organizzatore ha messo in pausa: il tavolo e il timer sono fermi.'}
+              {' '}In pausa dalle {ora(tavolo.in_pausa_dal)}.</p>
+            {organizzo && (
+              <button type="button" className="azione-grande oro" disabled={attesa}
+                onClick={() => chiama('pausa_partita', { p_tavolo: id, p_pausa: false })}>
+                <span>▶ Riprendi la partita</span>
+              </button>
+            )}
+            <div className="pausa-altri">
+              <button type="button" className="link-chiaro" onClick={() => setPannello('chat')}>Chat</button>
+              <button type="button" className="link-chiaro" onClick={() => setCassetto('poste')}>Poste e saldi</button>
+              {organizzo && <button type="button" className="link-chiaro pausa-termina" disabled={attesa} onClick={terminaPartita}>Termina la partita</button>}
+            </div>
+          </div>
+        </div>
+      )}
+
       {tavolo.stato === 'in_corso' && (
         <>
           <Cassetto aperto={cassetto === 'poste'} onChiudi={chiudiCassetto} titolo="Poste e saldi">
@@ -408,7 +448,7 @@ export default function Tavolo({ id, io }) {
                 <button className="secondario" disabled={attesa}
                   onClick={() => window.confirm('Chiudere il tavolo? La partita finisce: nessuno potrà più giocare né prendere poste. Resta il riepilogo con i saldi.')
                     && chiama('chiudi_tavolo', { p_tavolo: id }, 'Tavolo chiuso.').then((ok) => ok && chiudiCassetto())}>
-                  Chiudi il tavolo
+                  Termina la partita
                 </button>
                 <p className="tenue">Lo può fare solo chi ha aperto il tavolo.</p>
               </div>
@@ -426,7 +466,7 @@ export default function Tavolo({ id, io }) {
                 <button className="secondario" disabled={attesa}
                   onClick={() => window.confirm('Chiudere il tavolo? La partita finisce: nessuno potrà più giocare né prendere poste. Resta il riepilogo con i saldi.')
                     && chiama('chiudi_tavolo', { p_tavolo: id }, 'Tavolo chiuso.').then((ok) => ok && chiudiCassetto())}>
-                  Chiudi il tavolo
+                  Termina la partita
                 </button>
                 <p className="tenue">Lo può fare solo chi ha aperto il tavolo.</p>
               </div>

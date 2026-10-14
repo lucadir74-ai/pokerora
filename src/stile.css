@@ -1373,3 +1373,40 @@ button.carta-gioco { cursor: pointer; transition: transform 120ms ease; }
 .timer-termina { width: 100%; }
 .timer-dopo { align-self: center; font-size: 0.9rem; }
 @media (prefers-reduced-motion: reduce) { .timer-sveglia { animation: none; } }
+
+/* ═════════ Pausa e "Termina" in vista per l'organizzatore ═════════ */
+.barra-org { display: inline-flex; align-items: center; gap: 0.4rem; flex: none; }
+.tasto-pausa {
+  width: 2.3rem; height: 2.3rem; border-radius: 50%; cursor: pointer; font-size: 1rem; line-height: 1;
+  background: rgba(255, 255, 255, 0.1); color: #f2d77a; border: 1px solid rgba(242, 215, 122, 0.6);
+}
+.tasto-termina {
+  padding: 0.4rem 0.85rem; border-radius: 999px; cursor: pointer; font: inherit; font-weight: 700; font-size: 0.9rem;
+  background: #b3261e; color: #fff; border: 1px solid #ff8a80; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+.tasto-termina:hover:not(:disabled) { background: #d0342b; }
+.tasto-pausa:disabled, .tasto-termina:disabled { opacity: 0.6; cursor: progress; }
+.chip-tempo.in-pausa { background: rgba(255, 255, 255, 0.12); color: #cfd9d2; }
+
+.pausa-velo {
+  position: fixed; inset: 0; z-index: 35; display: grid; place-items: center; padding: 1rem;
+  background: rgba(0, 0, 0, 0.62); -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px);
+}
+.pausa-finestra {
+  width: min(100%, 23rem); padding: 1.3rem 1.2rem 1rem; border-radius: 18px; text-align: center;
+  background: linear-gradient(180deg, #1c2621, #0b110e); color: #eef3ef;
+  border: 1px solid rgba(201, 162, 39, 0.7); box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
+  display: flex; flex-direction: column; gap: 0.75rem;
+}
+.pausa-finestra h2 { margin: 0; color: #f2d77a; font-size: 1.5rem; }
+.pausa-finestra p { margin: 0; }
+.pausa-icona { font-size: 2.4rem; line-height: 1; }
+.pausa-altri { display: flex; flex-wrap: wrap; justify-content: center; gap: 0.5rem 1.2rem; font-size: 0.95rem; }
+.pausa-termina { color: #ff8a80; }
+
+@media (max-width: 639px) {
+  .tasto-pausa { width: 2rem; height: 2rem; font-size: 0.9rem; }
+  .tasto-termina { padding: 0.32rem 0.65rem; font-size: 0.82rem; }
+  .barra-gioco .chip-posta { padding: 0.3rem 0.6rem; font-size: 0.82rem; }
+  .barra-link .interruttore-spizza { font-size: 0.9rem; }
+}

@@ -98,13 +98,14 @@ export default function TimerPartita({ tavolo, organizzo, chiama, attesa }) {
   }, [termino, tavolo.id])
 
   const fine = tavolo.fine_prevista ? Date.parse(tavolo.fine_prevista) : null
-  const resta = fine ? fine - adesso : null
+  const pausa = tavolo.in_pausa_dal ? Date.parse(tavolo.in_pausa_dal) : null
+  const resta = fine ? fine - (pausa ?? adesso) : null
   const scaduto = resta !== null && resta <= 0
   const ultimi = resta !== null && resta <= QUINDICI
   // Se è stata allungata di soli 15 minuti, l'avviso dei 15 minuti non ricompare subito
   const giaNegliUltimi = fine !== null && fine - allungataIl.current <= QUINDICI + 5000
   const chiave = String(tavolo.fine_prevista)
-  const mostraAvviso = ultimi && !scaduto && chiuso !== chiave && !giaNegliUltimi
+  const mostraAvviso = ultimi && !scaduto && !pausa && chiuso !== chiave && !giaNegliUltimi
 
   // Vibrazione quando compare l'avviso e quando scade il tempo
   const vibrato = useRef(null)
@@ -122,9 +123,9 @@ export default function TimerPartita({ tavolo, organizzo, chiama, attesa }) {
 
   return (
     <>
-      <span className={`chip-tempo${ultimi ? ' ultimi' : ''}${scaduto ? ' scaduto' : ''}`}
-        title={`Fine prevista alle ${ora(tavolo.fine_prevista)}`} role="timer" aria-live="off">
-        <span aria-hidden="true">⏱ </span>{testoMancano(resta)}
+      <span className={`chip-tempo${ultimi ? ' ultimi' : ''}${scaduto ? ' scaduto' : ''}${pausa ? ' in-pausa' : ''}`}
+        title={pausa ? 'Timer fermo: partita in pausa' : `Fine prevista alle ${ora(tavolo.fine_prevista)}`} role="timer" aria-live="off">
+        <span aria-hidden="true">{pausa ? '⏸ ' : '⏱ '}</span>{testoMancano(resta)}
       </span>
 
       {mostraAvviso && (
@@ -143,12 +144,12 @@ export default function TimerPartita({ tavolo, organizzo, chiama, attesa }) {
       )}
 
       {/* Tempo scaduto: gli altri aspettano, l'organizzatore sceglie */}
-      {scaduto && !organizzo && (
+      {scaduto && !pausa && !organizzo && (
         <p className="avviso-tempo" role="status">
           Tempo scaduto: finita la mano in corso, l’organizzatore decide se continuare o terminare la partita.
         </p>
       )}
-      {scaduto && organizzo && ridotto === chiave && (
+      {scaduto && !pausa && organizzo && ridotto === chiave && (
         <div className="avviso-tempo" role="status">
           <p>Tempo scaduto: {termino ? 'la partita si chiude appena finisce la mano.' : 'continuare o terminare?'}</p>
           {!termino && (
@@ -162,7 +163,7 @@ export default function TimerPartita({ tavolo, organizzo, chiama, attesa }) {
           {errore && <p className="errore" role="alert">{errore}</p>}
         </div>
       )}
-      {scaduto && organizzo && ridotto !== chiave && (
+      {scaduto && !pausa && organizzo && ridotto !== chiave && (
         <div className="timer-velo">
           <div className="timer-scaduto" role="alertdialog" aria-modal="true" aria-labelledby="timer-titolo">
             <p className="timer-sveglia" aria-hidden="true">⏰</p>

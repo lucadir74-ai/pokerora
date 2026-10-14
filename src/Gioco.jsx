@@ -234,15 +234,16 @@ export default function Gioco({ tavolo, giocatori, io, bot = new Set(), pannello
   const tocca_a_bot = !!(mano && turnoDi && bot.has(turnoDi) &&
     ['buio', 'apertura', 'primo_giro', 'cambio', 'secondo_giro'].includes(mano.fase))
   const regista = giocatori.filter((g) => !bot.has(g.giocatore_id)).sort((a, b) => a.posto - b.posto)[0]?.giocatore_id === io.id
+  const inPausa = !!tavolo.in_pausa_dal
   useEffect(() => {
-    if (!tocca_a_bot) return
+    if (!tocca_a_bot || inPausa) return
     const t = setTimeout(async () => {
       const { error } = await supabase.rpc('gioca_bot', { p_mano: mano.id })
       if (error) setTimeout(() => setTentativoBot((n) => n + 1), 2000)
       else carica()
     }, regista ? 900 + Math.random() * 900 : 8000 + Math.random() * 2000)
     return () => clearTimeout(t)
-  }, [tocca_a_bot, mano?.id, mano?.turno, mano?.fase, registro.length, regista, tentativoBot])
+  }, [tocca_a_bot, mano?.id, mano?.turno, mano?.fase, registro.length, regista, tentativoBot, inPausa])
 
   // Nuova fase o nuovo turno: azzera scelte e importo
   useEffect(() => { setScelte([]); setImporto('') }, [mano?.fase, mano?.turno, idMano])
@@ -288,7 +289,7 @@ export default function Gioco({ tavolo, giocatori, io, bot = new Set(), pannello
     if (!error) carica()
   }
   useEffect(() => {
-    if (!prontaNuova || tempoScaduto) { setTraSecondi(null); return }
+    if (!prontaNuova || tempoScaduto || inPausa) { setTraSecondi(null); return }
     const pausa = idMano ? 7000 : 3000
     const ritardo = pausa + (regista ? 0 : 6000)
     const fine = Date.now() + pausa
@@ -297,7 +298,7 @@ export default function Gioco({ tavolo, giocatori, io, bot = new Set(), pannello
     // Se un altro giocatore l'ha già distribuita, il server risponde con un errore che si può ignorare
     const via = setTimeout(prossimaMano, ritardo)
     return () => { clearInterval(conta); clearTimeout(via) }
-  }, [prontaNuova, idMano, regista, tavolo.id, tempoScaduto, tavolo.fine_prevista])
+  }, [prontaNuova, idMano, regista, tavolo.id, tempoScaduto, tavolo.fine_prevista, inPausa])
 
   const mio = posti.find((p) => p.giocatore_id === io.id)
   const mioTurno = !!mano && !!mio && mio.stato === 'attivo' && mano.turno === mio.posto
