@@ -116,7 +116,7 @@ const REGOLE = [
   )],
   ['Buio, controbuio e over', (
     <>
-      <p>Solo nelle mani che si aprono ai jack, prima di vedere le carte, il primo dopo il mazziere può fare il buio: punta quanto c’è nel piatto. Il successivo può fare il controbuio (il doppio), il terzo l’over (il doppio del controbuio). Il mazziere non deve mai parlare per primo: per questo l’over si fa solo da 5 giocatori in su.</p>
+      <p>Solo nelle mani che si aprono ai jack, prima di vedere le carte, il primo dopo il mazziere può fare il buio: punta quanto c’è nel piatto. Il successivo può fare il controbuio (il doppio), il terzo l’over (il doppio del controbuio). L’over si può fare anche in 4: in quel caso, dopo la distribuzione, il primo a parlare è il mazziere.</p>
       <p>Chi ha fatto il buio può coprire subito il controbuio, prima delle carte, e così conserva il diritto di rilanciare. Con l’over lo copre prima il controbuio, poi il buio, ma solo se aveva già coperto il controbuio.</p>
       <p>Dopo la distribuzione gli altri possono solo vedere o lasciare; rilancia solo chi ha fatto l’ultimo buio o l’ha coperto. Dopo il cambio l’ultimo buio parla per ultimo. Niente buio dopo una mano finita a parola.</p>
     </>
