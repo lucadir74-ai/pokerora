@@ -127,6 +127,7 @@ const REGOLE = [
   ['Secondo giro e parola', (
     <>
       <p>Dopo il cambio parla per primo chi ha aperto. Nelle mani al buio comincia chi siede a sinistra dell’ultimo buio, che così parla per ultimo. Si può puntare, bussare (si va avanti senza puntare) o dire parola.</p>
+      <p>Se dopo una o più parole qualcuno bussa, la parola non vale più: chi l’aveva detta torna a parlare e può puntare o bussare. Se qualcuno punta, gli altri vedono, rilanciano o lasciano come al solito.</p>
       <p>Se tutti dicono parola la mano si annulla: il piatto resta, la mano dopo si apre con coppia di re e senza buio. Chi era uscito al primo giro, per rientrare, versa la differenza.</p>
     </>
   )],

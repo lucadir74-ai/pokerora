@@ -71,6 +71,7 @@ export function descriviRegole(tavolo) {
       ? 'Niente buio'
       : 'Buio prima di vedere le carte, solo nelle mani che si aprono ai jack: lo fa il primo dopo il mazziere e vale il piatto; controbuio il doppio, over il doppio del controbuio (anche in 4 giocatori). Chi ha fatto il buio può coprire il controbuio prima delle carte e conserva il diritto di rilanciare. Dopo il cambio l’ultimo buio parla per ultimo. Non si fa dopo una parola',
     'Se tutti dicono parola: il piatto resta, la mano dopo si apre con coppia di re e senza buio',
+    'Se dopo una o più parole qualcuno bussa, la parola non vale più: chi l’aveva detta torna a parlare e può puntare o bussare',
     'Il colore batte il full. Semi: cuori, quadri, fiori, picche',
     'Scala reale: la minima batte la massima, la massima batte la media, la media batte la minima',
   ]
