@@ -9,6 +9,7 @@ import { AudioRemoti, TastiMedia, DiagnosiVideo } from './VideoCerchio'
 import { durata, ora } from './tempo'
 import Chat from './Chat'
 import Cassetto from './Cassetto'
+import ControlloDistribuzione from './ControlloDistribuzione'
 import { suoniAttivi, impostaSuoni, ascoltaSuoni } from './suoni'
 import { spizzataAttiva, impostaSpizzata, ascoltaSpizzata } from './preferenze'
 import { useChat } from './chat'
@@ -429,6 +430,7 @@ export default function Tavolo({ id, io }) {
         <section className="carta">
           <h2>Poste e saldi</h2>
           {contenutoPoste}
+          <ControlloDistribuzione tavoloId={tavolo.id} />
         </section>
       )}
 
