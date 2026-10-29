@@ -448,7 +448,7 @@ export default function Gioco({ tavolo, giocatori, io, bot = new Set(), pannello
     }
     const hoDiritto = mano.buio_di === io.id || (mano.buio_coperti ?? []).includes(io.id)
     if (mano.buio_aperto && !hoDiritto) {
-      // Coprire il buio: chi non ha messo buii paga l'ultimo per intero,
+      // Vedere il buio: chi non ha messo buii paga l'ultimo per intero,
       // chi aveva già messo buio o controbuio aggiunge solo la differenza
       const cosa = ['', 'il buio', 'il controbuio', 'l’over'][mano.buio_livello]
       const giaMesso = mio.versato_giro > 0
@@ -457,12 +457,12 @@ export default function Gioco({ tavolo, giocatori, io, bot = new Set(), pannello
           <p>
             {giaMesso
               ? `${nomeDi(mano.buio_di)} ha fatto ${cosa}: per restare in gioco aggiungi la differenza.`
-              : `C’è ${cosa} di ${fmt(mano.puntata)}: per giocare devi coprirlo, altrimenti lasci.`}
+              : `C’è ${cosa} di ${fmt(mano.puntata)}: per giocare devi vederlo, altrimenti lasci.`}
           </p>
           <div className="griglia-azioni due">
             {grande('Lascio', 'neutro', () => azione('passo'),
               giaMesso ? 'Esci dalla mano: perdi quanto hai già messo' : 'Esci dalla mano')}
-            {grande(fichesMie < daVedere ? `Copro con tutto ${fmt(fichesMie)}` : `Copro ${cosa} ${fmt(daVedere)}`, 'verde', () => azione('vedo'),
+            {grande(fichesMie < daVedere ? `Vedo con tutto ${fmt(fichesMie)}` : `Vedo ${cosa} ${fmt(daVedere)}`, 'verde', () => azione('vedo'),
               giaMesso ? `Aggiungi ${fmt(daVedere)} e resti in gioco` : 'Metti la stessa cifra e resti in gioco')}
           </div>
         </div>
