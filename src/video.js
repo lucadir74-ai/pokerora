@@ -15,9 +15,7 @@ function serverIce() {
   const lista = [{
     urls: [
       'stun:stun.cloudflare.com:3478',
-      'stun:global.stun.twilio.com:3478',
       'stun:stun.l.google.com:19302',
-      'stun:stun1.l.google.com:19302',
     ],
   }]
   const url = import.meta.env.VITE_TURN_URL
@@ -33,6 +31,27 @@ function serverIce() {
 
 const VINCOLI_VIDEO = { facingMode: 'user', width: { ideal: 240 }, height: { ideal: 240 }, frameRate: { ideal: 15, max: 20 } }
 const VINCOLI_AUDIO = { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
+const MAX_VIDEO_BPS = 180000            // in 5-6 ognuno invia 4-5 video: si tiene bassa la banda
+const ATTESA_CANDIDATI_MS = 2500        // tempo massimo per raccogliere i candidati prima di inviare offerta/risposta
+const GRAZIA_ASSENZA_MS = 15000         // se la presenza sparisce per un attimo, il collegamento non si chiude subito
+
+// I candidati si mandano tutti insieme dentro offerta e risposta (2 messaggi per coppia invece di decine):
+// con 5 giocatori i segnali uno alla volta superavano il limite di messaggi al secondo di Supabase,
+// che a quel punto disconnette e fa perdere candidati.
+function attendiCandidati(pc) {
+  return new Promise((ok) => {
+    if (pc.iceGatheringState === 'complete') return ok()
+    const fine = () => { clearTimeout(t); pc.removeEventListener('icegatheringstatechange', cambio); ok() }
+    const cambio = () => { if (pc.iceGatheringState === 'complete') fine() }
+    const t = setTimeout(fine, ATTESA_CANDIDATI_MS)
+    pc.addEventListener('icegatheringstatechange', cambio)
+  })
+}
+const contaCandidati = (sdp) => {
+  const c = {}
+  for (const m of (sdp ?? '').matchAll(/a=candidate:.* typ (\w+)/g)) c[m[1]] = (c[m[1]] ?? 0) + 1
+  return c
+}
 
 export function useVideoTavolo(tavoloId, mioId, attivo) {
   const [cam, setCam] = useState(false)
@@ -65,7 +84,9 @@ export function useVideoTavolo(tavoloId, mioId, attivo) {
     let vivo = true
     const me = sessione.current
 
+    const assenti = new Map()               // sessione → timer di chiusura per assenza
     const chiudi = (s) => {
+      clearTimeout(assenti.get(s)); assenti.delete(s)
       const pc = pcs.current.get(s)
       if (pc) { pc.onicecandidate = null; pc.ontrack = null; pc.onconnectionstatechange = null; pc.close() }
       pcs.current.delete(s)
@@ -96,6 +117,17 @@ export function useVideoTavolo(tavoloId, mioId, attivo) {
     }
     const tipoCandidato = (c) => (c?.candidate ?? '').match(/ typ (\w+)/)?.[1] ?? '?'
 
+    const limitaBanda = (pc) => {
+      for (const t of pc.getTransceivers()) {
+        if (t.receiver.track?.kind !== 'video') continue
+        const snd = t.sender
+        const par = snd.getParameters()
+        if (!par.encodings?.length) continue
+        par.encodings[0].maxBitrate = MAX_VIDEO_BPS
+        snd.setParameters(par).catch(() => {})
+      }
+    }
+
     const crea = (s) => {
       chiudi(s)
       diag.current.delete(s)
@@ -105,7 +137,6 @@ export function useVideoTavolo(tavoloId, mioId, attivo) {
         if (!e.candidate) return
         const tipo = tipoCandidato(e.candidate)
         segna(s, (d) => { d.miei[tipo] = (d.miei[tipo] ?? 0) + 1 })
-        invia({ tipo: 'ice', a: s, candidate: e.candidate.toJSON() })
       }
       pc.oniceconnectionstatechange = () => { if (pcs.current.get(s) === pc) segna(s, (d) => { d.ice = pc.iceConnectionState }) }
       pc.ontrack = (e) => {
@@ -118,9 +149,12 @@ export function useVideoTavolo(tavoloId, mioId, attivo) {
       setCollegamenti((f) => ({ ...f, [s]: 'new' }))
       pc.onconnectionstatechange = () => {
         if (pcs.current.get(s) === pc) setCollegamenti((f) => ({ ...f, [s]: pc.connectionState }))
-        // Collegamento perso: lo ricrea chi ha la sessione "minore" (così non lo ricreano in due)
+        if (pc.connectionState === 'connected') limitaBanda(pc)
+        // Collegamento perso: lo ricrea chi ha la sessione "minore" (così non lo ricreano in due).
+        // "disconnected" spesso torna da solo: si aspetta di più prima di rifare tutto.
         if (['failed', 'disconnected'].includes(pc.connectionState) && pcs.current.get(s) === pc && me < s) {
-          setTimeout(() => { if (vivo && pcs.current.get(s) === pc && pc.connectionState !== 'connected') chiama(s) }, 3000)
+          const attesa = pc.connectionState === 'failed' ? 2000 : 8000
+          setTimeout(() => { if (vivo && pcs.current.get(s) === pc && pc.connectionState !== 'connected') chiama(s) }, attesa)
         }
       }
       return pc
@@ -134,6 +168,8 @@ export function useVideoTavolo(tavoloId, mioId, attivo) {
         pc.addTransceiver('video', { direction: 'sendrecv' })
         await attaccaTracce(pc)
         await pc.setLocalDescription(await pc.createOffer())
+        await attendiCandidati(pc)
+        if (!vivo || pcs.current.get(s) !== pc) return
         invia({ tipo: 'offerta', a: s, sdp: pc.localDescription.toJSON() })
         segna(s, (d) => { d.offerta = 'inviata' })
       } catch { /* si riprova alla prossima presenza */ }
@@ -145,17 +181,20 @@ export function useVideoTavolo(tavoloId, mioId, attivo) {
         if (m.tipo === 'offerta') {
           const pc = crea(m.da)
           segna(m.da, (d) => { d.offerta = 'ricevuta' })
+          segna(m.da, (d) => { d.suoi = contaCandidati(m.sdp?.sdp) })
           await pc.setRemoteDescription(m.sdp)
           for (const t of pc.getTransceivers()) t.direction = 'sendrecv'
           await attaccaTracce(pc)
           await pc.setLocalDescription(await pc.createAnswer())
+          await attendiCandidati(pc)
+          if (!vivo || pcs.current.get(m.da) !== pc) return
           invia({ tipo: 'risposta', a: m.da, sdp: pc.localDescription.toJSON() })
           segna(m.da, (d) => { d.risposta = 'inviata' })
           await svuotaAttese(m.da, pc)
         } else if (m.tipo === 'risposta') {
           const pc = pcs.current.get(m.da)
           if (pc && pc.signalingState === 'have-local-offer') {
-            segna(m.da, (d) => { d.risposta = 'ricevuta' })
+            segna(m.da, (d) => { d.risposta = 'ricevuta'; d.suoi = contaCandidati(m.sdp?.sdp) })
             await pc.setRemoteDescription(m.sdp)
             await svuotaAttese(m.da, pc)
           }
@@ -180,9 +219,18 @@ export function useVideoTavolo(tavoloId, mioId, attivo) {
       setPresenti(nuovi)
       for (const [s, v] of Object.entries(nuovi)) {
         if (s === me || v.id === mioId) continue          // non mi collego a me stesso né ai miei altri dispositivi
+        clearTimeout(assenti.get(s)); assenti.delete(s)
         if (me < s && !pcs.current.has(s)) chiama(s)
       }
-      for (const s of [...pcs.current.keys()]) if (!(s in nuovi)) chiudi(s)
+      for (const s of [...pcs.current.keys()]) {
+        if (s in nuovi || assenti.has(s)) continue
+        assenti.set(s, setTimeout(() => {
+          assenti.delete(s)
+          const ancora = canale.current?.presenceState() ?? {}
+          const presente = Object.values(ancora).some((voci) => voci.some((v) => v?.sessione === s))
+          if (vivo && !presente) chiudi(s)
+        }, GRAZIA_ASSENZA_MS))
+      }
     }
 
     const ch = supabase.channel(`video-${tavoloId}`, {
@@ -195,6 +243,7 @@ export function useVideoTavolo(tavoloId, mioId, attivo) {
 
     return () => {
       vivo = false
+      for (const t of assenti.values()) clearTimeout(t)
       for (const s of [...pcs.current.keys()]) chiudi(s)
       for (const t of Object.values(tracce.current)) t?.stop()
       tracce.current = { audio: null, video: null }
