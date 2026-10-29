@@ -196,13 +196,13 @@ export default function Lobby({ io }) {
       }
       setChat(ultime.slice(0, 5))
 
-      // Inviti ancora validi: tavolo in sala d'attesa, con posti liberi, dove non sono già seduto
+      // Inviti ancora validi: tavolo in sala d'attesa o in corso, con posti liberi, dove non sono già seduto
       const ricevuti = (msg ?? []).filter((m) => m.destinatario === io.id && m.codice_invito)
       const codici = [...new Set(ricevuti.map((m) => m.codice_invito))].slice(0, 6)
       const info = await Promise.all(codici.map(async (c) => {
         const { data } = await supabase.rpc('info_invito', { p_codice: c })
         const t = data?.[0]
-        if (!t || t.stato !== 'attesa' || t.gia_seduto || t.occupati >= t.posti) return null
+        if (!t || t.stato === 'chiuso' || t.gia_seduto || t.occupati >= t.posti) return null
         const da = ricevuti.find((m) => m.codice_invito === c)
         return { codice: c, ...t, da: nick[da?.mittente] ?? t.organizzatore }
       }))

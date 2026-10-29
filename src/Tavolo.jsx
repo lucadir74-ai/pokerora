@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { supabase } from './supabase'
 import Testata from './Testata'
 import Fiches from './Fiches'
@@ -111,6 +111,8 @@ export default function Tavolo({ id, io }) {
   const [tavolo, setTavolo] = useState(undefined)
   const [giocatori, setGiocatori] = useState([])
   const [poste, setPoste] = useState([])
+  const [usciti, setUsciti] = useState([])          // chi ha lasciato la partita: resta nel report
+  const eroSeduto = useRef(false)
   const [errore, setErrore] = useState('')
   const [avviso, setAvviso] = useState('')
   const [attesa, setAttesa] = useState(false)
@@ -125,17 +127,22 @@ export default function Tavolo({ id, io }) {
   useEffect(() => ascoltaSuoni(setSuoni), [])
   // Video e audio: solo per chi è seduto, a partita in corso; partono spenti
   const seduto = giocatori.some((g) => g.giocatore_id === io.id)
+  useEffect(() => { if (seduto) eroSeduto.current = true }, [seduto])
   const video = useVideoTavolo(id, io.id, tavolo?.stato === 'in_corso' && seduto)
 
   const carica = useCallback(async () => {
-    const [t, g, p] = await Promise.all([
+    const [t, g, p, u] = await Promise.all([
       supabase.from('tavoli').select('*').eq('id', id).maybeSingle(),
-      supabase.from('tavolo_giocatori').select('posto, giocatore_id, fiches, poste_in_arrivo, profili(nickname)').eq('tavolo_id', id).order('posto'),
+      supabase.from('tavolo_giocatori').select('posto, giocatore_id, fiches, poste_in_arrivo, esce_a_fine_mano, profili(nickname)').eq('tavolo_id', id).order('posto'),
       supabase.from('poste').select('id, giocatore_id, numero, valore, presa_il').eq('tavolo_id', id).order('presa_il'),
+      supabase.from('tavolo_usciti').select('giocatore_id, posto, fiches, uscito_il, tolto_da, profili!tavolo_usciti_giocatore_id_fkey(nickname)').eq('tavolo_id', id).order('uscito_il'),
     ])
+    // Ero seduto e il tavolo non si vede più: sono uscito dalla partita, si torna alla home
+    if (!t.data && eroSeduto.current) { vai('/'); return }
     setTavolo(t.data ?? null)
     setGiocatori(g.data ?? [])
     setPoste(p.data ?? [])
+    setUsciti(u.data ?? [])
   }, [id])
 
   // Giocatori automatici (per le prove): l'elenco non cambia, basta caricarlo una volta
@@ -152,6 +159,7 @@ export default function Tavolo({ id, io }) {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'tavoli', filter: `id=eq.${id}` }, carica)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'tavolo_giocatori', filter: `tavolo_id=eq.${id}` }, carica)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'poste', filter: `tavolo_id=eq.${id}` }, carica)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'tavolo_usciti', filter: `tavolo_id=eq.${id}` }, carica)
       .subscribe()
     return () => { supabase.removeChannel(canale) }
   }, [id, carica])
@@ -188,7 +196,7 @@ export default function Tavolo({ id, io }) {
 
   const organizzo = tavolo.organizzatore === io.id
   const inAttesa = tavolo.stato === 'attesa'
-  const nomeDi = (gid) => giocatori.find((g) => g.giocatore_id === gid)?.profili?.nickname ?? 'giocatore uscito'
+  const nomeDi = (gid) => (giocatori.find((g) => g.giocatore_id === gid) ?? usciti.find((u) => u.giocatore_id === gid))?.profili?.nickname ?? 'giocatore uscito'
   const link = `${window.location.origin}/#/invito/${tavolo.codice_invito}`
   const posti = Array.from({ length: tavolo.posti }, (_, i) => giocatori.find((g) => g.posto === i + 1))
 
@@ -237,12 +245,38 @@ export default function Tavolo({ id, io }) {
     window.confirm('Terminare la partita? Il tavolo si chiude, nessuno potrà più giocare né prendere poste, e compare il report con i saldi.')
       && chiama('chiudi_tavolo', { p_tavolo: id }, 'Partita terminata.').then((ok) => ok && chiudiCassetto())
 
-  // Report poste per giocatore
-  const perGiocatore = giocatori.map((g) => {
+  // Report poste per giocatore: chi siede e, in fondo, chi ha lasciato la partita
+  const perGiocatore = [...giocatori, ...usciti.map((u) => ({ ...u, uscito: true, poste_in_arrivo: 0 }))].map((g) => {
     const mie = poste.filter((p) => p.giocatore_id === g.giocatore_id)
     const totale = mie.reduce((s, p) => s + p.valore, 0)
     return { ...g, quante: mie.length, totale, saldo: (g.fiches ?? 0) - totale }
   })
+  const mioPosto = giocatori.find((g) => g.giocatore_id === io.id)
+  // A partita in corso ci si può aggiungere fino al massimo di 6 giocatori, anche oltre i posti iniziali
+  const postiLiberi = (tavolo.stato === 'in_corso' ? Math.max(tavolo.posti, 6) : tavolo.posti) - giocatori.length
+
+  // Uscire dalla partita: subito tra una mano e l'altra, altrimenti appena finisce la mano
+  async function esci() {
+    if (!window.confirm('Uscire dalla partita? Le tue poste e il tuo saldo restano nel report. Se stai giocando una mano, esci appena finisce.')) return
+    setErrore(''); setAvviso(''); setAttesa(true)
+    const { data, error } = await supabase.rpc('lascia_tavolo', { p_tavolo: id })
+    setAttesa(false)
+    if (error) return setErrore(messaggioErrore(error))
+    if (data === 'uscito') return vai('/')
+    setAvviso('Uscirai appena finisce la mano.')
+    carica()
+  }
+  // L'organizzatore fa uscire un giocatore (per esempio chi se n'è andato senza dirlo)
+  async function togli(g) {
+    if (!window.confirm(`Far uscire ${g.profili?.nickname} dalla partita? Le sue poste e il suo saldo restano nel report.`)) return
+    setErrore(''); setAvviso(''); setAttesa(true)
+    const { data, error } = await supabase.rpc('togli_giocatore', { p_tavolo: id, p_giocatore: g.giocatore_id })
+    setAttesa(false)
+    if (error) return setErrore(messaggioErrore(error))
+    setAvviso(data === 'uscito' ? `${g.profili?.nickname} è uscito dalla partita.` : `${g.profili?.nickname} uscirà appena finisce la mano.`)
+    carica()
+  }
+  const azioniOrganizzatore = organizzo && tavolo.stato === 'in_corso'
 
   const messaggi = (avviso || errore) && (
     <>
@@ -264,13 +298,24 @@ export default function Tavolo({ id, io }) {
           {messaggi}
           <table className="report">
             <thead>
-              <tr><th>Giocatore</th><th>Poste</th><th>Fiches</th><th>Saldo</th></tr>
+              <tr><th>Giocatore</th><th>Poste</th><th>Fiches</th><th>Saldo</th>{azioniOrganizzatore && <th></th>}</tr>
             </thead>
             <tbody>
               {perGiocatore.map((g) => (
                 <tr key={g.giocatore_id}>
-                  <td>{g.profili?.nickname}</td><td>{g.quante}{g.poste_in_arrivo > 0 && <small className="in-arrivo"> +{g.poste_in_arrivo} in arrivo</small>}</td><td>{fmt(g.fiches)}</td>
+                  <td>
+                    {g.profili?.nickname}
+                    {g.uscito && <small className="tenue"> · uscito alle {ora(g.uscito_il)}</small>}
+                    {!g.uscito && g.esce_a_fine_mano && <small className="tenue"> · esce a fine mano</small>}
+                  </td><td>{g.quante}{g.poste_in_arrivo > 0 && <small className="in-arrivo"> +{g.poste_in_arrivo} in arrivo</small>}</td><td>{fmt(g.fiches)}</td>
                   <td className={g.saldo > 0 ? 'positivo' : g.saldo < 0 ? 'negativo' : ''}>{g.saldo > 0 ? '+' : ''}{fmt(g.saldo)}</td>
+                  {azioniOrganizzatore && (
+                    <td>
+                      {!g.uscito && !g.esce_a_fine_mano && g.giocatore_id !== io.id && (
+                        <button type="button" className="link-chiaro" disabled={attesa} onClick={() => togli(g)}>Fai uscire</button>
+                      )}
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>
@@ -282,6 +327,24 @@ export default function Tavolo({ id, io }) {
                   && chiama('prendi_posta', { p_tavolo: id }, 'Posta presa: se c’è una mano in corso, le fiches arrivano a fine mano.')}>
                 Prendi un’altra posta
               </button>
+              {!organizzo && mioPosto && (mioPosto.esce_a_fine_mano
+                ? <p className="tenue">Uscirai dalla partita appena finisce la mano.</p>
+                : <button className="link-chiaro" disabled={attesa} onClick={esci}>Esci dalla partita</button>)}
+              {postiLiberi > 0 && (
+                <>
+                  <h3>Invita un giocatore</h3>
+                  <p className="tenue">C’{postiLiberi === 1 ? 'è ancora un posto' : `sono ancora ${postiLiberi} posti`}: chi entra adesso si aggiunge al tavolo (fino a 6 giocatori), riceve la prima posta e gioca dalla prossima mano.</p>
+                  <input className="campo-link" readOnly value={link} onFocus={(e) => e.target.select()} />
+                  <div className="bottoni">
+                    <button className="secondario" onClick={copia}>Copia il link</button>
+                    <a className="secondario" target="_blank" rel="noreferrer"
+                      href={`https://wa.me/?text=${encodeURIComponent(`Siediti al mio tavolo di poker su PokerOra: ${link}`)}`}>
+                      Invia su WhatsApp
+                    </a>
+                  </div>
+                  <InvitiTavolo tavolo={tavolo} giocatori={giocatori} bot={bot} />
+                </>
+              )}
             </>
           )}
           <h3>Registro</h3>
@@ -418,7 +481,7 @@ export default function Tavolo({ id, io }) {
 
       {inAttesa && <ChatAttesa tavoloId={id} io={io} nomeDi={nomeDi} />}
 
-      {tavolo.stato === 'in_corso' && <Gioco tavolo={tavolo} giocatori={giocatori} io={io} bot={bot}
+      {tavolo.stato === 'in_corso' && <Gioco tavolo={tavolo} giocatori={giocatori} usciti={usciti} io={io} bot={bot}
         pannello={pannello} setPannello={setPannello} onNonLetti={setNonLetti} video={video} />}
       {tavolo.stato === 'in_corso' && <AudioRemoti audio={video.audio} />}
       {tavolo.stato === 'in_corso' && (

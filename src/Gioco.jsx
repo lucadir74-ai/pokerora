@@ -13,7 +13,7 @@ import * as suoni from './suoni'
 const COPPIA = { 11: 'jack', 12: 'donne', 13: 're' }
 const SOGLIA_AVVISO_FICHES = 300   // sotto questa cifra si avvisa che i Vardis stanno finendo
 
-export default function Gioco({ tavolo, giocatori, io, bot = new Set(), pannello = null, setPannello = () => {}, onNonLetti = () => {}, video = null }) {
+export default function Gioco({ tavolo, giocatori, io, usciti = [], bot = new Set(), pannello = null, setPannello = () => {}, onNonLetti = () => {}, video = null }) {
   const [mano, setMano] = useState(null)
   const [posti, setPosti] = useState([])
   const [carte, setCarte] = useState([])
@@ -259,7 +259,7 @@ export default function Gioco({ tavolo, giocatori, io, bot = new Set(), pannello
     return true
   }
 
-  const nomeDi = (id) => giocatori.find((g) => g.giocatore_id === id)?.profili?.nickname ?? 'giocatore'
+  const nomeDi = (id) => (giocatori.find((g) => g.giocatore_id === id) ?? usciti.find((u) => u.giocatore_id === id))?.profili?.nickname ?? 'giocatore'
   const fichesDi = (id) => giocatori.find((g) => g.giocatore_id === id)?.fiches ?? 0
   const fichesMie = fichesDi(io.id)
 
@@ -399,7 +399,8 @@ export default function Gioco({ tavolo, giocatori, io, bot = new Set(), pannello
 
   function azioni() {
     if (!mano || conclusa) return null
-    if (!mio || mio.stato !== 'attivo') return <p className="tenue">Sei fuori da questa mano.</p>
+    if (!mio) return <p className="tenue">Ti sei appena seduto: giochi dalla prossima mano.</p>
+    if (mio.stato !== 'attivo') return <p className="tenue">Sei fuori da questa mano.</p>
     // Fiches finite: si gioca solo per la parte coperta (al cambio si cambia normalmente)
     if (mio.tutto_dentro && mano.fase !== 'cambio') {
       return (

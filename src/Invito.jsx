@@ -40,8 +40,11 @@ export default function Invito({ codice, io }) {
             <p className="tenue">{info.organizzatore} ti invita al tavolo</p>
             <h2 className="titolo-tavolo">{info.nome}</h2>
             <p>Posta da {fmt(info.valore_posta)}, {info.occupati} su {info.posti} posti occupati</p>
-            {info.stato !== 'attesa'
-              ? <p className="errore">La partita a questo tavolo è già iniziata o è chiusa.</p>
+            {info.stato === 'in_corso' && liberi > 0 && (
+              <p className="tenue">La partita è già iniziata: ti siedi subito e giochi dalla prossima mano, con la tua prima posta.</p>
+            )}
+            {info.stato === 'chiuso'
+              ? <p className="errore">La partita a questo tavolo è chiusa.</p>
               : liberi === 0
                 ? <p className="errore">Il tavolo è al completo.</p>
                 : <button className="principale" onClick={siediti} disabled={attesa}>
