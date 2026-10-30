@@ -164,7 +164,14 @@ export default function Gioco({ tavolo, giocatori, io, usciti = [], bot = new Se
   // Stato (non solo ref) così il componente si ridisegna appena il primo caricamento è finito
   const [pronto, setPronto] = useState(false)
 
+  // Una risposta arrivata in ritardo non deve sovrascrivere quella più recente:
+  // se la mano finita si ricaricava mentre partiva la nuova, il tavolo restava fermo sulla vecchia.
+  const idManoRef = useRef(idMano)
+  idManoRef.current = idMano
+  const richiesta = useRef(0)
   const carica = useCallback(async () => {
+    const idMano = idManoRef.current
+    const n = ++richiesta.current
     if (!idMano) { setMano(null); caricato.current = true; setPronto(true); return }
     const [m, g, c, r] = await Promise.all([
       supabase.from('mani').select('*').eq('id', idMano).maybeSingle(),
@@ -172,6 +179,7 @@ export default function Gioco({ tavolo, giocatori, io, usciti = [], bot = new Se
       supabase.from('mani_carte').select('carte').eq('mano_id', idMano).eq('giocatore_id', io.id).maybeSingle(),
       supabase.from('mani_azioni').select('id, testo, giocatore_id, tipo, importo').eq('mano_id', idMano).order('id', { ascending: false }).limit(500),   // tutta la mano
     ])
+    if (n !== richiesta.current || idMano !== idManoRef.current) return   // superata da una più recente
     setMano(m.data ?? null)
     setPosti(g.data ?? [])
     setCarte(c.data?.carte ?? [])
@@ -179,10 +187,12 @@ export default function Gioco({ tavolo, giocatori, io, usciti = [], bot = new Se
     setRegistro(r.data ?? [])
     caricato.current = true
     setPronto(true)
-  }, [idMano, io.id])
+  }, [io.id])
+
+  // Quando cambia la mano corrente si ricarica tutto
+  useEffect(() => { carica() }, [idMano, carica])
 
   useEffect(() => {
-    carica()
     const canale = supabase
       .channel(`gioco-${tavolo.id}`)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'mani_azioni', filter: `tavolo_id=eq.${tavolo.id}` }, carica)
