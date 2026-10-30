@@ -11,8 +11,9 @@ import { EMOTICON } from './emoticon'
 import * as suoni from './suoni'
 
 const COPPIA = { 11: 'jack', 12: 'donne', 13: 're' }
+const SOGLIA_AVVISO_FICHES = 300   // sotto questa cifra si avvisa che i Vardis stanno finendo
 
-export default function Gioco({ tavolo, giocatori, io, bot = new Set(), pannello = null, setPannello = () => {}, onNonLetti = () => {}, video = null }) {
+export default function Gioco({ tavolo, giocatori, io, usciti = [], bot = new Set(), pannello = null, setPannello = () => {}, onNonLetti = () => {}, video = null }) {
   const [mano, setMano] = useState(null)
   const [posti, setPosti] = useState([])
   const [carte, setCarte] = useState([])
@@ -260,9 +261,20 @@ export default function Gioco({ tavolo, giocatori, io, bot = new Set(), pannello
     return true
   }
 
-  const nomeDi = (id) => giocatori.find((g) => g.giocatore_id === id)?.profili?.nickname ?? 'giocatore'
+  const nomeDi = (id) => (giocatori.find((g) => g.giocatore_id === id) ?? usciti.find((u) => u.giocatore_id === id))?.profili?.nickname ?? 'giocatore'
   const fichesDi = (id) => giocatori.find((g) => g.giocatore_id === id)?.fiches ?? 0
   const fichesMie = fichesDi(io.id)
+
+  // Per giocare una mano servono almeno 2 inviti (più l'eventuale differenza dovuta dopo una parola).
+  // Chi ne ha meno deve prendere una posta prima della distribuzione: il server non distribuisce finché manca.
+  // I bot la prendono da soli.
+  const minimoPer = (id) => 2 * invitoDi(tavolo) + (Number(tavolo.debiti_parol?.[id]) || 0)
+  const senzaFiches = giocatori
+    .filter((g) => !bot.has(g.giocatore_id) && (g.fiches ?? 0) < minimoPer(g.giocatore_id))
+    .map((g) => g.giocatore_id)
+  const chiaveSenza = senzaFiches.join(',')
+  const devoPrenderePosta = senzaFiches.includes(io.id)
+  const posteInArrivo = giocatori.find((g) => g.giocatore_id === io.id)?.poste_in_arrivo ?? 0
 
   // Nessuna mano ancora, oppure mano conclusa
   const conclusa = !mano || mano.fase === 'finita' || mano.fase === 'annullata'
@@ -292,7 +304,7 @@ export default function Gioco({ tavolo, giocatori, io, bot = new Set(), pannello
     if (!error) carica()
   }
   useEffect(() => {
-    if (!prontaNuova || tempoScaduto || inPausa) { setTraSecondi(null); return }
+    if (!prontaNuova || tempoScaduto || inPausa || chiaveSenza) { setTraSecondi(null); return }
     const pausa = idMano ? 7000 : 3000
     const ritardo = pausa + (regista ? 0 : 6000)
     const fine = Date.now() + pausa
@@ -301,7 +313,7 @@ export default function Gioco({ tavolo, giocatori, io, bot = new Set(), pannello
     // Se un altro giocatore l'ha già distribuita, il server risponde con un errore che si può ignorare
     const via = setTimeout(prossimaMano, ritardo)
     return () => { clearInterval(conta); clearTimeout(via) }
-  }, [prontaNuova, idMano, regista, tavolo.id, tempoScaduto, tavolo.fine_prevista, inPausa])
+  }, [prontaNuova, idMano, regista, tavolo.id, tempoScaduto, tavolo.fine_prevista, inPausa, chiaveSenza])
 
   const mio = posti.find((p) => p.giocatore_id === io.id)
   const mioTurno = !!mano && !!mio && mio.stato === 'attivo' && mano.turno === mio.posto
@@ -389,7 +401,8 @@ export default function Gioco({ tavolo, giocatori, io, bot = new Set(), pannello
 
   function azioni() {
     if (!mano || conclusa) return null
-    if (!mio || mio.stato !== 'attivo') return <p className="tenue">Sei fuori da questa mano.</p>
+    if (!mio) return <p className="tenue">Ti sei appena seduto: giochi dalla prossima mano.</p>
+    if (mio.stato !== 'attivo') return <p className="tenue">Sei fuori da questa mano.</p>
     // Fiches finite: si gioca solo per la parte coperta (al cambio si cambia normalmente)
     if (mio.tutto_dentro && mano.fase !== 'cambio') {
       return (
@@ -465,7 +478,7 @@ export default function Gioco({ tavolo, giocatori, io, bot = new Set(), pannello
     }
     const hoDiritto = mano.buio_di === io.id || (mano.buio_coperti ?? []).includes(io.id)
     if (mano.buio_aperto && !hoDiritto) {
-      // Coprire il buio: chi non ha messo buii paga l'ultimo per intero,
+      // Vedere il buio: chi non ha messo buii paga l'ultimo per intero,
       // chi aveva già messo buio o controbuio aggiunge solo la differenza
       const cosa = ['', 'il buio', 'il controbuio', 'l’over'][mano.buio_livello]
       const giaMesso = mio.versato_giro > 0
@@ -474,12 +487,12 @@ export default function Gioco({ tavolo, giocatori, io, bot = new Set(), pannello
           <p>
             {giaMesso
               ? `${nomeDi(mano.buio_di)} ha fatto ${cosa}: per restare in gioco aggiungi la differenza.`
-              : `C’è ${cosa} di ${fmt(mano.puntata)}: per giocare devi coprirlo, altrimenti lasci.`}
+              : `C’è ${cosa} di ${fmt(mano.puntata)}: per giocare devi vederlo, altrimenti lasci.`}
           </p>
           <div className="griglia-azioni due">
             {grande('Lascio', 'neutro', () => azione('passo'),
               giaMesso ? 'Esci dalla mano: perdi quanto hai già messo' : 'Esci dalla mano')}
-            {grande(fichesMie < daVedere ? `Copro con tutto ${fmt(fichesMie)}` : `Copro ${cosa} ${fmt(daVedere)}`, 'verde', () => azione('vedo'),
+            {grande(fichesMie < daVedere ? `Vedo con tutto ${fmt(fichesMie)}` : `Vedo ${cosa} ${fmt(daVedere)}`, 'verde', () => azione('vedo'),
               giaMesso ? `Aggiungi ${fmt(daVedere)} e resti in gioco` : 'Metti la stessa cifra e resti in gioco')}
           </div>
         </div>
@@ -605,6 +618,14 @@ export default function Gioco({ tavolo, giocatori, io, bot = new Set(), pannello
 
             {azioni()}
 
+            {/* Vardis in esaurimento: avviso con la posta a portata di mano */}
+            {!devoPrenderePosta && posteInArrivo === 0 && fichesMie < SOGLIA_AVVISO_FICHES && (
+              <button type="button" className="prossima-mano" disabled={attesa}
+                onClick={() => rpc('prendi_posta', { p_tavolo: tavolo.id })}>
+                ⚠️ Stai finendo i Vardis ({fmt(fichesMie)}) <span className="prossima-subito">· tocca per prendere un’altra posta{conclusa ? '' : ' a fine mano'}</span>
+              </button>
+            )}
+
             {/* Esito della mano: chi ha vinto, con cosa e quanto */}
             {conclusa && mano && (() => {
               if (mano.fase === 'annullata') {
@@ -642,6 +663,19 @@ export default function Gioco({ tavolo, giocatori, io, bot = new Set(), pannello
                   : 'Tempo scaduto: l’organizzatore sta decidendo se continuare o terminare.'}
               </p>
             )}
+
+            {/* Prima della distribuzione: chi non ha fiches deve prendere una posta, altrimenti non si gioca */}
+            {conclusa && !tempoScaduto && !inPausa && senzaFiches.length > 0 && (devoPrenderePosta
+              ? (
+                <button type="button" className="prossima-mano" disabled={attesa}
+                  onClick={() => rpc('prendi_posta', { p_tavolo: tavolo.id })}>
+                  Non hai abbastanza fiches per la prossima mano <span className="prossima-subito">· tocca per prendere un’altra posta ({fmt(tavolo.valore_posta)})</span>
+                </button>
+              ) : (
+                <p className="prossima-mano" role="status">
+                  In attesa che {senzaFiches.map(nomeDi).join(' e ')} {senzaFiches.length === 1 ? 'prenda' : 'prendano'} un’altra posta
+                </p>
+              ))}
 
             {conclusa && traSecondi !== null && !tempoScaduto && (
               // Si può toccare per partire subito; se un altro l'ha già fatto, il server non ne distribuisce due
