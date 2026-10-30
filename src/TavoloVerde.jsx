@@ -543,7 +543,7 @@ export default function TavoloVerde({ mano, posti, giocatori, io, carte, scelte,
       <div className={`pov-dentro${mano.turno === pIo.posto && !conclusa ? ' di-turno' : ''}${pIo.stato === 'fuori' ? ' fuori' : ''}`}>
         <div className="pov-carte">
           {mano.fase === 'scelta' ? (
-            <span className="pov-attesa">Il mazziere sceglie il gioco</span>
+            <span className="pov-attesa">Il mazziere sceglie se giocare con la vela</span>
           ) : mano.fase === 'buio' ? (
             <span className="pov-attesa">Le carte arrivano dopo il buio</span>
           ) : conclusa && pIo.carte_mostrate ? (
@@ -557,7 +557,7 @@ export default function TavoloVerde({ mano, posti, giocatori, io, carte, scelte,
         </div>
         <div className="pov-io">
           {mano.turno === pIo.posto && !conclusa && (
-            <span className="pov-tocca">{mano.fase === 'cambio' ? 'Tocca a te: scegli le carte' : mano.fase === 'scelta' ? 'Tocca a te: scegli il gioco' : 'Tocca a te'}</span>
+            <span className="pov-tocca">{mano.fase === 'cambio' ? 'Tocca a te: scegli le carte' : mano.fase === 'scelta' ? 'Tocca a te: con o senza vela?' : 'Tocca a te'}</span>
           )}
           {video?.cam && video.locale
             ? <VideoCerchio stream={video.locale} specchio className="avatar avatar-video" titolo="Il tuo video" />

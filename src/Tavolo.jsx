@@ -623,7 +623,7 @@ export default function Tavolo({ id, io }) {
                 </select>
               </label>
               <label>
-                Giochi
+                Giro di Telesina
                 <select value={modifica.regole.giochi ?? 'italiana'} onChange={(e) => regola('giochi', e.target.value)}>
                   {OPZIONI.giochi.map(([v, t]) => <option key={v} value={v}>{t}</option>)}
                 </select>

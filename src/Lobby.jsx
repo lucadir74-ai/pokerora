@@ -94,7 +94,7 @@ function NuovoTavolo({ onChiudi }) {
             <div className="regole-testo">
               <p className="tenue">Se non cambi niente valgono le regole di base. Puoi modificarle anche dopo, in sala d’attesa.</p>
               <label>
-                Giochi
+                Giro di Telesina
                 <select value={regole.giochi} onChange={(e) => regola('giochi', e.target.value)}>
                   {OPZIONI.giochi.map(([v, t]) => <option key={v} value={v}>{t}</option>)}
                 </select>
@@ -262,10 +262,10 @@ const REGOLE = [
   )],
   ['Telesina (o Teresina)', (
     <>
-      <p>Se il tavolo la ammette, a ogni mano il mazziere sceglie se giocare a poker all’italiana o a Telesina. Il mazzo, l’invito e i punti sono gli stessi.</p>
+      <p>Se il tavolo la prevede, quando una mano all’italiana finisce al confronto con un punto dal full in su parte il giro di Telesina: una mano per ogni giocatore seduto, così tutti fanno il mazziere una volta. Un altro full durante il giro non cambia nulla. Poi si torna all’italiana. Il mazzo, l’invito e i punti sono gli stessi.</p>
       <p>Ognuno riceve una carta coperta e una scoperta. Dopo ogni giro di puntate arriva un’altra carta scoperta, fino ad averne 4 scoperte e 1 coperta: in tutto 4 giri. Non ci sono buio, apertura, cambio e parola.</p>
       <p>In ogni giro parla per primo chi ha il punto migliore tra le carte scoperte (contano poker, tris, doppia coppia, coppia e carta alta; a parità le carte successive e poi il seme). Si bussa o si punta; dopo una puntata si vede, si rilancia o si lascia.</p>
-      <p>Con la vela, se il tavolo la ammette, al centro c’è una carta comune coperta: si gira dopo il quarto giro e si fa un ultimo giro di puntate. Al confronto ognuno usa le migliori 5 carte su 6.</p>
+      <p>Con la vela, se il tavolo la ammette e il mazziere la sceglie per la sua mano, al centro c’è una carta comune coperta: si gira dopo il quarto giro e si fa un ultimo giro di puntate. Al confronto ognuno usa le migliori 5 carte su 6.</p>
     </>
   )],
   ['Poste e Vardis', (

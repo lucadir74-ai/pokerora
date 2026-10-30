@@ -413,16 +413,14 @@ export default function Gioco({ tavolo, giocatori, io, usciti = [], bot = new Se
       )
     }
     if (mano.fase === 'scelta') {
-      if (!mioTurno) return <p className="tenue">{diTurno ? `${nomeDi(diTurno.giocatore_id)} sceglie il gioco di questa mano.` : 'Il mazziere sceglie il gioco.'}</p>
-      const conVela = tavolo.regole?.vela === 'si'
-      const scegliGioco = (gioco, vela = false) => rpc('scegli_gioco', { p_mano: mano.id, p_gioco: gioco, p_vela: vela })
+      if (!mioTurno) return <p className="tenue">{diTurno ? `${nomeDi(diTurno.giocatore_id)} sceglie se giocare con la vela.` : 'Il mazziere sceglie se giocare con la vela.'}</p>
+      const scegliGioco = (vela) => rpc('scegli_gioco', { p_mano: mano.id, p_gioco: 'telesina', p_vela: vela })
       return (
         <div className="azioni-gioco">
-          <p>Sei il mazziere: scegli il gioco di questa mano.</p>
-          <div className={`griglia-azioni ${conVela ? 'tre' : 'due'}`}>
-            {grande('Poker all’italiana', 'verde', () => scegliGioco('italiana'), 'Cinque carte coperte, apertura e cambio')}
-            {grande('Telesina', 'oro', () => scegliGioco('telesina'), 'Una carta coperta e quattro scoperte, un giro di puntate dopo ogni carta')}
-            {conVela && grande('Telesina con la vela', 'oro', () => scegliGioco('telesina', true), 'Con una carta comune al centro, che si gira alla fine')}
+          <p>Giro di Telesina, mano {mano.telesina_n} di {mano.telesina_di}. Sei il mazziere: con o senza vela?</p>
+          <div className="griglia-azioni due">
+            {grande('Senza vela', 'verde', () => scegliGioco(false), 'Una carta coperta e quattro scoperte')}
+            {grande('Con la vela', 'oro', () => scegliGioco(true), 'Più una carta comune al centro, che si gira alla fine')}
           </div>
         </div>
       )
@@ -575,8 +573,8 @@ export default function Gioco({ tavolo, giocatori, io, usciti = [], bot = new Se
   }
 
   const fase = !mano ? '' : {
-    scelta: 'Il mazziere sceglie il gioco',
-    telesina: mano.giro === 5 ? 'Telesina: giro della vela' : `Telesina: ${mano.giro}° giro di puntate`,
+    scelta: `Telesina ${mano.telesina_n} di ${mano.telesina_di}: il mazziere sceglie se con la vela`,
+    telesina: `Telesina ${mano.telesina_n ?? ''}${mano.telesina_di ? ` di ${mano.telesina_di}` : ''}: ${mano.giro === 5 ? 'giro della vela' : `${mano.giro}° giro di puntate`}`,
     buio: 'Buio: prima di vedere le carte',
     apertura: `Apertura: serve almeno una coppia di ${COPPIA[mano.requisito]}`,
     primo_giro: 'Primo giro di puntate',
@@ -605,8 +603,8 @@ export default function Gioco({ tavolo, giocatori, io, usciti = [], bot = new Se
             {mano && !conclusa && diTurno && (
               <p className={`turno${mioTurno ? ' mio' : ''}`} role="status">
                 {mioTurno
-                  ? (mano.fase === 'cambio' ? 'Tocca a te: scegli le carte da cambiare' : mano.fase === 'scelta' ? 'Tocca a te: scegli il gioco' : 'Tocca a te')
-                  : mano.fase === 'scelta' ? `${nomeDi(diTurno.giocatore_id)} sceglie il gioco` : `Tocca a ${nomeDi(diTurno.giocatore_id)}`}
+                  ? (mano.fase === 'cambio' ? 'Tocca a te: scegli le carte da cambiare' : mano.fase === 'scelta' ? 'Tocca a te: con o senza vela?' : 'Tocca a te')
+                  : mano.fase === 'scelta' ? `${nomeDi(diTurno.giocatore_id)} sceglie se con la vela` : `Tocca a ${nomeDi(diTurno.giocatore_id)}`}
               </p>
             )}
 
