@@ -5,6 +5,7 @@ import Fiches from './Fiches'
 import { vai, messaggioErrore } from './rotte'
 import { durata, ora } from './tempo'
 import { SceltaDurata } from './TimerPartita'
+import { REGOLE_BASE, OPZIONI } from './regole'
 
 const STATI = { attesa: 'In sala d’attesa', in_corso: 'Partita in corso', chiuso: 'Chiuso' }
 const giorno = (t) => new Date(t).toLocaleDateString('it-IT', { day: 'numeric', month: 'short' })
@@ -16,6 +17,9 @@ function NuovoTavolo({ onChiudi }) {
   const [posta, setPosta] = useState(1000)
   const [invito, setInvito] = useState('')
   const [minuti, setMinuti] = useState(0)
+  // Altre regole: partono da quelle di base, si cambiano nella finestra espandibile
+  const [regole, setRegole] = useState({ ...REGOLE_BASE })
+  const regola = (k, v) => setRegole((r) => ({ ...r, [k]: v }))
   const [errore, setErrore] = useState('')
   const [attesa, setAttesa] = useState(false)
 
@@ -27,11 +31,24 @@ function NuovoTavolo({ onChiudi }) {
     if (!Number.isInteger(v) || v < 100) return setErrore('La posta deve essere di almeno 100 Vardis.')
     const inv = invito === '' ? Math.max(1, Math.floor(v / 100)) : Number(invito)
     if (!Number.isInteger(inv) || inv < 1 || inv > v) return setErrore('L’invito deve essere un numero intero tra 1 e il valore della posta.')
+    const altre = {
+      mazzo: regole.mazzo, limite: regole.limite, cambio_max: Number(regole.cambio_max), invito: inv, buio: regole.buio,
+      giochi: regole.giochi, vela: regole.giochi === 'entrambi' ? regole.vela : 'no',
+    }
+    if (regole.limite === 'fisso') {
+      const massima = Number(regole.puntata_massima)
+      if (!Number.isInteger(massima) || massima < inv) return setErrore('Indica una puntata massima almeno pari all’invito.')
+      altre.puntata_massima = massima
+    }
     setAttesa(true)
     const { data, error } = await supabase.rpc('crea_tavolo', {
       p_nome: nome, p_posti: posti, p_valore_posta: v, p_invito: inv,
     })
     if (error) { setAttesa(false); return setErrore(messaggioErrore(error)) }
+    const { error: e1 } = await supabase.rpc('aggiorna_tavolo', {
+      p_tavolo: data, p_nome: nome, p_posti: posti, p_valore_posta: v, p_regole: altre,
+    })
+    if (e1) { setAttesa(false); return setErrore(`Tavolo aperto, ma le regole non sono state salvate: ${messaggioErrore(e1)} Puoi sceglierle in sala d’attesa.`) }
     if (minuti > 0) {
       const { error: e2 } = await supabase.rpc('imposta_durata', { p_tavolo: data, p_minuti: minuti })
       if (e2) { setAttesa(false); return setErrore(`Tavolo aperto, ma la durata non è stata salvata: ${messaggioErrore(e2)} Puoi sceglierla in sala d’attesa.`) }
@@ -68,9 +85,62 @@ function NuovoTavolo({ onChiudi }) {
           <input type="number" inputMode="numeric" min={1} value={invito}
             placeholder={String(Math.max(1, Math.floor((Number(posta) || 0) / 100)))}
             onChange={(e) => setInvito(e.target.value)} />
-          <small>Se lo lasci vuoto vale l’1% della posta. Le altre regole si cambiano in sala d’attesa.</small>
+          <small>Se lo lasci vuoto vale l’1% della posta.</small>
         </label>
         <SceltaDurata minuti={minuti} onCambia={setMinuti} />
+        <div className="regole-home altre-regole">
+          <details>
+            <summary>Regole del tavolo</summary>
+            <div className="regole-testo">
+              <p className="tenue">Se non cambi niente valgono le regole di base. Puoi modificarle anche dopo, in sala d’attesa.</p>
+              <label>
+                Giochi
+                <select value={regole.giochi} onChange={(e) => regola('giochi', e.target.value)}>
+                  {OPZIONI.giochi.map(([v, t]) => <option key={v} value={v}>{t}</option>)}
+                </select>
+              </label>
+              {regole.giochi === 'entrambi' && (
+                <label>
+                  Telesina con la vela
+                  <select value={regole.vela} onChange={(e) => regola('vela', e.target.value)}>
+                    {OPZIONI.vela.map(([v, t]) => <option key={v} value={v}>{t}</option>)}
+                  </select>
+                </label>
+              )}
+              <label>
+                Limite di puntata
+                <select value={regole.limite} onChange={(e) => regola('limite', e.target.value)}>
+                  {OPZIONI.limite.map(([v, t]) => <option key={v} value={v}>{t}</option>)}
+                </select>
+              </label>
+              {regole.limite === 'fisso' && (
+                <label>
+                  Puntata massima (Vardis)
+                  <input type="number" inputMode="numeric" min={1} value={regole.puntata_massima ?? ''}
+                    onChange={(e) => regola('puntata_massima', e.target.value)} />
+                </label>
+              )}
+              <label>
+                Buio, controbuio e over
+                <select value={regole.buio} onChange={(e) => regola('buio', e.target.value)}>
+                  {OPZIONI.buio.map(([v, t]) => <option key={v} value={v}>{t}</option>)}
+                </select>
+              </label>
+              <label>
+                Cambio delle carte
+                <select value={String(regole.cambio_max)} onChange={(e) => regola('cambio_max', e.target.value)}>
+                  {OPZIONI.cambio_max.map(([v, t]) => <option key={v} value={v}>{t}</option>)}
+                </select>
+              </label>
+              <label>
+                Mazzo
+                <select value={regole.mazzo} onChange={(e) => regola('mazzo', e.target.value)}>
+                  {OPZIONI.mazzo.map(([v, t]) => <option key={v} value={v}>{t}</option>)}
+                </select>
+              </label>
+            </div>
+          </details>
+        </div>
         {errore && <p className="errore" role="alert">{errore}</p>}
         <button className="principale" disabled={attesa}>{attesa ? 'Un attimo…' : 'Apri il tavolo'}</button>
       </form>
