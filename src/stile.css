@@ -1521,3 +1521,16 @@ button.collegamento-video { border: 0; cursor: pointer; font: inherit; font-size
 
 /* Gestione tavoli: tasto Chiudi compatto */
 .secondario.piccolo { margin: 0.45rem 0 0.15rem; padding: 0.45rem 0.9rem; font-size: 0.88rem; }
+
+/* Richieste di aggiungersi al tavolo: avviso in alto, visibile a tutti i giocatori seduti */
+.richieste-ingresso {
+  position: fixed; top: calc(env(safe-area-inset-top, 0px) + 3.4rem); left: 50%; transform: translateX(-50%);
+  z-index: 60; width: min(94vw, 34rem); display: grid; gap: 0.4rem;
+}
+.richiesta-riga {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.5rem;
+  padding: 0.6rem 0.8rem; border-radius: 12px; background: #fff8e1; color: #1b2a22;
+  border: 1px solid #e0b84a; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+}
+.richiesta-tasti { display: inline-flex; gap: 0.4rem; }
+.richiesta-tasti button { margin: 0; }

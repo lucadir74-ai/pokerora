@@ -112,6 +112,7 @@ export default function Tavolo({ id, io }) {
   const [giocatori, setGiocatori] = useState([])
   const [poste, setPoste] = useState([])
   const [usciti, setUsciti] = useState([])          // chi ha lasciato la partita: resta nel report
+  const [richieste, setRichieste] = useState([])    // chi chiede di aggiungersi a partita in corso
   const eroSeduto = useRef(false)
   const [errore, setErrore] = useState('')
   const [avviso, setAvviso] = useState('')
@@ -131,11 +132,12 @@ export default function Tavolo({ id, io }) {
   const video = useVideoTavolo(id, io.id, tavolo?.stato === 'in_corso' && seduto)
 
   const carica = useCallback(async () => {
-    const [t, g, p, u] = await Promise.all([
+    const [t, g, p, u, r] = await Promise.all([
       supabase.from('tavoli').select('*').eq('id', id).maybeSingle(),
       supabase.from('tavolo_giocatori').select('posto, giocatore_id, fiches, poste_in_arrivo, esce_a_fine_mano, profili(nickname)').eq('tavolo_id', id).order('posto'),
       supabase.from('poste').select('id, giocatore_id, numero, valore, presa_il').eq('tavolo_id', id).order('presa_il'),
       supabase.from('tavolo_usciti').select('giocatore_id, posto, fiches, uscito_il, tolto_da, profili!tavolo_usciti_giocatore_id_fkey(nickname)').eq('tavolo_id', id).order('uscito_il'),
+      supabase.from('richieste_ingresso').select('giocatore_id, creata_il, profili!richieste_ingresso_giocatore_id_fkey(nickname)').eq('tavolo_id', id).eq('stato', 'attesa').order('creata_il'),
     ])
     // Ero seduto e il tavolo non si vede più: sono uscito dalla partita, si torna alla home
     if (!t.data && eroSeduto.current) { vai('/'); return }
@@ -143,6 +145,7 @@ export default function Tavolo({ id, io }) {
     setGiocatori(g.data ?? [])
     setPoste(p.data ?? [])
     setUsciti(u.data ?? [])
+    setRichieste(r.data ?? [])
   }, [id])
 
   // Giocatori automatici (per le prove): l'elenco non cambia, basta caricarlo una volta
@@ -160,6 +163,7 @@ export default function Tavolo({ id, io }) {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'tavolo_giocatori', filter: `tavolo_id=eq.${id}` }, carica)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'poste', filter: `tavolo_id=eq.${id}` }, carica)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'tavolo_usciti', filter: `tavolo_id=eq.${id}` }, carica)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'richieste_ingresso', filter: `tavolo_id=eq.${id}` }, carica)
       .subscribe()
     return () => { supabase.removeChannel(canale) }
   }, [id, carica])
@@ -279,6 +283,29 @@ export default function Tavolo({ id, io }) {
   }
   const azioniOrganizzatore = organizzo && tavolo.stato === 'in_corso'
 
+  // Chi chiede di aggiungersi: basta la conferma di un giocatore seduto
+  async function rispondi(r, accetta) {
+    setErrore(''); setAvviso(''); setAttesa(true)
+    const { error } = await supabase.rpc('rispondi_ingresso', { p_tavolo: id, p_giocatore: r.giocatore_id, p_accetta: accetta })
+    setAttesa(false)
+    if (error) return setErrore(messaggioErrore(error))
+    setAvviso(accetta ? `${r.profili?.nickname} si siede al tavolo: gioca dalla prossima mano.` : `Richiesta di ${r.profili?.nickname} rifiutata.`)
+    carica()
+  }
+  const avvisoRichieste = tavolo.stato === 'in_corso' && seduto && richieste.length > 0 && (
+    <div className="richieste-ingresso" role="alert">
+      {richieste.map((r) => (
+        <div key={r.giocatore_id} className="richiesta-riga">
+          <span><strong>{r.profili?.nickname}</strong> chiede di aggiungersi al tavolo</span>
+          <span className="richiesta-tasti">
+            <button className="principale piccolo" disabled={attesa} onClick={() => rispondi(r, true)}>Fallo sedere</button>
+            <button className="secondario piccolo" disabled={attesa} onClick={() => rispondi(r, false)}>No</button>
+          </span>
+        </div>
+      ))}
+    </div>
+  )
+
   const messaggi = (avviso || errore) && (
     <>
       {avviso && <p className="avviso" role="status">{avviso}</p>}
@@ -334,7 +361,7 @@ export default function Tavolo({ id, io }) {
               {postiLiberi > 0 && (
                 <>
                   <h3>Invita un giocatore</h3>
-                  <p className="tenue">C’{postiLiberi === 1 ? 'è ancora un posto' : `sono ancora ${postiLiberi} posti`}: chi entra adesso si aggiunge al tavolo (fino a 6 giocatori), riceve la prima posta e gioca dalla prossima mano.</p>
+                  <p className="tenue">C’{postiLiberi === 1 ? 'è ancora un posto' : `sono ancora ${postiLiberi} posti`}: chi apre il link chiede di aggiungersi e uno di voi deve confermare. Poi riceve la prima posta e gioca dalla prossima mano (fino a 6 giocatori). Dalla mano dopo il mazzo si adatta al numero di giocatori.</p>
                   <input className="campo-link" readOnly value={link} onFocus={(e) => e.target.select()} />
                   <div className="bottoni">
                     <button className="secondario" onClick={copia}>Copia il link</button>
@@ -363,6 +390,8 @@ export default function Tavolo({ id, io }) {
     <main className={`pagina${tavolo.stato === 'in_corso' ? ' ampia' : ''}`}>
       <Testata io={io} indietro />
 
+      {avvisoRichieste}
+
       {tavolo.stato === 'in_corso' && (
         <nav className="barra-gioco" aria-label="Tavolo">
           {/* Telefono: la testata è nascosta per dare spazio al tavolo, qui si torna alla home */}
@@ -378,6 +407,13 @@ export default function Tavolo({ id, io }) {
                 {tavolo.in_pausa_dal ? '▶' : '⏸'}
               </button>
               <button className="tasto-termina" disabled={attesa} onClick={terminaPartita}>Termina</button>
+            </span>
+          )}
+          {!organizzo && mioPosto && (
+            <span className="barra-org">
+              {mioPosto.esce_a_fine_mano
+                ? <span className="chip-tempo">Esci a fine mano</span>
+                : <button className="tasto-termina" disabled={attesa} onClick={esci}>Abbandona</button>}
             </span>
           )}
           <button className="chip-posta" disabled={attesa} title={`Prendi un’altra posta da ${fmt(tavolo.valore_posta)}`}
