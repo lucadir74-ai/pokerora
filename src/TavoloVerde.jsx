@@ -64,6 +64,8 @@ function Emoticon({ onReagisci }) {
 const CENTRO = { x: 50, y: 48 }
 const MAZZO = { x: 36, y: 48 }
 const SCARTI = { x: 64, y: 48 }
+// La vela sta al centro, sopra il piatto: di lato finirebbe sotto le carte scoperte dei giocatori
+const VELA = { x: 50, y: 37.5 }
 const verso = (a, b, t) => ({ x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t })
 
 // Senso orario visto dall'alto: io in basso, poi a sinistra, in alto, a destra
@@ -374,7 +376,7 @@ export default function TavoloVerde({ mano, posti, giocatori, io, carte, scelte,
         <span className="mazzetto" style={stile(MAZZO)} aria-hidden="true"><span className="dorso" /><span className="dorso" /></span>
         {telesina ? (
           mano.con_vela && (
-            <span className="mazzetto vela" style={stile(SCARTI)} aria-label={mano.vela ? 'La vela' : 'La vela, ancora coperta'}>
+            <span className="mazzetto vela" style={stile(VELA)} aria-label={mano.vela ? 'La vela' : 'La vela, ancora coperta'}>
               {mano.vela ? <span key={mano.vela} className={`gira${gia(`${mano.id}-vela`)}`}><Carta c={mano.vela} piccola /></span> : <span className="dorso" />}
               <span className="vela-nome">Vela</span>
             </span>
