@@ -148,6 +148,65 @@ function NuovoTavolo({ onChiudi }) {
   )
 }
 
+// ── Gestione tavoli: solo per il gestore dell'app ──
+// Elenca tutti i tavoli non chiusi, anche quelli aperti da altri, e permette di chiuderli
+function GestioneTavoli() {
+  const [gestore, setGestore] = useState(false)
+  const [elenco, setElenco] = useState([])
+  const [errore, setErrore] = useState('')
+  const [attesa, setAttesa] = useState(false)
+
+  async function carica() {
+    const { data, error } = await supabase.rpc('tavoli_aperti_gestione')
+    if (error) return setErrore(messaggioErrore(error))
+    setElenco(data ?? [])
+  }
+  useEffect(() => {
+    supabase.rpc('sono_gestore').then(({ data }) => { if (data) { setGestore(true); carica() } })
+  }, [])
+
+  async function chiudi(t) {
+    if (!window.confirm(`Chiudere il tavolo “${t.tavolo_nome}” di ${t.organizzatore_nick}? La partita finisce per tutti: resta il riepilogo con le poste e i saldi.`)) return
+    setErrore('')
+    setAttesa(true)
+    const { error } = await supabase.rpc('chiudi_tavolo', { p_tavolo: t.tavolo_id })
+    setAttesa(false)
+    if (error) return setErrore(messaggioErrore(error))
+    carica()
+  }
+
+  if (!gestore) return null
+  return (
+    <section className="carta">
+      <div className="regole-home">
+        <details>
+          <summary>Gestione tavoli ({elenco.length} aperti)</summary>
+          <div className="regole-testo">
+            <p className="tenue">Tutti i tavoli non chiusi, anche quelli aperti da altri. Lo vedi solo tu, come gestore dell’app.</p>
+            {errore && <p className="errore" role="alert">{errore}</p>}
+            {elenco.length === 0 ? <p className="tenue">Nessun tavolo aperto.</p> : (
+              <ul className="elenco">
+                {elenco.map((t) => (
+                  <li key={t.tavolo_id} className="home-invito">
+                    <span className="home-invito-testo">
+                      <span className="riga-nome">{t.tavolo_nome}</span>
+                      <span className="riga-info">
+                        {STATI[t.tavolo_stato] ?? t.tavolo_stato}, di {t.organizzatore_nick}, {t.seduti} su {t.posti_totali} seduti
+                        {t.ultima_attivita ? `, ultima attività ${giorno(t.ultima_attivita)} ${ora(t.ultima_attivita)}` : ''}
+                      </span>
+                    </span>
+                    <button className="secondario piccolo" disabled={attesa} onClick={() => chiudi(t)}>Chiudi</button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </details>
+      </div>
+    </section>
+  )
+}
+
 // ── Come si gioca: regole di base della casa ──
 const REGOLE = [
   ['Il mazzo', (
@@ -382,6 +441,8 @@ export default function Lobby({ io }) {
       </section>
 
       {apri && <NuovoTavolo onChiudi={() => setApri(false)} />}
+
+      <GestioneTavoli />
 
       <section className="carta">
         <div className="home-testa">
