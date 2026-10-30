@@ -38,6 +38,24 @@ export function valutaMano(carte, bassa) {
   return [1, ...v, s[0]]
 }
 
+// Con più di 5 carte (Telesina con la vela) vale la combinazione migliore di 5
+const confronta = (a, b) => {
+  for (let i = 0; i < Math.max(a.length, b.length); i++) {
+    const d = (a[i] ?? -1) - (b[i] ?? -1)
+    if (d) return d
+  }
+  return 0
+}
+export function valutaMigliore(carte, bassa) {
+  if (carte.length <= 5) return valutaMano(carte, bassa)
+  let migliore = null
+  carte.forEach((_, i) => {
+    const v = valutaMano(carte.filter((__, k) => k !== i), bassa)
+    if (!migliore || confronta(v, migliore) > 0) migliore = v
+  })
+  return migliore
+}
+
 function nomeValore(p, plurale = false) {
   if (p === 11) return 'jack'
   if (p === 12) return plurale ? 'donne' : 'donna'

@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom'
 import { VideoCerchio, TastiMedia } from './VideoCerchio'
 import Carta from './Carta'
 import { fmt } from './regole'
-import { valutaMano, nomePunto, puoAprire } from './punti'
+import { valutaMigliore, nomePunto, puoAprire } from './punti'
 import Spizzata from './Spizzata'
 import { EMOTICON } from './emoticon'
 import { spizzataAttiva, ascoltaSpizzata } from './preferenze'
@@ -142,6 +142,9 @@ const BOLLE = {
   apro: (i) => `Apro ${i}`, punto: (i) => `Punto ${i}`, rilancio: (i) => `Rilancio +${i}`,
   cambio: (i) => (i === 0 ? 'Servito' : `Cambia ${i}`), vince: (i) => `Vince ${i}`,
 }
+
+// Carte di un giocatore senza la vela (al confronto la vela viene aggiunta a tutti)
+const senzaVela = (carte, mano) => (mano?.gioco === 'telesina' && mano.vela ? carte.filter((c) => c !== mano.vela) : carte)
 
 // ── Prospettiva disegnata ──
 // Il tavolo è descritto "dall'alto" (x, y da 0 a 100) e proiettato sullo schermo:
@@ -297,10 +300,13 @@ export default function TavoloVerde({ mano, posti, giocatori, io, carte, scelte,
   }
 
   // Le mie carte: sul tavolo (computer) o davanti a me nella barra in basso (telefono)
+  const telesina = mano?.gioco === 'telesina'
+  // Telesina: la prima carta è la coperta; il punto si calcola con 5 carte (più la vela, se è girata)
+  const carteMie = telesina && mano.vela ? [...carte, mano.vela] : carte
   const manoMia = (cartePos, fuori, nGiro) => {
-                  const chiuse = conSpizzata && carte.length === 5 && !fuori && !aperto
+                  const chiuse = !telesina && conSpizzata && carte.length === 5 && !fuori && !aperto
                   const ap = chiuse ? 0 : 1
-                  const punto = carte.length === 5 ? nomePunto(valutaMano(carte, mano.bassa)) : ''
+                  const punto = carte.length === 5 ? nomePunto(valutaMigliore(carteMie, mano.bassa)) : ''
                   return (
                 <div ref={manoRef} className={`mano-mia${fuori ? ' piegata' : ''}${chiuse ? ' chiuse' : ''}`}
                   style={cartePos ? stile(cartePos) : undefined} onClick={chiuse ? () => setSpizzo(true) : undefined}
@@ -311,7 +317,7 @@ export default function TavoloVerde({ mano, posti, giocatori, io, carte, scelte,
                     <span key={`${mano.id}-${c}`} className={`volo${gia(`${mano.id}-${c}`)}`}
                       style={{ ...(cartePos ? delta(MAZZO, cartePos) : { '--dx': 0, '--dy': -14 }), '--ritardo': `${k * nGiro * 70 + 40}ms`, '--rot': `${(k - 2) * 3 * ap}deg`, zIndex: 10 - k }}>
                       <span className="strato" style={{ transform: `translate(${((2 - k) * passoCarte + (k - 2) * -2) * (1 - ap)}px, ${chiuse ? (4 - k) * -1.5 : Math.abs(k - 2) * 2}px)` }}>
-                        <Carta c={c} indice scelta={scelte.includes(c)}
+                        <Carta c={c} indice scelta={scelte.includes(c)} coperta={telesina && c === carte[0]}
                           onClick={onScegli && !chiuse ? () => onScegli(c) : undefined} />
                       </span>
                     </span>
@@ -325,7 +331,7 @@ export default function TavoloVerde({ mano, posti, giocatori, io, carte, scelte,
                   )}
                   {carte.length === 5 && !fuori && !chiuse && (
                     <span className="mio-punto">
-                      {nomePunto(valutaMano(carte, mano.bassa))}
+                      {punto}
                       {mano.fase === 'apertura' && (puoAprire(carte, mano.requisito, mano.bassa)
                         ? <b className="si"> · puoi aprire</b> : <b className="no"> · non puoi aprire</b>)}
                     </span>
@@ -366,9 +372,18 @@ export default function TavoloVerde({ mano, posti, giocatori, io, carte, scelte,
       <div className="panno" aria-label={`Tavolo: mano ${mano.numero}, piatto ${fmt(mano.piatto)}`}>
         {/* Mazzo e scarti al centro */}
         <span className="mazzetto" style={stile(MAZZO)} aria-hidden="true"><span className="dorso" /><span className="dorso" /></span>
-        <span className="mazzetto scarti" style={stile(SCARTI)} aria-hidden="true">
-          {mano.fase !== 'apertura' && mano.fase !== 'primo_giro' && <span className="dorso storto" />}
-        </span>
+        {telesina ? (
+          mano.con_vela && (
+            <span className="mazzetto vela" style={stile(SCARTI)} aria-label={mano.vela ? 'La vela' : 'La vela, ancora coperta'}>
+              {mano.vela ? <span key={mano.vela} className={`gira${gia(`${mano.id}-vela`)}`}><Carta c={mano.vela} piccola /></span> : <span className="dorso" />}
+              <span className="vela-nome">Vela</span>
+            </span>
+          )
+        ) : (
+          <span className="mazzetto scarti" style={stile(SCARTI)} aria-hidden="true">
+            {mano.fase !== 'apertura' && mano.fase !== 'primo_giro' && mano.fase !== 'scelta' && <span className="dorso storto" />}
+          </span>
+        )}
 
         {/* Di chi è il turno */}
         {/* Sul telefono a 5-6 giocatori lo dice già la barra dei comandi e il posto illuminato */}
@@ -413,7 +428,7 @@ export default function TavoloVerde({ mano, posti, giocatori, io, carte, scelte,
           const basso = (!stretto && !sonoIo && s.y > 60) || (pov && bordo && dir < 0)
           const sopra = bordo ? dir < 0 : s.y > 50
           const scoperte = conclusa && p.carte_mostrate
-          const primaDelleCarte = mano.fase === 'buio'
+          const primaDelleCarte = mano.fase === 'buio' || mano.fase === 'scelta'
 
           // Dorsi degli altri: le prime (5 − cambio) sono le vecchie, poi le nuove arrivate dal mazzo
           const nuove = Math.max(0, (p.cambio ?? 0) - p.cambio_pendente)
@@ -430,8 +445,17 @@ export default function TavoloVerde({ mano, posti, giocatori, io, carte, scelte,
                 manoMia(cartePos, fuori, giro.length)
               ) : scoperte ? (
                 <div className={`mano-scoperta${vince ? ' vincente' : ''}${sonoIo ? ' mia' : ''}${sonoIo || sopra ? ' sopra' : ''}`} style={stile(sonoIo || bordo ? cartePos : stretto ? verso(s, CENTRO, 0.36) : basso ? { x: s.x + (50 - s.x) * 0.3, y: s.y - 18 } : verso(s, CENTRO, 0.4))}>
-                  {p.carte_mostrate.map((c, k) => (
+                  {senzaVela(p.carte_mostrate, mano).map((c, k) => (
                     <span key={c} className={`gira${gia(`${mano.id}-g-${c}`)}`} style={{ '--ritardo': `${k * 90}ms` }}><Carta c={c} piccola={!sonoIo} /></span>
+                  ))}
+                </div>
+              ) : telesina ? (
+                <div className={`mano-scoperta mano-telesina${fuori ? ' piegata' : ''}${sopra ? ' sopra' : ''}`} style={stile(bordo ? cartePos : stretto ? verso(s, CENTRO, 0.36) : basso ? { x: s.x + (50 - s.x) * 0.3, y: s.y - 18 } : verso(s, CENTRO, 0.4))}>
+                  <span className={`volo dorso${gia(`${mano.id}-${p.giocatore_id}-coperta`)}`} style={{ ...delta(MAZZO, cartePos), '--ritardo': `${i * 70}ms`, '--rot': '0deg' }} />
+                  {(p.scoperte ?? []).map((c, k) => (
+                    <span key={c} className={`volo${gia(`${mano.id}-${p.giocatore_id}-${c}`)}`} style={{ ...delta(MAZZO, cartePos), '--ritardo': `${(k === 0 ? giro.length : 0) * 70 + i * 70}ms`, '--rot': '0deg' }}>
+                      <Carta c={c} piccola />
+                    </span>
                   ))}
                 </div>
               ) : (
@@ -518,11 +542,13 @@ export default function TavoloVerde({ mano, posti, giocatori, io, carte, scelte,
     {pov && pIo && createPortal(
       <div className={`pov-dentro${mano.turno === pIo.posto && !conclusa ? ' di-turno' : ''}${pIo.stato === 'fuori' ? ' fuori' : ''}`}>
         <div className="pov-carte">
-          {mano.fase === 'buio' ? (
+          {mano.fase === 'scelta' ? (
+            <span className="pov-attesa">Il mazziere sceglie il gioco</span>
+          ) : mano.fase === 'buio' ? (
             <span className="pov-attesa">Le carte arrivano dopo il buio</span>
           ) : conclusa && pIo.carte_mostrate ? (
             <div className={`mano-scoperta mia${pIo.vincita > 0 ? ' vincente' : ''}`}>
-              {pIo.carte_mostrate.map((c, k) => (
+              {senzaVela(pIo.carte_mostrate, mano).map((c, k) => (
                 <span key={c} className={`gira${gia(`${mano.id}-g-${c}`)}`} style={{ '--ritardo': `${k * 90}ms` }}><Carta c={c} /></span>
               ))}
               {pIo.punto && <span className="mio-punto">{pIo.punto}{pIo.vincita > 0 ? ` · vinci ${fmt(pIo.vincita)}` : ''}</span>}
@@ -531,7 +557,7 @@ export default function TavoloVerde({ mano, posti, giocatori, io, carte, scelte,
         </div>
         <div className="pov-io">
           {mano.turno === pIo.posto && !conclusa && (
-            <span className="pov-tocca">{mano.fase === 'cambio' ? 'Tocca a te: scegli le carte' : 'Tocca a te'}</span>
+            <span className="pov-tocca">{mano.fase === 'cambio' ? 'Tocca a te: scegli le carte' : mano.fase === 'scelta' ? 'Tocca a te: scegli il gioco' : 'Tocca a te'}</span>
           )}
           {video?.cam && video.locale
             ? <VideoCerchio stream={video.locale} specchio className="avatar avatar-video" titolo="Il tuo video" />

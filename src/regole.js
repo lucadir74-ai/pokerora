@@ -13,6 +13,8 @@ export const REGOLE_BASE = {
   cambio_max: 4,
   buio: 'si',
   durata: 0,
+  giochi: 'italiana',
+  vela: 'no',
 }
 
 export const invitoDi = (tavolo) =>
@@ -32,6 +34,14 @@ export const OPZIONI = {
   buio: [
     ['si', 'Sì: buio, controbuio e over'],
     ['no', 'No'],
+  ],
+  giochi: [
+    ['italiana', 'Solo poker all’italiana'],
+    ['entrambi', 'Italiana e Telesina: sceglie il mazziere a ogni mano'],
+  ],
+  vela: [
+    ['no', 'No'],
+    ['si', 'Sì: il mazziere può scegliere la Telesina con la vela'],
   ],
   durata: [
     ['0', 'Senza limite di tempo'],
@@ -73,6 +83,11 @@ export function descriviRegole(tavolo) {
     'Se tutti dicono parola: il piatto resta, la mano dopo si apre con coppia di re e senza buio',
     'Se dopo una o più parole qualcuno bussa, la parola non vale più: chi l’aveva detta torna a parlare e può puntare o bussare',
     'Il colore batte il full. Semi: cuori, quadri, fiori, picche',
+    ...(r.giochi === 'entrambi' ? [
+      `Giochi: poker all’italiana o Telesina (detta anche Teresina), a scelta del mazziere a ogni mano${r.vela === 'si' ? '; la Telesina si può giocare anche con la vela' : ''}`,
+      'Telesina: una carta coperta e una scoperta a testa, poi una scoperta alla volta fino a 4 scoperte, con un giro di puntate dopo ogni carta. Parla per primo chi ha il punto migliore tra le carte scoperte. Si bussa o si punta; niente buio, apertura, cambio e parola',
+      ...(r.vela === 'si' ? ['Telesina con la vela: una carta comune coperta al centro, si gira dopo l’ultimo giro e se ne fa un altro. Al confronto ognuno usa le migliori 5 carte su 6'] : []),
+    ] : []),
     'Scala reale: la minima batte la massima, la massima batte la media, la media batte la minima',
   ]
 }

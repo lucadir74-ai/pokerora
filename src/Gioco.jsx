@@ -11,9 +11,8 @@ import { EMOTICON } from './emoticon'
 import * as suoni from './suoni'
 
 const COPPIA = { 11: 'jack', 12: 'donne', 13: 're' }
-const SOGLIA_AVVISO_FICHES = 300   // sotto questa cifra si avvisa che i Vardis stanno finendo
 
-export default function Gioco({ tavolo, giocatori, io, usciti = [], bot = new Set(), pannello = null, setPannello = () => {}, onNonLetti = () => {}, video = null }) {
+export default function Gioco({ tavolo, giocatori, io, bot = new Set(), pannello = null, setPannello = () => {}, onNonLetti = () => {}, video = null }) {
   const [mano, setMano] = useState(null)
   const [posti, setPosti] = useState([])
   const [carte, setCarte] = useState([])
@@ -204,6 +203,8 @@ export default function Gioco({ tavolo, giocatori, io, usciti = [], bot = new Se
     const suona = (a) => {
       switch (a.tipo) {
         case 'mano': suoni.mescola(); break
+        case 'carta': if (a.importo > 0) suoni.distribuisci(a.importo, 0.07); break
+        case 'vela': suoni.gira(); break
         case 'apro': case 'vedo': case 'rilancio': case 'punto':
         case 'buio': case 'controbuio': case 'over': case 'copro': case 'posta':
           suoni.fiches(suoni.quanteFiches(a.importo, inv)); break
@@ -223,17 +224,17 @@ export default function Gioco({ tavolo, giocatori, io, usciti = [], bot = new Se
   // Carte distribuite: un flic per ogni carta data al tavolo, una volta per mano
   useEffect(() => {
     if (!caricato.current || ultimaSuonata.current === null || carteDi !== idMano || !idMano) return
-    if (carte.length !== 5 || carteSuonate.current.has(idMano)) return
+    if (mano?.gioco === 'telesina' || carte.length !== 5 || carteSuonate.current.has(idMano)) return
     carteSuonate.current.add(idMano)
     suoni.distribuisci(5 * Math.max(posti.length, 1), 0.07)
-  }, [carte, carteDi, idMano, posti.length])
+  }, [carte, carteDi, idMano, posti.length, mano?.gioco])
 
   // Giocatori automatici: quando tocca a uno di loro, un giocatore vero chiede al server di farlo giocare.
   // Lo fa il primo giocatore vero al tavolo; gli altri subentrano solo se lui non risponde.
   const [tentativoBot, setTentativoBot] = useState(0)
   const turnoDi = posti.find((p) => p.posto === mano?.turno)?.giocatore_id
   const tocca_a_bot = !!(mano && turnoDi && bot.has(turnoDi) &&
-    ['buio', 'apertura', 'primo_giro', 'cambio', 'secondo_giro'].includes(mano.fase))
+    ['scelta', 'buio', 'apertura', 'primo_giro', 'cambio', 'secondo_giro', 'telesina'].includes(mano.fase))
   const regista = giocatori.filter((g) => !bot.has(g.giocatore_id)).sort((a, b) => a.posto - b.posto)[0]?.giocatore_id === io.id
   const inPausa = !!tavolo.in_pausa_dal
   useEffect(() => {
@@ -244,10 +245,10 @@ export default function Gioco({ tavolo, giocatori, io, usciti = [], bot = new Se
       else carica()
     }, regista ? 900 + Math.random() * 900 : 8000 + Math.random() * 2000)
     return () => clearTimeout(t)
-  }, [tocca_a_bot, mano?.id, mano?.turno, mano?.fase, registro.length, regista, tentativoBot, inPausa])
+  }, [tocca_a_bot, mano?.id, mano?.turno, mano?.fase, mano?.giro, registro.length, regista, tentativoBot, inPausa])
 
   // Nuova fase o nuovo turno: azzera scelte e importo
-  useEffect(() => { setScelte([]); setImporto('') }, [mano?.fase, mano?.turno, idMano])
+  useEffect(() => { setScelte([]); setImporto('') }, [mano?.fase, mano?.turno, mano?.giro, idMano])
 
   async function rpc(nome, parametri) {
     setErrore('')
@@ -259,20 +260,9 @@ export default function Gioco({ tavolo, giocatori, io, usciti = [], bot = new Se
     return true
   }
 
-  const nomeDi = (id) => (giocatori.find((g) => g.giocatore_id === id) ?? usciti.find((u) => u.giocatore_id === id))?.profili?.nickname ?? 'giocatore'
+  const nomeDi = (id) => giocatori.find((g) => g.giocatore_id === id)?.profili?.nickname ?? 'giocatore'
   const fichesDi = (id) => giocatori.find((g) => g.giocatore_id === id)?.fiches ?? 0
   const fichesMie = fichesDi(io.id)
-
-  // Per giocare una mano servono almeno 2 inviti (più l'eventuale differenza dovuta dopo una parola).
-  // Chi ne ha meno deve prendere una posta prima della distribuzione: il server non distribuisce finché manca.
-  // I bot la prendono da soli.
-  const minimoPer = (id) => 2 * invitoDi(tavolo) + (Number(tavolo.debiti_parol?.[id]) || 0)
-  const senzaFiches = giocatori
-    .filter((g) => !bot.has(g.giocatore_id) && (g.fiches ?? 0) < minimoPer(g.giocatore_id))
-    .map((g) => g.giocatore_id)
-  const chiaveSenza = senzaFiches.join(',')
-  const devoPrenderePosta = senzaFiches.includes(io.id)
-  const posteInArrivo = giocatori.find((g) => g.giocatore_id === io.id)?.poste_in_arrivo ?? 0
 
   // Nessuna mano ancora, oppure mano conclusa
   const conclusa = !mano || mano.fase === 'finita' || mano.fase === 'annullata'
@@ -302,7 +292,7 @@ export default function Gioco({ tavolo, giocatori, io, usciti = [], bot = new Se
     if (!error) carica()
   }
   useEffect(() => {
-    if (!prontaNuova || tempoScaduto || inPausa || chiaveSenza) { setTraSecondi(null); return }
+    if (!prontaNuova || tempoScaduto || inPausa) { setTraSecondi(null); return }
     const pausa = idMano ? 7000 : 3000
     const ritardo = pausa + (regista ? 0 : 6000)
     const fine = Date.now() + pausa
@@ -311,7 +301,7 @@ export default function Gioco({ tavolo, giocatori, io, usciti = [], bot = new Se
     // Se un altro giocatore l'ha già distribuita, il server risponde con un errore che si può ignorare
     const via = setTimeout(prossimaMano, ritardo)
     return () => { clearInterval(conta); clearTimeout(via) }
-  }, [prontaNuova, idMano, regista, tavolo.id, tempoScaduto, tavolo.fine_prevista, inPausa, chiaveSenza])
+  }, [prontaNuova, idMano, regista, tavolo.id, tempoScaduto, tavolo.fine_prevista, inPausa])
 
   const mio = posti.find((p) => p.giocatore_id === io.id)
   const mioTurno = !!mano && !!mio && mio.stato === 'attivo' && mano.turno === mio.posto
@@ -336,7 +326,7 @@ export default function Gioco({ tavolo, giocatori, io, usciti = [], bot = new Se
   }, [mioTurno, mano?.fase, mano?.id])
   const limite = tavolo.regole?.limite ?? 'apertura'
   const tetto = !mano ? null
-    : limite === 'piatto' || (limite === 'apertura' && mano.fase === 'apertura') ? mano.piatto + daVedere
+    : limite === 'piatto' || (limite === 'apertura' && (mano.fase === 'apertura' || (mano.fase === 'telesina' && mano.puntata === 0))) ? mano.piatto + daVedere
     : limite === 'fisso' ? Number(tavolo.regole?.puntata_massima) || null
     : null
   const cambioMax = Number(tavolo.regole?.cambio_max) || 4
@@ -351,7 +341,7 @@ export default function Gioco({ tavolo, giocatori, io, usciti = [], bot = new Se
   // Pre-azione: quando arriva il mio turno la eseguo, purché la situazione sia la stessa di quando l'ho scelta
   useEffect(() => {
     if (!pre || !mano) return
-    const cambiata = pre.mano !== mano.id || pre.fase !== mano.fase
+    const cambiata = pre.mano !== mano.id || pre.fase !== mano.fase || pre.giro !== mano.giro
     if (cambiata) { setPre(null); return }
     const mioOra = mio && mio.stato === 'attivo' && mano.turno === mio.posto
     const dv = mio ? mano.puntata - mio.versato_giro : 0
@@ -399,8 +389,7 @@ export default function Gioco({ tavolo, giocatori, io, usciti = [], bot = new Se
 
   function azioni() {
     if (!mano || conclusa) return null
-    if (!mio) return <p className="tenue">Ti sei appena seduto: giochi dalla prossima mano.</p>
-    if (mio.stato !== 'attivo') return <p className="tenue">Sei fuori da questa mano.</p>
+    if (!mio || mio.stato !== 'attivo') return <p className="tenue">Sei fuori da questa mano.</p>
     // Fiches finite: si gioca solo per la parte coperta (al cambio si cambia normalmente)
     if (mio.tutto_dentro && mano.fase !== 'cambio') {
       return (
@@ -408,6 +397,21 @@ export default function Gioco({ tavolo, giocatori, io, usciti = [], bot = new Se
           Hai messo tutte le tue fiches ({fmt(mio.versato_mano)} in questa mano): giochi solo per la parte che hai coperto.
           Se vinci prendi quella parte da ciascuno; il resto se lo giocano gli altri.
         </p>
+      )
+    }
+    if (mano.fase === 'scelta') {
+      if (!mioTurno) return <p className="tenue">{diTurno ? `${nomeDi(diTurno.giocatore_id)} sceglie il gioco di questa mano.` : 'Il mazziere sceglie il gioco.'}</p>
+      const conVela = tavolo.regole?.vela === 'si'
+      const scegliGioco = (gioco, vela = false) => rpc('scegli_gioco', { p_mano: mano.id, p_gioco: gioco, p_vela: vela })
+      return (
+        <div className="azioni-gioco">
+          <p>Sei il mazziere: scegli il gioco di questa mano.</p>
+          <div className={`griglia-azioni ${conVela ? 'tre' : 'due'}`}>
+            {grande('Poker all’italiana', 'verde', () => scegliGioco('italiana'), 'Cinque carte coperte, apertura e cambio')}
+            {grande('Telesina', 'oro', () => scegliGioco('telesina'), 'Una carta coperta e quattro scoperte, un giro di puntate dopo ogni carta')}
+            {conVela && grande('Telesina con la vela', 'oro', () => scegliGioco('telesina', true), 'Con una carta comune al centro, che si gira alla fine')}
+          </div>
+        </div>
       )
     }
     if (!mioTurno) return preAzioni()
@@ -461,7 +465,7 @@ export default function Gioco({ tavolo, giocatori, io, usciti = [], bot = new Se
     }
     const hoDiritto = mano.buio_di === io.id || (mano.buio_coperti ?? []).includes(io.id)
     if (mano.buio_aperto && !hoDiritto) {
-      // Vedere il buio: chi non ha messo buii paga l'ultimo per intero,
+      // Coprire il buio: chi non ha messo buii paga l'ultimo per intero,
       // chi aveva già messo buio o controbuio aggiunge solo la differenza
       const cosa = ['', 'il buio', 'il controbuio', 'l’over'][mano.buio_livello]
       const giaMesso = mio.versato_giro > 0
@@ -470,12 +474,12 @@ export default function Gioco({ tavolo, giocatori, io, usciti = [], bot = new Se
           <p>
             {giaMesso
               ? `${nomeDi(mano.buio_di)} ha fatto ${cosa}: per restare in gioco aggiungi la differenza.`
-              : `C’è ${cosa} di ${fmt(mano.puntata)}: per giocare devi vederlo, altrimenti lasci.`}
+              : `C’è ${cosa} di ${fmt(mano.puntata)}: per giocare devi coprirlo, altrimenti lasci.`}
           </p>
           <div className="griglia-azioni due">
             {grande('Lascio', 'neutro', () => azione('passo'),
               giaMesso ? 'Esci dalla mano: perdi quanto hai già messo' : 'Esci dalla mano')}
-            {grande(fichesMie < daVedere ? `Vedo con tutto ${fmt(fichesMie)}` : `Vedo ${cosa} ${fmt(daVedere)}`, 'verde', () => azione('vedo'),
+            {grande(fichesMie < daVedere ? `Copro con tutto ${fmt(fichesMie)}` : `Copro ${cosa} ${fmt(daVedere)}`, 'verde', () => azione('vedo'),
               giaMesso ? `Aggiungi ${fmt(daVedere)} e resti in gioco` : 'Metti la stessa cifra e resti in gioco')}
           </div>
         </div>
@@ -533,7 +537,7 @@ export default function Gioco({ tavolo, giocatori, io, usciti = [], bot = new Se
 
   // Pre-azioni: quando non è il tuo turno puoi scegliere in anticipo cosa fare
   function preAzioni() {
-    const fasiPuntata = ['apertura', 'primo_giro', 'secondo_giro']
+    const fasiPuntata = ['apertura', 'primo_giro', 'secondo_giro', 'telesina']
     if (!fasiPuntata.includes(mano.fase)) return null
     const scelte = mano.fase === 'apertura'
       ? [['passo', 'Passo']]
@@ -548,7 +552,7 @@ export default function Gioco({ tavolo, giocatori, io, usciti = [], bot = new Se
           <label key={tipo} className={`pre-scelta${attiva(tipo) ? ' attiva' : ''}`}>
             <input type="checkbox" checked={attiva(tipo)}
               onChange={(e) => setPre(e.target.checked
-                ? { tipo, mano: mano.id, fase: mano.fase, daVedere, puntata: mano.puntata }
+                ? { tipo, mano: mano.id, fase: mano.fase, giro: mano.giro, daVedere, puntata: mano.puntata }
                 : null)} />
             {testo}
           </label>
@@ -558,6 +562,8 @@ export default function Gioco({ tavolo, giocatori, io, usciti = [], bot = new Se
   }
 
   const fase = !mano ? '' : {
+    scelta: 'Il mazziere sceglie il gioco',
+    telesina: mano.giro === 5 ? 'Telesina: giro della vela' : `Telesina: ${mano.giro}° giro di puntate`,
     buio: 'Buio: prima di vedere le carte',
     apertura: `Apertura: serve almeno una coppia di ${COPPIA[mano.requisito]}`,
     primo_giro: 'Primo giro di puntate',
@@ -586,8 +592,8 @@ export default function Gioco({ tavolo, giocatori, io, usciti = [], bot = new Se
             {mano && !conclusa && diTurno && (
               <p className={`turno${mioTurno ? ' mio' : ''}`} role="status">
                 {mioTurno
-                  ? (mano.fase === 'cambio' ? 'Tocca a te: scegli le carte da cambiare' : 'Tocca a te')
-                  : `Tocca a ${nomeDi(diTurno.giocatore_id)}`}
+                  ? (mano.fase === 'cambio' ? 'Tocca a te: scegli le carte da cambiare' : mano.fase === 'scelta' ? 'Tocca a te: scegli il gioco' : 'Tocca a te')
+                  : mano.fase === 'scelta' ? `${nomeDi(diTurno.giocatore_id)} sceglie il gioco` : `Tocca a ${nomeDi(diTurno.giocatore_id)}`}
               </p>
             )}
 
@@ -598,14 +604,6 @@ export default function Gioco({ tavolo, giocatori, io, usciti = [], bot = new Se
             )}
 
             {azioni()}
-
-            {/* Vardis in esaurimento: avviso con la posta a portata di mano */}
-            {!devoPrenderePosta && posteInArrivo === 0 && fichesMie < SOGLIA_AVVISO_FICHES && (
-              <button type="button" className="prossima-mano" disabled={attesa}
-                onClick={() => rpc('prendi_posta', { p_tavolo: tavolo.id })}>
-                ⚠️ Stai finendo i Vardis ({fmt(fichesMie)}) <span className="prossima-subito">· tocca per prendere un’altra posta{conclusa ? '' : ' a fine mano'}</span>
-              </button>
-            )}
 
             {/* Esito della mano: chi ha vinto, con cosa e quanto */}
             {conclusa && mano && (() => {
@@ -644,19 +642,6 @@ export default function Gioco({ tavolo, giocatori, io, usciti = [], bot = new Se
                   : 'Tempo scaduto: l’organizzatore sta decidendo se continuare o terminare.'}
               </p>
             )}
-
-            {/* Prima della distribuzione: chi non ha fiches deve prendere una posta, altrimenti non si gioca */}
-            {conclusa && !tempoScaduto && !inPausa && senzaFiches.length > 0 && (devoPrenderePosta
-              ? (
-                <button type="button" className="prossima-mano" disabled={attesa}
-                  onClick={() => rpc('prendi_posta', { p_tavolo: tavolo.id })}>
-                  Non hai abbastanza fiches per la prossima mano <span className="prossima-subito">· tocca per prendere un’altra posta ({fmt(tavolo.valore_posta)})</span>
-                </button>
-              ) : (
-                <p className="prossima-mano" role="status">
-                  In attesa che {senzaFiches.map(nomeDi).join(' e ')} {senzaFiches.length === 1 ? 'prenda' : 'prendano'} un’altra posta
-                </p>
-              ))}
 
             {conclusa && traSecondi !== null && !tempoScaduto && (
               // Si può toccare per partire subito; se un altro l'ha già fatto, il server non ne distribuisce due

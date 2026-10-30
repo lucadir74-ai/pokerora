@@ -1496,3 +1496,21 @@ button.collegamento-video { border: 0; cursor: pointer; font: inherit; font-size
 .avatar.avatar-video { width: clamp(58px, 15cqw, 92px); }
 @media (min-width: 960px) { .avatar.avatar-video { width: clamp(64px, 7cqw, 110px); } }
 .pov .avatar.avatar-video { width: 3.6rem; margin-block: -0.9rem; position: relative; z-index: 1; }
+
+/* ── Telesina ── */
+/* Carte degli altri: una coperta e le scoperte, piccole, verso il centro */
+.mano-telesina { align-items: center; }
+.mano-telesina .dorso { width: clamp(18px, 3.7cqw, 34px); border-width: 1px; }
+@media (max-width: 639px) { .mano-telesina .dorso { width: clamp(16px, 5.4cqw, 30px); } }
+.mano-telesina.piegata { opacity: 0.25; }
+/* La mia carta coperta: la vedo solo io */
+.carta-gioco.coperta-mia { position: relative; outline: 2px dashed rgba(16, 32, 24, 0.55); outline-offset: -4px; }
+.carta-gioco .cg-coperta {
+  position: absolute; left: 50%; bottom: 3px; transform: translateX(-50%);
+  font-size: 0.55em; line-height: 1; padding: 1px 4px; border-radius: 3px;
+  background: rgba(16, 32, 24, 0.75); color: #f3efe2; text-transform: uppercase; letter-spacing: 0.04em;
+}
+/* La vela al centro del tavolo */
+.mazzetto.vela { display: inline-flex; flex-direction: column; align-items: center; gap: 2px; }
+.mazzetto.vela .carta-gioco.piccola { width: clamp(22px, 4.6cqw, 40px); height: auto; aspect-ratio: 5 / 7; padding: 2px 3px; }
+.vela-nome { font-size: clamp(0.6rem, 1.8cqw, 0.85rem); color: #e9f2ec; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6); }

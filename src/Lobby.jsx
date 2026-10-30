@@ -131,6 +131,14 @@ const REGOLE = [
       <p>Se tutti dicono parola la mano si annulla: il piatto resta, la mano dopo si apre con coppia di re e senza buio. Chi era uscito al primo giro, per rientrare, versa la differenza.</p>
     </>
   )],
+  ['Telesina (o Teresina)', (
+    <>
+      <p>Se il tavolo la ammette, a ogni mano il mazziere sceglie se giocare a poker all’italiana o a Telesina. Il mazzo, l’invito e i punti sono gli stessi.</p>
+      <p>Ognuno riceve una carta coperta e una scoperta. Dopo ogni giro di puntate arriva un’altra carta scoperta, fino ad averne 4 scoperte e 1 coperta: in tutto 4 giri. Non ci sono buio, apertura, cambio e parola.</p>
+      <p>In ogni giro parla per primo chi ha il punto migliore tra le carte scoperte (contano poker, tris, doppia coppia, coppia e carta alta; a parità le carte successive e poi il seme). Si bussa o si punta; dopo una puntata si vede, si rilancia o si lascia.</p>
+      <p>Con la vela, se il tavolo la ammette, al centro c’è una carta comune coperta: si gira dopo il quarto giro e si fa un ultimo giro di puntate. Al confronto ognuno usa le migliori 5 carte su 6.</p>
+    </>
+  )],
   ['Poste e Vardis', (
     <p>Non si gioca con soldi veri. A inizio partita ognuno riceve una posta in Vardis, divisa in fiches. Se finisci le fiches prendi un’altra posta: resta tutto nel report del tavolo, con il saldo di ognuno.</p>
   )],
@@ -196,13 +204,13 @@ export default function Lobby({ io }) {
       }
       setChat(ultime.slice(0, 5))
 
-      // Inviti ancora validi: tavolo in sala d'attesa o in corso, con posti liberi, dove non sono già seduto
+      // Inviti ancora validi: tavolo in sala d'attesa, con posti liberi, dove non sono già seduto
       const ricevuti = (msg ?? []).filter((m) => m.destinatario === io.id && m.codice_invito)
       const codici = [...new Set(ricevuti.map((m) => m.codice_invito))].slice(0, 6)
       const info = await Promise.all(codici.map(async (c) => {
         const { data } = await supabase.rpc('info_invito', { p_codice: c })
         const t = data?.[0]
-        if (!t || t.stato === 'chiuso' || t.gia_seduto || t.occupati >= t.posti) return null
+        if (!t || t.stato !== 'attesa' || t.gia_seduto || t.occupati >= t.posti) return null
         const da = ricevuti.find((m) => m.codice_invito === c)
         return { codice: c, ...t, da: nick[da?.mittente] ?? t.organizzatore }
       }))
