@@ -68,6 +68,33 @@ begin
   per_mano as (
     select mano, bool_and(uno_alla_volta) as uno, bool_and(a_blocchi) as blocchi from dist group by mano
   ),
+  -- Pescate dopo il cambio: dopo le 5n carte iniziali, chi cambia (in ordine dalla sinistra del mazziere)
+  -- riceve subito fino a 3 carte; le carte oltre la terza arrivano dopo, sempre nello stesso ordine.
+  pesc as (
+    select d.*,
+      least(coalesce(cambio, 0), 3) as imm,
+      greatest(coalesce(cambio, 0) - 3, 0) as pen,
+      coalesce(sum(least(coalesce(cambio, 0), 3)) over (partition by mano order by rk
+               rows between unbounded preceding and 1 preceding), 0) as off_imm,
+      coalesce(sum(least(coalesce(cambio, 0), 3)) over (partition by mano), 0) as tot_imm,
+      coalesce(sum(greatest(coalesce(cambio, 0) - 3, 0)) over (partition by mano order by rk
+               rows between unbounded preceding and 1 preceding), 0) as off_pen,
+      coalesce(sum(coalesce(cambio, 0)) over (partition by mano), 0) as tot_cambi
+    from dist d
+    where d.fase = 'finita' and cardinality(d.carte) = 5
+  ),
+  pesc2 as (
+    select pesc.*,
+      array(select x from unnest(carte) x where x <> all(ci) order by x) as nuove,
+      array(select x from unnest(
+              mi[n * 5 + off_imm + 1 : n * 5 + off_imm + imm]
+              || mi[n * 5 + tot_imm + off_pen + 1 : n * 5 + tot_imm + off_pen + pen]) x order by x) as attese
+    from pesc
+    where tot_cambi <= nc - n * 5      -- se il mazzo finiva, gli scarti si rimescolavano: non verificabile
+  ),
+  pesc_mano as (
+    select mano, bool_and(nuove = attese) as ok from pesc2 group by mano
+  ),
   doppie as (
     select mano, count(*) - count(distinct c) as d
       from dist, unnest(carte) c group by mano
@@ -112,11 +139,16 @@ begin
     'dist_una_alla_volta', (select count(*) from per_mano where uno),
     'dist_a_blocchi', (select count(*) from per_mano where blocchi),
     'mani_con_carte_doppie', (select count(*) from doppie where d > 0),
+    'mani_pescate', (select count(*) from pesc_mano),
+    'pescate_ok', (select count(*) from pesc_mano where ok),
+    'pescate_anomale', coalesce((select jsonb_agg(m.numero order by m.numero)
+                                   from pesc_mano p join public.mani m on m.id = p.mano where not p.ok), '[]'::jsonb),
     'giocatori', coalesce((
       select jsonb_agg(jsonb_build_object(
         'nickname', public.nick(a.giocatore_id), 'al_proprio_tavolo', a.org, 'mani', a.mani,
         'punto_medio', a.punto_medio,
-        'dc_n', a.dc_n, 'dc_ok', a.dc_ok, 'dc_att', a.dc_att,
+        'dc_n', a.dc_n, 'dc_ok', a.dc_ok, 'dc_att', a.dc_att, 'dc_var', round(coalesce(a.dc_var, 0)::numeric, 4),
+        'sb_var', round(coalesce(a.sb_var, 0)::numeric, 4),
         'dc_z', case when coalesce(a.dc_var, 0) > 0
                      then round(((a.dc_ok - a.dc_att) / sqrt(a.dc_var))::numeric, 2) end,
         'sb_n', a.sb_n, 'sb_ok', a.sb_ok, 'sb_att', a.sb_att,
