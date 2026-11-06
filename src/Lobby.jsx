@@ -6,6 +6,7 @@ import { vai, messaggioErrore } from './rotte'
 import { durata, ora } from './tempo'
 import { SceltaDurata } from './TimerPartita'
 import { REGOLE_BASE, OPZIONI } from './regole'
+import ReportGestore from './ReportGestore'
 
 const STATI = { attesa: 'In sala d’attesa', in_corso: 'Partita in corso', chiuso: 'Chiuso' }
 const giorno = (t) => new Date(t).toLocaleDateString('it-IT', { day: 'numeric', month: 'short' })
@@ -201,6 +202,10 @@ function GestioneTavoli() {
               </ul>
             )}
           </div>
+        </details>
+        <details>
+          <summary>Report distribuzione (tutte le mani)</summary>
+          <ReportGestore />
         </details>
       </div>
     </section>
