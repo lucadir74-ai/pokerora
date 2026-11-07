@@ -79,7 +79,7 @@ export function descriviRegole(tavolo) {
     'Si apre con almeno una coppia di jack, o 4 carte di fila dello stesso seme senza asso. Se passano tutti: donne, poi re, e si resta al re finché una mano non viene aperta e giocata',
     r.buio === 'no'
       ? 'Niente buio'
-      : 'Buio prima di vedere le carte, solo nelle mani che si aprono ai jack: lo fa il primo dopo il mazziere e vale il piatto; controbuio il doppio, over il doppio del controbuio (anche in 4 giocatori). Chi ha fatto il buio può coprire il controbuio prima delle carte e conserva il diritto di rilanciare. Dopo il cambio l’ultimo buio parla per ultimo. Non si fa dopo una parola',
+      : 'Buio prima di vedere le carte, solo nelle mani che si aprono ai jack: lo fa il primo dopo il mazziere e vale il piatto; controbuio il doppio, over il doppio del controbuio (anche in 4 giocatori). La copertura si chiede dopo l’over, prima delle carte: senza over chi ha fatto il buio può coprire il controbuio, con l’over lo coprono chi ha fatto il controbuio e poi chi ha fatto il buio. Chi copre conserva il diritto di rilanciare. Dopo il cambio l’ultimo buio parla per ultimo. Non si fa dopo una parola',
     'Se tutti dicono parola: il piatto resta, la mano dopo si apre con coppia di re e senza buio',
     'Se dopo una o più parole qualcuno bussa, la parola non vale più: chi l’aveva detta torna a parlare e può puntare o bussare',
     'Il colore batte il full. Semi: cuori, quadri, fiori, picche',
