@@ -7,17 +7,18 @@ import { supabase } from './supabase'
 // insieme non confonde i collegamenti. I miei dispositivi non si collegano tra loro (niente eco).
 // Ogni coppia ha un canale audio e uno video già pronti: accendere o spegnere fotocamera e microfono
 // sostituisce solo la traccia, senza rinegoziare. Fotocamera e microfono partono spenti.
+//
+// Affidabilità: ogni pochi secondi un "controllore" verifica che ci sia un collegamento funzionante con
+// ogni dispositivo presente al tavolo. Se manca, è caduto o non parte, lo rifà da solo:
+// chiama chi ha la sessione minore; l'altro, se resta senza collegamento, gli chiede di richiamarlo.
+// Ogni tentativo ha un codice ("gen"): risposte e candidati di un tentativo vecchio vengono ignorati.
 
-// Server per trovare la strada tra i dispositivi. Il TURN si configura su Vercel con
-// VITE_TURN_URL (anche più indirizzi separati da virgola), VITE_TURN_USER e VITE_TURN_PASS.
-function serverIce() {
-  // Più server STUN, anche sulla porta standard 3478: alcuni router bloccano quella di Google (19302)
-  const lista = [{
-    urls: [
-      'stun:stun.cloudflare.com:3478',
-      'stun:stun.l.google.com:19302',
-    ],
-  }]
+// Server per trovare la strada tra i dispositivi. Il TURN si configura su Vercel in uno di due modi:
+//  - VITE_TURN_URL (anche più indirizzi separati da virgola), VITE_TURN_USER e VITE_TURN_PASS
+//  - VITE_TURN_API: indirizzo che restituisce l'elenco dei server già pronto (es. quello di Metered)
+const STUN = [{ urls: ['stun:stun.cloudflare.com:3478', 'stun:stun.l.google.com:19302'] }]
+function serverFissi() {
+  const lista = [...STUN]
   const url = import.meta.env.VITE_TURN_URL
   if (url) {
     lista.push({
@@ -28,16 +29,35 @@ function serverIce() {
   }
   return lista
 }
+let serverDaApi = null           // promessa: si chiede una volta sola
+function caricaServerIce() {
+  const api = import.meta.env.VITE_TURN_API
+  if (!api) return Promise.resolve(serverFissi())
+  if (!serverDaApi) {
+    serverDaApi = fetch(api)
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error('turn'))))
+      .then((l) => (Array.isArray(l) && l.length ? [...STUN, ...l] : serverFissi()))
+      .catch(() => { serverDaApi = null; return serverFissi() })
+  }
+  return serverDaApi
+}
+const TURN_CONFIGURATO = !!(import.meta.env.VITE_TURN_URL || import.meta.env.VITE_TURN_API)
 
 const VINCOLI_VIDEO = { facingMode: 'user', width: { ideal: 240 }, height: { ideal: 240 }, frameRate: { ideal: 15, max: 20 } }
 const VINCOLI_AUDIO = { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
 const MAX_VIDEO_BPS = 180000            // in 5-6 ognuno invia 4-5 video: si tiene bassa la banda
 const ATTESA_CANDIDATI_MS = 2500        // tempo massimo per raccogliere i candidati prima di inviare offerta/risposta
 const GRAZIA_ASSENZA_MS = 15000         // se la presenza sparisce per un attimo, il collegamento non si chiude subito
+const CONTROLLO_MS = 4000               // ogni quanto il controllore verifica i collegamenti
+const ATTESA_COLLEGAMENTO_MS = 20000    // un collegamento che non parte entro questo tempo si rifà (poi si aspetta di più)
+const ATTESA_DISCONNESSO_MS = 8000      // "disconnected" spesso torna da solo: si aspetta prima di rifare
+const ATTESA_PRIMA_RICHIESTA_MS = 6000  // chi riceve aspetta un po' l'offerta prima di chiedere di essere richiamato
+const INTERVALLO_RICHIESTE_MS = 10000
+const RITARDO_TARDIVI_MS = 400          // i candidati arrivati tardi si mandano a gruppi, non uno alla volta
 
-// I candidati si mandano tutti insieme dentro offerta e risposta (2 messaggi per coppia invece di decine):
-// con 5 giocatori i segnali uno alla volta superavano il limite di messaggi al secondo di Supabase,
-// che a quel punto disconnette e fa perdere candidati.
+// I candidati si mandano quasi tutti insieme dentro offerta e risposta (2 messaggi per coppia invece di decine):
+// con 5 giocatori i segnali uno alla volta superavano il limite di messaggi al secondo di Supabase.
+// Quelli che arrivano dopo (spesso proprio quelli del TURN, i più lenti) si mandano dopo, a gruppi.
 function attendiCandidati(pc) {
   return new Promise((ok) => {
     if (pc.iceGatheringState === 'complete') return ok()
@@ -52,12 +72,14 @@ const contaCandidati = (sdp) => {
   for (const m of (sdp ?? '').matchAll(/a=candidate:.* typ (\w+)/g)) c[m[1]] = (c[m[1]] ?? 0) + 1
   return c
 }
+const nuovoGen = () => Math.random().toString(36).slice(2, 10)
 
 export function useVideoTavolo(tavoloId, mioId, attivo) {
   const [cam, setCam] = useState(false)
   const [mic, setMic] = useState(false)
   const [locale, setLocale] = useState(null)       // anteprima del mio video
-  const [ricevuti, setRicevuti] = useState({})     // sessione → MediaStream ricevuto
+  const [ricevuti, setRicevuti] = useState({})     // sessione → MediaStream ricevuto (video + audio)
+  const [voci, setVoci] = useState({})             // sessione → MediaStream con solo l'audio ricevuto
   const [presenti, setPresenti] = useState({})     // sessione → { id, cam, mic }
   const [errore, setErrore] = useState('')
   const [collegamenti, setCollegamenti] = useState({}) // sessione → stato del collegamento (per capire cosa non va)
@@ -66,7 +88,7 @@ export function useVideoTavolo(tavoloId, mioId, attivo) {
 
   const canale = useRef(null)
   const pcs = useRef(new Map())                    // sessione → RTCPeerConnection
-  const attese = useRef(new Map())                 // sessione → candidati arrivati prima della connessione
+  const attese = useRef(new Map())                 // sessione → candidati arrivati prima della descrizione remota
   const tracce = useRef({ audio: null, video: null })
   const mio = useRef({ cam: false, mic: false })
   const sessione = useRef(`${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`)
@@ -85,14 +107,25 @@ export function useVideoTavolo(tavoloId, mioId, attivo) {
     const me = sessione.current
 
     const assenti = new Map()               // sessione → timer di chiusura per assenza
+    const visti = new Map()                 // sessione → quando l'ho vista arrivare al tavolo
+    const richieste = new Map()             // sessione → quando le ho chiesto di richiamarmi
+    const tentativi = new Map()             // sessione → tentativi andati a vuoto di fila
+    let presentiOra = {}                    // ultima presenza nota (per il controllore)
+    let iceServers = serverFissi()
+    caricaServerIce().then((l) => { iceServers = l })
+
+    const rimuovi = (set, s) => set((f) => { if (!(s in f)) return f; const n = { ...f }; delete n[s]; return n })
     const chiudi = (s) => {
       clearTimeout(assenti.get(s)); assenti.delete(s)
       const pc = pcs.current.get(s)
-      if (pc) { pc.onicecandidate = null; pc.ontrack = null; pc.onconnectionstatechange = null; pc.close() }
+      if (pc) {
+        clearTimeout(pc.pk?.timer)
+        pc.onicecandidate = null; pc.ontrack = null; pc.onconnectionstatechange = null; pc.oniceconnectionstatechange = null
+        pc.close()
+      }
       pcs.current.delete(s)
       attese.current.delete(s)
-      setRicevuti((f) => { if (!(s in f)) return f; const n = { ...f }; delete n[s]; return n })
-      setCollegamenti((f) => { if (!(s in f)) return f; const n = { ...f }; delete n[s]; return n })
+      rimuovi(setRicevuti, s); rimuovi(setVoci, s); rimuovi(setCollegamenti, s)
     }
 
     const attaccaTracce = async (pc) => {
@@ -102,15 +135,19 @@ export function useVideoTavolo(tavoloId, mioId, attivo) {
       }
     }
 
+    // Candidati arrivati prima della descrizione remota: si aggiungono appena è pronta (solo se dello stesso tentativo)
     const svuotaAttese = async (s, pc) => {
       const lista = attese.current.get(s) ?? []
       attese.current.delete(s)
-      for (const c of lista) await pc.addIceCandidate(c).catch(() => {})
+      for (const x of lista) {
+        if (x.gen && pc.pk.gen && x.gen !== pc.pk.gen) continue
+        await pc.addIceCandidate(x.c).catch(() => {})
+      }
     }
 
     // Diagnosi: cosa è successo nel collegamento con ogni dispositivo
     const segna = (s, cambia) => {
-      const d = diag.current.get(s) ?? { offerta: '', risposta: '', ice: '', miei: {}, suoi: {} }
+      const d = diag.current.get(s) ?? { offerta: '', risposta: '', ice: '', miei: {}, suoi: {}, tentativi: 0 }
       cambia(d)
       diag.current.set(s, d)
       setDiagnosi((f) => ({ ...f, [s]: { ...d, miei: { ...d.miei }, suoi: { ...d.suoi } } }))
@@ -128,34 +165,46 @@ export function useVideoTavolo(tavoloId, mioId, attivo) {
       }
     }
 
-    const crea = (s) => {
+    const crea = (s, gen) => {
       chiudi(s)
+      const n = (diag.current.get(s)?.tentativi ?? 0) + 1
       diag.current.delete(s)
-      const pc = new RTCPeerConnection({ iceServers: serverIce() })
+      const pc = new RTCPeerConnection({ iceServers })
+      const ora = Date.now()
+      pc.pk = { gen, nato: ora, cambio: ora, inviato: false, tardivi: [], timer: null }
       pcs.current.set(s, pc)
+      segna(s, (d) => { d.tentativi = n })
       pc.onicecandidate = (e) => {
         if (!e.candidate) return
         const tipo = tipoCandidato(e.candidate)
         segna(s, (d) => { d.miei[tipo] = (d.miei[tipo] ?? 0) + 1 })
+        if (!pc.pk.inviato) return            // finirà dentro offerta o risposta
+        pc.pk.tardivi.push(e.candidate.toJSON())
+        if (pc.pk.timer) return
+        pc.pk.timer = setTimeout(() => {
+          pc.pk.timer = null
+          if (!vivo || pcs.current.get(s) !== pc || !pc.pk.tardivi.length) return
+          invia({ tipo: 'ice', a: s, gen: pc.pk.gen, candidati: pc.pk.tardivi.splice(0) })
+        }, RITARDO_TARDIVI_MS)
       }
       pc.oniceconnectionstatechange = () => { if (pcs.current.get(s) === pc) segna(s, (d) => { d.ice = pc.iceConnectionState }) }
       pc.ontrack = (e) => {
+        if (pcs.current.get(s) !== pc) return
         setRicevuti((f) => {
           const st = f[s] ?? new MediaStream()
           if (!st.getTracks().includes(e.track)) st.addTrack(e.track)
           return { ...f, [s]: st }
         })
+        // L'audio va in un flusso a parte, solo audio: alcuni browser (Safari) non suonano bene un flusso con video in <audio>
+        if (e.track.kind === 'audio') setVoci((f) => ({ ...f, [s]: new MediaStream([e.track]) }))
       }
       setCollegamenti((f) => ({ ...f, [s]: 'new' }))
       pc.onconnectionstatechange = () => {
-        if (pcs.current.get(s) === pc) setCollegamenti((f) => ({ ...f, [s]: pc.connectionState }))
-        if (pc.connectionState === 'connected') limitaBanda(pc)
-        // Collegamento perso: lo ricrea chi ha la sessione "minore" (così non lo ricreano in due).
-        // "disconnected" spesso torna da solo: si aspetta di più prima di rifare tutto.
-        if (['failed', 'disconnected'].includes(pc.connectionState) && pcs.current.get(s) === pc && me < s) {
-          const attesa = pc.connectionState === 'failed' ? 2000 : 8000
-          setTimeout(() => { if (vivo && pcs.current.get(s) === pc && pc.connectionState !== 'connected') chiama(s) }, attesa)
-        }
+        if (pcs.current.get(s) !== pc) return
+        pc.pk.cambio = Date.now()
+        setCollegamenti((f) => ({ ...f, [s]: pc.connectionState }))
+        if (pc.connectionState === 'connected') { limitaBanda(pc); tentativi.delete(s) }
+        if (pc.connectionState === 'failed') setTimeout(controlla, 1000)
       }
       return pc
     }
@@ -163,49 +212,87 @@ export function useVideoTavolo(tavoloId, mioId, attivo) {
     // Chiama chi ha la sessione minore, l'altro risponde: niente chiamate incrociate
     const chiama = async (s) => {
       try {
-        const pc = crea(s)
+        const pc = crea(s, nuovoGen())
         pc.addTransceiver('audio', { direction: 'sendrecv' })
         pc.addTransceiver('video', { direction: 'sendrecv' })
         await attaccaTracce(pc)
         await pc.setLocalDescription(await pc.createOffer())
         await attendiCandidati(pc)
         if (!vivo || pcs.current.get(s) !== pc) return
-        invia({ tipo: 'offerta', a: s, sdp: pc.localDescription.toJSON() })
+        pc.pk.inviato = true
+        invia({ tipo: 'offerta', a: s, gen: pc.pk.gen, sdp: pc.localDescription.toJSON() })
         segna(s, (d) => { d.offerta = 'inviata' })
-      } catch { /* si riprova alla prossima presenza */ }
+      } catch { /* ci riprova il controllore */ }
     }
 
     const segnale = async ({ payload: m }) => {
       if (!vivo || !m || m.a !== me || m.da === me) return
       try {
         if (m.tipo === 'offerta') {
-          const pc = crea(m.da)
-          segna(m.da, (d) => { d.offerta = 'ricevuta' })
-          segna(m.da, (d) => { d.suoi = contaCandidati(m.sdp?.sdp) })
+          const pc = crea(m.da, m.gen ?? null)
+          segna(m.da, (d) => { d.offerta = 'ricevuta'; d.suoi = contaCandidati(m.sdp?.sdp) })
           await pc.setRemoteDescription(m.sdp)
+          await svuotaAttese(m.da, pc)
           for (const t of pc.getTransceivers()) t.direction = 'sendrecv'
           await attaccaTracce(pc)
           await pc.setLocalDescription(await pc.createAnswer())
           await attendiCandidati(pc)
           if (!vivo || pcs.current.get(m.da) !== pc) return
-          invia({ tipo: 'risposta', a: m.da, sdp: pc.localDescription.toJSON() })
+          pc.pk.inviato = true
+          invia({ tipo: 'risposta', a: m.da, gen: pc.pk.gen, sdp: pc.localDescription.toJSON() })
           segna(m.da, (d) => { d.risposta = 'inviata' })
-          await svuotaAttese(m.da, pc)
         } else if (m.tipo === 'risposta') {
           const pc = pcs.current.get(m.da)
-          if (pc && pc.signalingState === 'have-local-offer') {
-            segna(m.da, (d) => { d.risposta = 'ricevuta'; d.suoi = contaCandidati(m.sdp?.sdp) })
-            await pc.setRemoteDescription(m.sdp)
-            await svuotaAttese(m.da, pc)
-          }
+          if (!pc || pc.signalingState !== 'have-local-offer') return
+          if (m.gen && pc.pk.gen !== m.gen) return            // risposta a un tentativo vecchio
+          segna(m.da, (d) => { d.risposta = 'ricevuta'; d.suoi = contaCandidati(m.sdp?.sdp) })
+          await pc.setRemoteDescription(m.sdp)
+          await svuotaAttese(m.da, pc)
         } else if (m.tipo === 'ice') {
-          const tipo = tipoCandidato(m.candidate)
-          if (pcs.current.has(m.da)) segna(m.da, (d) => { d.suoi[tipo] = (d.suoi[tipo] ?? 0) + 1 })
+          const lista = m.candidati ?? (m.candidate ? [m.candidate] : [])
           const pc = pcs.current.get(m.da)
-          if (pc && pc.remoteDescription) await pc.addIceCandidate(m.candidate).catch(() => {})
-          else attese.current.set(m.da, [...(attese.current.get(m.da) ?? []), m.candidate])
+          if (pc && m.gen && pc.pk.gen && pc.pk.gen !== m.gen) return   // candidati di un tentativo vecchio
+          if (pc) segna(m.da, (d) => { for (const c of lista) { const t = tipoCandidato(c); d.suoi[t] = (d.suoi[t] ?? 0) + 1 } })
+          if (pc && pc.remoteDescription) {
+            for (const c of lista) await pc.addIceCandidate(c).catch(() => {})
+          } else {
+            attese.current.set(m.da, [...(attese.current.get(m.da) ?? []), ...lista.map((c) => ({ gen: m.gen, c }))])
+          }
+        } else if (m.tipo === 'richiesta') {
+          // L'altro non ha un collegamento funzionante con me e tocca a me chiamare
+          const v = presentiOra[m.da]
+          if (me > m.da || (v && v.id === mioId)) return
+          const pc = pcs.current.get(m.da)
+          if (pc && pc.connectionState !== 'failed' && Date.now() - pc.pk.nato < ATTESA_PRIMA_RICHIESTA_MS) return
+          chiama(m.da)
         }
-      } catch { /* un segnale andato storto non blocca il tavolo */ }
+      } catch { /* un segnale andato storto non blocca il tavolo: ci riprova il controllore */ }
+    }
+
+    // Il controllore: per ogni dispositivo presente, se il collegamento manca, è caduto o non parte, lo rifà
+    const controlla = () => {
+      if (!vivo) return
+      const ora = Date.now()
+      for (const [s, v] of Object.entries(presentiOra)) {
+        if (s === me || v.id === mioId) continue
+        const pc = pcs.current.get(s)
+        const st = pc?.connectionState
+        if (st === 'connected') continue
+        const n = tentativi.get(s) ?? 0
+        let rifare
+        if (!pc) rifare = me < s || ora - (visti.get(s) ?? ora) > ATTESA_PRIMA_RICHIESTA_MS
+        else if (st === 'failed' || st === 'closed') rifare = true
+        else if (st === 'disconnected') rifare = ora - pc.pk.cambio > ATTESA_DISCONNESSO_MS
+        else rifare = ora - pc.pk.nato > ATTESA_COLLEGAMENTO_MS + Math.min(n, 4) * 10000
+        if (!rifare) continue
+        if (me < s) {
+          if (pc) tentativi.set(s, n + 1)
+          chiama(s)
+        } else if (ora - (richieste.get(s) ?? 0) > INTERVALLO_RICHIESTE_MS) {
+          richieste.set(s, ora)
+          invia({ tipo: 'richiesta', a: s })
+        }
+      }
     }
 
     const presenza = () => {
@@ -216,9 +303,13 @@ export function useVideoTavolo(tavoloId, mioId, attivo) {
           if (v?.id && v?.sessione) nuovi[v.sessione] = { id: v.id, cam: !!v.cam, mic: !!v.mic }
         }
       }
+      presentiOra = nuovi
       setPresenti(nuovi)
+      const ora = Date.now()
+      for (const s of [...visti.keys()]) if (!(s in nuovi)) visti.delete(s)
       for (const [s, v] of Object.entries(nuovi)) {
         if (s === me || v.id === mioId) continue          // non mi collego a me stesso né ai miei altri dispositivi
+        if (!visti.has(s)) visti.set(s, ora)
         clearTimeout(assenti.get(s)); assenti.delete(s)
         if (me < s && !pcs.current.has(s)) chiama(s)
       }
@@ -239,16 +330,26 @@ export function useVideoTavolo(tavoloId, mioId, attivo) {
     canale.current = ch
     ch.on('broadcast', { event: 'segnale' }, segnale)
       .on('presence', { event: 'sync' }, presenza)
-      .subscribe((st) => { if (st === 'SUBSCRIBED') annunciaStato() })
+      .subscribe((st) => { if (st === 'SUBSCRIBED') { annunciaStato(); setTimeout(controlla, 1500) } })
+
+    // Controllo periodico, e subito quando si torna sulla pagina o la rete torna
+    const giro = setInterval(controlla, CONTROLLO_MS)
+    const torna = () => { if (document.visibilityState === 'visible') controlla() }
+    document.addEventListener('visibilitychange', torna)
+    window.addEventListener('online', controlla)
 
     return () => {
       vivo = false
+      clearInterval(giro)
+      document.removeEventListener('visibilitychange', torna)
+      window.removeEventListener('online', controlla)
       for (const t of assenti.values()) clearTimeout(t)
       for (const s of [...pcs.current.keys()]) chiudi(s)
       for (const t of Object.values(tracce.current)) t?.stop()
       tracce.current = { audio: null, video: null }
       mio.current = { cam: false, mic: false }
       setCam(false); setMic(false); setLocale(null); setPresenti({}); setCollegamenti({}); setDiagnosi({})
+      setRicevuti({}); setVoci({})
       diag.current.clear()
       supabase.removeChannel(ch)
       canale.current = null
@@ -269,13 +370,15 @@ export function useVideoTavolo(tavoloId, mioId, attivo) {
         stato: c === 'connected' ? 'connected' : prima.stato === 'connected' ? 'connected' : (c ?? prima.stato),
       }
       if (ricevuti[s] && (v.cam || !flussi[v.id])) flussi[v.id] = ricevuti[s]
-      if (v.mic && ricevuti[s]) audio.push({ chiave: s, stream: ricevuti[s] })
+      // L'audio di ogni collegamento resta sempre pronto (anche col microfono spento, che manda silenzio):
+      // così, una volta sbloccato dal browser, non va risbloccato ogni volta che qualcuno accende il microfono.
+      if (voci[s]) audio.push({ chiave: s, stream: voci[s] })
       dettagli[v.id] = [...(dettagli[v.id] ?? []), {
         sessione: s, chiamo: sessione.current < s, collegamento: collegamenti[s] ?? 'nessuno', ...(diagnosi[s] ?? {}),
       }]
     }
     return { flussi, stati, audio, doppio, dettagli }
-  }, [presenti, ricevuti, collegamenti, diagnosi, mioId])
+  }, [presenti, ricevuti, voci, collegamenti, diagnosi, mioId])
 
   // Sostituisce la traccia (o la toglie) in tutti i collegamenti aperti
   const sostituisci = async (tipo, traccia) => {
@@ -341,6 +444,6 @@ export function useVideoTavolo(tavoloId, mioId, attivo) {
   return {
     cam, mic, locale, flussi, stati, audio, doppio, errore, alternaCam, alternaMic,
     dettagli, diagnosiDi, mostraDiagnosi: setDiagnosiDi,
-    turn: !!import.meta.env.VITE_TURN_URL,
+    turn: TURN_CONFIGURATO,
   }
 }

@@ -18,18 +18,43 @@ export function VideoCerchio({ stream, specchio = false, className = '', titolo 
   )
 }
 
-// L'audio degli altri giocatori. Se il browser blocca l'audio automatico, compare un tasto per sbloccarlo.
+// L'audio degli altri giocatori. I browser bloccano l'audio automatico finché non si tocca la pagina,
+// e i telefoni (soprattutto iPhone) a volte lo mettono in pausa da soli, per esempio quando si accende il microfono.
+// Per questo: si riprova a ogni tocco sulla pagina e ogni pochi secondi; se resta bloccato compare il tasto.
 export function AudioRemoti({ audio }) {
+  const contenitore = useRef(null)
   const [bloccato, setBloccato] = useState(false)
-  const [prova, setProva] = useState(0)
-  const blocca = useCallback(() => setBloccato(true), [])
+
+  const suonaTutti = useCallback(async () => {
+    const el = contenitore.current
+    if (!el) return
+    const fermi = [...el.querySelectorAll('audio')].filter((a) => a.srcObject && a.paused)
+    if (!fermi.length) { setBloccato(false); return }
+    const esiti = await Promise.all(fermi.map((a) => a.play().then(() => true, () => false)))
+    setBloccato(esiti.some((ok) => !ok))
+  }, [])
+
+  // Appena cambia l'elenco (qualcuno entra, esce o si ricollega) si prova a far partire l'audio
+  useEffect(() => { suonaTutti() }, [audio, suonaTutti])
+
+  useEffect(() => {
+    const giro = setInterval(suonaTutti, 3000)
+    const tocco = () => { suonaTutti() }
+    const eventi = ['pointerdown', 'touchend', 'keydown']
+    for (const e of eventi) document.addEventListener(e, tocco, { capture: true, passive: true })
+    return () => {
+      clearInterval(giro)
+      for (const e of eventi) document.removeEventListener(e, tocco, { capture: true })
+    }
+  }, [suonaTutti])
+
   return (
     <>
-      {audio.map((a) => (
-        <AudioUno key={a.chiave} stream={a.stream} prova={prova} onBloccato={blocca} />
-      ))}
+      <span ref={contenitore} className="audio-remoti">
+        {audio.map((a) => <AudioUno key={a.chiave} stream={a.stream} />)}
+      </span>
       {bloccato && audio.length > 0 && (
-        <button type="button" className="sblocca-audio" onClick={() => { setBloccato(false); setProva((n) => n + 1) }}>
+        <button type="button" className="sblocca-audio" onClick={suonaTutti}>
           🔈 Tocca per sentire gli altri
         </button>
       )}
@@ -37,14 +62,12 @@ export function AudioRemoti({ audio }) {
   )
 }
 
-function AudioUno({ stream, prova, onBloccato }) {
+function AudioUno({ stream }) {
   const ref = useRef(null)
   useEffect(() => {
     const a = ref.current
-    if (!a) return
-    if (a.srcObject !== stream) a.srcObject = stream
-    a.play?.().catch(() => onBloccato())
-  }, [stream, prova, onBloccato])
+    if (a && a.srcObject !== stream) a.srcObject = stream
+  }, [stream])
   return <audio ref={ref} autoPlay playsInline />
 }
 
@@ -81,6 +104,7 @@ export function DiagnosiVideo({ video, nome }) {
         {righe.map((r) => (
           <dl key={r.sessione} className="diag-dati">
             <div><dt>Chi chiama</dt><dd>{r.chiamo ? 'io' : 'lui'}</dd></div>
+            <div><dt>Tentativo</dt><dd>{r.tentativi || '—'}</dd></div>
             <div><dt>Offerta</dt><dd>{r.offerta || '—'}</dd></div>
             <div><dt>Risposta</dt><dd>{r.risposta || '—'}</dd></div>
             <div><dt>Collegamento</dt><dd>{r.collegamento}</dd></div>
