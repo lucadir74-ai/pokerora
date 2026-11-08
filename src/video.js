@@ -13,9 +13,10 @@ import { supabase } from './supabase'
 // chiama chi ha la sessione minore; l'altro, se resta senza collegamento, gli chiede di richiamarlo.
 // Ogni tentativo ha un codice ("gen"): risposte e candidati di un tentativo vecchio vengono ignorati.
 
-// Server per trovare la strada tra i dispositivi. Il TURN si configura su Vercel in uno di due modi:
-//  - VITE_TURN_URL (anche più indirizzi separati da virgola), VITE_TURN_USER e VITE_TURN_PASS
-//  - VITE_TURN_API: indirizzo che restituisce l'elenco dei server già pronto (es. quello di Metered)
+// Server per trovare la strada tra i dispositivi. Il TURN arriva da Cloudflare tramite la funzione
+// Supabase "turn" (supabase/functions/turn): credenziali temporanee, le chiavi restano sul server.
+// Se la funzione non c'è o non risponde, si usa (se impostato su Vercel) un TURN fisso:
+// VITE_TURN_URL (anche più indirizzi separati da virgola), VITE_TURN_USER e VITE_TURN_PASS.
 const STUN = [{ urls: ['stun:stun.cloudflare.com:3478', 'stun:stun.l.google.com:19302'] }]
 function serverFissi() {
   const lista = [...STUN]
@@ -29,19 +30,26 @@ function serverFissi() {
   }
   return lista
 }
-let serverDaApi = null           // promessa: si chiede una volta sola
+const TURN_FISSO = !!import.meta.env.VITE_TURN_URL
+const ORA_MS = 3600000
+let cacheIce = null              // { promessa, scade }: si chiede di rado, non a ogni collegamento
+// Restituisce { lista, fonte }: fonte è 'cloudflare', 'fisso' (variabili Vercel) oppure '' (solo STUN)
 function caricaServerIce() {
-  const api = import.meta.env.VITE_TURN_API
-  if (!api) return Promise.resolve(serverFissi())
-  if (!serverDaApi) {
-    serverDaApi = fetch(api)
-      .then((r) => (r.ok ? r.json() : Promise.reject(new Error('turn'))))
-      .then((l) => (Array.isArray(l) && l.length ? [...STUN, ...l] : serverFissi()))
-      .catch(() => { serverDaApi = null; return serverFissi() })
-  }
-  return serverDaApi
+  if (cacheIce && Date.now() < cacheIce.scade) return cacheIce.promessa
+  const voce = { scade: Date.now() + 60000, promessa: null }
+  voce.promessa = supabase.functions.invoke('turn')
+    .then(({ data, error }) => {
+      if (error || !Array.isArray(data) || !data.length) throw new Error('turn')
+      voce.scade = Date.now() + 6 * ORA_MS          // le credenziali valgono 24 ore: si rinnovano ben prima
+      return { lista: [...STUN, ...data], fonte: 'cloudflare' }
+    })
+    .catch(() => {
+      voce.scade = Date.now() + 5 * 60000           // funzione assente o in errore: si riprova tra 5 minuti
+      return { lista: serverFissi(), fonte: TURN_FISSO ? 'fisso' : '' }
+    })
+  cacheIce = voce
+  return voce.promessa
 }
-const TURN_CONFIGURATO = !!(import.meta.env.VITE_TURN_URL || import.meta.env.VITE_TURN_API)
 
 const VINCOLI_VIDEO = { facingMode: 'user', width: { ideal: 240 }, height: { ideal: 240 }, frameRate: { ideal: 15, max: 20 } }
 const VINCOLI_AUDIO = { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
@@ -84,6 +92,7 @@ export function useVideoTavolo(tavoloId, mioId, attivo) {
   const [errore, setErrore] = useState('')
   const [collegamenti, setCollegamenti] = useState({}) // sessione → stato del collegamento (per capire cosa non va)
   const [diagnosi, setDiagnosi] = useState({})         // sessione → dettagli tecnici del collegamento
+  const [turn, setTurn] = useState(null)               // da dove arriva il TURN: 'cloudflare', 'fisso', '' (nessuno), null (non ancora noto)
   const diag = useRef(new Map())
 
   const canale = useRef(null)
@@ -112,7 +121,12 @@ export function useVideoTavolo(tavoloId, mioId, attivo) {
     const tentativi = new Map()             // sessione → tentativi andati a vuoto di fila
     let presentiOra = {}                    // ultima presenza nota (per il controllore)
     let iceServers = serverFissi()
-    caricaServerIce().then((l) => { iceServers = l })
+    const aggiornaIce = () => caricaServerIce().then(({ lista, fonte }) => {
+      if (!vivo) return
+      iceServers = lista
+      setTurn(fonte)
+    })
+    aggiornaIce()
 
     const rimuovi = (set, s) => set((f) => { if (!(s in f)) return f; const n = { ...f }; delete n[s]; return n })
     const chiudi = (s) => {
@@ -272,6 +286,7 @@ export function useVideoTavolo(tavoloId, mioId, attivo) {
     // Il controllore: per ogni dispositivo presente, se il collegamento manca, è caduto o non parte, lo rifà
     const controlla = () => {
       if (!vivo) return
+      aggiornaIce()                         // di solito risponde subito dalla memoria; rinnova le credenziali quando serve
       const ora = Date.now()
       for (const [s, v] of Object.entries(presentiOra)) {
         if (s === me || v.id === mioId) continue
@@ -444,6 +459,6 @@ export function useVideoTavolo(tavoloId, mioId, attivo) {
   return {
     cam, mic, locale, flussi, stati, audio, doppio, errore, alternaCam, alternaMic,
     dettagli, diagnosiDi, mostraDiagnosi: setDiagnosiDi,
-    turn: TURN_CONFIGURATO,
+    turn,
   }
 }

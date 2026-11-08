@@ -99,7 +99,9 @@ export function DiagnosiVideo({ video, nome }) {
     <div className="diag-velo" onClick={() => video.mostraDiagnosi(null)}>
       <div className="diag-finestra" role="dialog" aria-label="Dettagli collegamento video" onClick={(e) => e.stopPropagation()}>
         <h3>Collegamento con {nome(id)}</h3>
-        <p className="diag-nota">TURN: {video.turn ? 'configurato' : 'non configurato'}</p>
+        <p className="diag-nota">TURN: {video.turn === 'cloudflare' ? 'Cloudflare attivo'
+          : video.turn === 'fisso' ? 'server fisso (variabili Vercel)'
+          : video.turn === '' ? 'non configurato' : 'controllo in corso…'}</p>
         {righe.length === 0 && <p>Nessun dispositivo di questo giocatore è collegato al video.</p>}
         {righe.map((r) => (
           <dl key={r.sessione} className="diag-dati">
