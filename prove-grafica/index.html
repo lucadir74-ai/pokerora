@@ -1,0 +1,338 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PokerOra · prove di grafica</title>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#17181b;color:#e8eaed;font-family:'Instrument Sans',system-ui,'Segoe UI',sans-serif}
+#ctl{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center;padding:12px 16px;background:#202226;position:sticky;top:0;z-index:50}
+#ctl label{font-size:13px;display:flex;gap:6px;align-items:center}
+#ctl select,#ctl button{font:inherit;font-size:13px;padding:5px 8px;border-radius:8px;border:1px solid #444;background:#2b2e33;color:#fff}
+#ctl button{background:#e9c46a;color:#1b1d1c;font-weight:700;border:0;cursor:pointer}
+#stage{display:flex;flex-wrap:wrap;gap:22px;padding:18px 16px;align-items:flex-start}
+figure{margin:0}
+figcaption{font-size:13px;margin:0 0 8px;color:#b9bec6}
+figcaption b{color:#fff}
+#esito{margin:0 16px 30px;padding:12px 14px;background:#101113;border-radius:10px;font:12.5px/1.5 ui-monospace,Consolas,monospace;white-space:pre-wrap}
+#esito:empty{display:none}
+#banco{position:absolute;left:-99999px;top:0}
+
+/* ───────── Telefono ───────── */
+.phone{position:relative;display:flex;flex-direction:column;overflow:hidden;border-radius:26px;outline:3px solid #000;
+  background:var(--bg);color:#fff;font-size:13px;
+  --acc:#e9c46a;--ph:36px;--pill:22px}
+.phone[data-col=smeraldo]{--bg:#08130f;--f1:#22805a;--f2:#0e4630;--rim:#0a2a1d}
+.phone[data-col=notte]{--bg:#070b16;--f1:#2a4a8c;--f2:#0f1c40;--rim:#0b1530}
+.phone[data-col=grafite]{--bg:#0b0b0d;--f1:#3b3e45;--f2:#1b1c20;--rim:#111215}
+.phone.d1{--ph:32px;--pill:20px}
+.phone.d2{--ph:28px;--pill:18px}
+
+.top{flex:none;height:40px;display:flex;align-items:center;gap:8px;padding:0 10px}
+.top .ind{font-size:22px;line-height:1;opacity:.8}
+.top .nm{flex:1;min-width:0;display:flex;flex-direction:column;line-height:1.15}
+.top .nm b{font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.top .nm i{font-style:normal;font-size:10.5px;color:#9fb0a5;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.top .chip{flex:none;font-size:11.5px;font-weight:600;padding:4px 9px;border-radius:999px;background:rgba(255,255,255,.08)}
+.top .chip.o{background:var(--acc);color:#1b1d1c}
+
+.tav{position:relative;flex:1;min-height:0}
+.felt{position:absolute;pointer-events:none}
+.felt::after{content:'';position:absolute}
+[data-forma=arena] .felt{inset:0;border-radius:26px;background:radial-gradient(120% 80% at 50% 45%,var(--f1),var(--f2) 75%);box-shadow:inset 0 0 40px rgba(0,0,0,.45)}
+[data-forma=arena] .felt::after{inset:9px;border-radius:19px;border:1px dashed rgba(255,255,255,.14)}
+[data-forma=squircle] .felt{inset:3px 4px;border-radius:54px;border:5px solid var(--rim);background:radial-gradient(110% 75% at 50% 45%,var(--f1),var(--f2) 80%);box-shadow:0 0 0 1px rgba(255,255,255,.10),0 8px 22px rgba(0,0,0,.6),inset 0 0 34px rgba(0,0,0,.5)}
+[data-forma=squircle] .felt::after{inset:9px;border-radius:40px;border:1px solid color-mix(in srgb,var(--acc) 45%,transparent)}
+[data-forma=linea] .felt{inset:5px;border-radius:38px;border:1.5px solid color-mix(in srgb,var(--acc) 70%,transparent);background:radial-gradient(90% 60% at 50% 48%,color-mix(in srgb,var(--f1) 55%,transparent),transparent 78%);box-shadow:0 0 18px color-mix(in srgb,var(--acc) 22%,transparent),inset 0 0 18px color-mix(in srgb,var(--acc) 10%,transparent)}
+
+.row{position:absolute;display:flex}
+.row.jl{justify-content:flex-start}.row.jc{justify-content:center}.row.jr{justify-content:flex-end}
+
+/* Targhetta del giocatore */
+.pl{height:var(--ph);width:100%;display:flex;align-items:center;gap:6px;padding:0 8px 0 3px;border-radius:999px;
+  background:rgba(8,12,11,.82);border:1px solid rgba(255,255,255,.14);box-shadow:0 2px 6px rgba(0,0,0,.4)}
+.pl .av{position:relative;flex:none;width:calc(var(--ph) - 8px);height:calc(var(--ph) - 8px);border-radius:50%;display:grid;place-items:center;
+  background:linear-gradient(160deg,#5b6b63,#2c3531);font-weight:700;font-size:12px}
+.mz{position:absolute;right:-4px;bottom:-4px;width:14px;height:14px;border-radius:50%;background:#fff;color:#111;font-size:9px;font-weight:700;display:grid;place-items:center}
+.pl .tx{min-width:0;display:flex;flex-direction:column;line-height:1.1}
+.pl .tx b{font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pl .tx i{font-style:normal;font-size:11px;color:var(--acc);font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap}
+.pl.turno{border-color:var(--acc);box-shadow:0 0 0 2px color-mix(in srgb,var(--acc) 35%,transparent),0 0 14px color-mix(in srgb,var(--acc) 45%,transparent)}
+.pl.fold{opacity:.45}
+.pl.win{background:var(--acc);border-color:#fff}.pl.win .tx b{color:#1b1d1c}.pl.win .tx i{color:#1b1d1c}
+.d2 .pl .tx b{font-size:11.5px}.d2 .pl .tx i{font-size:10.5px}
+
+/* Etichetta: ultima azione + puntata, oppure il punto */
+.pill{height:var(--pill);max-width:100%;display:inline-flex;align-items:center;gap:5px;padding:0 9px 0 5px;border-radius:999px;
+  background:rgba(0,0,0,.5);font-size:11.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-variant-numeric:tabular-nums}
+.pill.solo{padding-left:9px}
+.d2 .pill,.stretto .pill{font-size:10.5px;gap:3px;padding:0 6px 0 3px}.d2 .pill.solo,.stretto .pill.solo{padding-left:7px}.d2 .pill.due,.stretto .pill.due{font-size:10.5px;padding:0 6px}
+.stretto .dot{width:11px;height:11px}
+.pill.win{background:var(--acc);color:#1b1d1c}
+.pill.fold{opacity:.55}
+.dot{flex:none;width:13px;height:13px;border-radius:50%;background:#d6423a;border:2px dashed #fff}
+.dot.b{background:#2f6fd6}.dot.g{background:#222}
+
+/* Carte */
+.g{display:flex}
+.c{position:relative;flex:none;width:var(--w);height:calc(var(--w)*1.4);border-radius:calc(var(--w)*.13);
+  background:linear-gradient(160deg,#fff,#f1eee6);color:#17191a;font-size:calc(var(--w)*.46);
+  box-shadow:0 1px 0 rgba(255,255,255,.9) inset,-1px 0 2px rgba(0,0,0,.28),0 2px 5px rgba(0,0,0,.4)}
+.c.r{color:#c9261c}
+.c b{position:absolute;left:8%;top:4%;line-height:1;font-weight:700;letter-spacing:-.07em}
+.c i{position:absolute;left:8%;top:40%;line-height:1;font-style:normal;font-size:.92em}
+.c em{position:absolute;right:7%;bottom:4%;line-height:1;font-style:normal;font-size:1.2em}
+.c.d{background:repeating-linear-gradient(45deg,#8e1f18 0 3px,#a8322a 3px 6px);border:1.5px solid #f4efe4}
+.g.fold{opacity:.3}
+.g.win .c{box-shadow:0 0 0 1.5px var(--acc),0 2px 6px rgba(0,0,0,.5)}
+.mie .c{font-size:calc(var(--w)*.42)}
+.mie .c b{left:9%;top:5%}.mie .c i{left:9%;top:36%}.mie .c em{font-size:1.5em}
+.mie .c.sel{transform:translateY(-8px);box-shadow:0 0 0 2px var(--acc),0 6px 12px rgba(0,0,0,.5)}
+.mie .c.cop::after{content:'coperta';position:absolute;left:0;right:0;bottom:-1px;text-align:center;font-size:9px;font-weight:700;letter-spacing:.03em;
+  color:#fff;background:#1b1d1c;border-radius:0 0 6px 6px;padding:1px 0}
+.mie .c.cop em{bottom:22%}
+
+/* Centro */
+.pot{height:26px;display:inline-flex;align-items:center;gap:6px;padding:0 10px 0 6px;border-radius:999px;background:rgba(0,0,0,.55);border:1px solid color-mix(in srgb,var(--acc) 55%,transparent);font-weight:700;font-size:14px;font-variant-numeric:tabular-nums}
+.pot small{font-weight:500;font-size:10px;color:#b9c4bd;text-transform:uppercase;letter-spacing:.06em}
+.stk{position:relative;width:16px;height:16px}
+.stk::before,.stk::after,.stk span{content:'';position:absolute;left:0;width:16px;height:7px;border-radius:50%;border:1px solid rgba(0,0,0,.5)}
+.stk::before{bottom:0;background:#2f6fd6}.stk span{bottom:4px;background:#d6423a}.stk::after{bottom:8px;background:#e9c46a}
+.vela{display:flex;flex-direction:column;align-items:center;gap:2px}
+.vela small{font-size:9.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--acc)}
+
+/* La mia zona */
+.mio{flex:none;padding:6px 12px 8px;display:flex;flex-direction:column;gap:6px;align-items:center}
+.mio .info{align-self:stretch;height:24px;display:flex;align-items:center;gap:7px}
+.mio .info .av{position:relative;width:22px;height:22px;border-radius:50%;display:grid;place-items:center;background:var(--acc);color:#1b1d1c;font-weight:700;font-size:11px}
+.mio .info b{font-size:13px}.mio .info i{font-style:normal;color:var(--acc);font-weight:600;font-variant-numeric:tabular-nums}
+.mio .info .sp{flex:1}
+.mio .pt{font-size:12px;font-weight:600;padding:3px 10px;border-radius:999px;background:rgba(255,255,255,.1);white-space:nowrap}
+.mio .pt u{text-decoration:none;color:#7ee2a8}
+.mio .turno{font-size:11.5px;font-weight:700;padding:3px 9px;border-radius:999px;background:var(--acc);color:#1b1d1c;white-space:nowrap}
+.mie{gap:6px;padding-top:2px}
+.d1 .mio{padding:4px 12px 6px;gap:4px}.d2 .mio{padding:3px 12px 5px;gap:3px}
+.d2 .mio .info{height:22px}
+
+.az{flex:none;padding:8px 10px 12px;background:rgba(255,255,255,.05);border-top:1px solid rgba(255,255,255,.08);display:flex;flex-direction:column;gap:8px}
+.imp{display:flex;gap:6px;align-items:center;height:32px}
+.imp button,.imp .q{flex:none;height:100%;min-width:32px;border:0;border-radius:10px;background:rgba(255,255,255,.1);color:#fff;font:inherit;font-weight:600;display:grid;place-items:center;padding:0 9px;font-size:12px}
+.imp .val{flex:1;height:100%;border-radius:10px;background:#000;display:grid;place-items:center;font-weight:700;font-size:15px;font-variant-numeric:tabular-nums;min-width:0}
+.bt{display:flex;gap:6px}
+.bt button{flex:1;min-width:0;height:46px;border:0;border-radius:14px;font:inherit;font-weight:700;font-size:14px;color:#fff;white-space:nowrap;padding:0 4px}
+.bt .n{background:rgba(255,255,255,.12)}.bt .v{background:#1f9d63}.bt .o{background:var(--acc);color:#1b1d1c}
+.az .msg{margin:0;height:32px;display:flex;align-items:center;font-size:12.5px;color:#c6d0ca;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.d1 .az{padding:6px 10px 9px;gap:6px}.d1 .bt button{height:42px}.d1 .imp,.d1 .az .msg{height:30px}
+.d2 .az{padding:5px 10px 7px;gap:5px}.d2 .bt button{height:40px;font-size:13.5px}.d2 .imp,.d2 .az .msg{height:28px}
+.pre{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:12px;color:#c6d0ca}
+.pre span{flex:1 1 100%}
+.pre b{flex:1;height:38px;display:grid;place-items:center;border-radius:12px;border:1.5px solid rgba(255,255,255,.22);color:#fff;font-size:13.5px}
+.pre b.on{border-color:var(--acc);background:color-mix(in srgb,var(--acc) 18%,transparent)}
+.pill.due{height:calc(var(--pill) + 8px);white-space:normal;line-height:1.12;border-radius:10px;padding:0 8px;font-size:11px;text-align:center;text-wrap:balance}
+.ko{outline:2px solid #ff3b6b!important;outline-offset:1px}
+</style>
+</head>
+<body>
+<div id="ctl">
+  <label>Colore <select id="col"><option value="smeraldo">Smeraldo</option><option value="notte">Blu notte</option><option value="grafite">Grafite</option></select></label>
+  <label>Gioco <select id="gioco"><option value="base">Poker (5 carte)</option><option value="telesina">Telesina</option></select></label>
+  <label>Fase <select id="fase"><option value="puntate">Puntate (tocca a me)</option><option value="attesa">Puntate (tocca a un altro)</option><option value="cambio">Cambio carte</option><option value="fine">Carte scoperte</option></select></label>
+  <label>Giocatori <select id="n"><option>2</option><option>3</option><option>4</option><option>5</option><option selected>6</option></select></label>
+  <label>Telefono <select id="size"></select></label>
+  <button id="verifica">Verifica tutte le combinazioni</button>
+</div>
+<div id="stage"></div>
+<pre id="esito"></pre>
+<div id="banco"></div>
+<script>
+const SIZES = [[320,568,'piccolo'],[360,560,'Android nel browser'],[360,640,''],[360,740,'Android tipico'],[375,667,'iPhone SE'],[390,750,'iPhone nel browser'],[390,844,'iPhone'],[412,915,'Android grande'],[430,932,'iPhone Max']]
+const FORME = [['arena','A · Arena','panno a tutto schermo, nessun bordo'],['squircle','B · Squircle','tavolo arrotondato con bordo sottile'],['linea','C · Linea','solo un contorno luminoso']]
+const SEMI = { C:'♥', Q:'♦', F:'♣', P:'♠' }
+const fmt = (x) => String(x).replace(/\B(?=(\d{3})+$)/g, '.')
+const AVV = [
+  { n:'Marco', f:2450, h:['KC','KP','7F','4Q','2P'] },
+  { n:'Massimiliano', f:12450, h:['TC','TQ','TF','TP','9C'], mz:1 },
+  { n:'Sara', f:860, h:['AF','QF','9F','5F','3C'] },
+  { n:'Gigi', f:0, h:['JC','JQ','JP','8F','8C'] },
+  { n:'Antonella', f:3120, h:['AP','AC','AQ','6P','TQ'] },
+]
+const MIE = ['AC','KF','KQ','9P','JC']
+const STATI = {
+  puntate: [{ az:'Apro', bet:20 }, { az:'Vedo', bet:20 }, { az:'Lascio', fold:1 }, { az:'Vedo', bet:95 }, { az:'Rilancio', bet:160 }],
+  attesa:  [{ az:'Apro', bet:20 }, { az:'Vedo', bet:20 }, { az:'Lascio', fold:1 }, { az:'Controbuio', bet:40 }, { az:'', turno:1 }],
+  cambio:  [{ az:'Cambia 2' }, { az:'Servito' }, { az:'Lascio', fold:1 }, { az:'Cambia 3' }, { az:'Cambia 1' }],
+  fine:    [{ az:'Scala reale massima' }, { az:'Doppia coppia<br>donne e jack', win:1 }, { az:'Lascio', fold:1 }, { az:'Full di donne e jack' }, { az:'Carta alta: asso' }],
+}
+const SLOT = { 1:['C0'], 2:['L0','R0'], 3:['L1','C0','R1'], 4:['L1','L0','R0','R1'], 5:['L2','L1','C0','R1','R2'] }
+const DENS = [{ ph:36, pill:22, cap:64 }, { ph:32, pill:20, cap:54 }, { ph:28, pill:18, cap:46 }]
+
+function carta(c, w, cls = '') {
+  const v = c[0] === 'T' ? '10' : c[0], r = c[1] === 'C' || c[1] === 'Q'
+  return `<span class="c${r ? ' r' : ''} ${cls}" style="--w:${w}px"><b>${v}</b><i>${SEMI[c[1]]}</i><em>${SEMI[c[1]]}</em></span>`
+}
+const dorso = (w) => `<span class="c d" style="--w:${w}px"></span>`
+const gruppo = (carte, w, step, cls = '') => `<div class="g ov ${cls}">${carte.map((h, k) => k ? h.replace('style="', `style="margin-left:${(step - w).toFixed(1)}px;`) : h).join('')}</div>`
+
+function telefono(o) {
+  const [W, HT] = o.size
+  const el = document.createElement('div')
+  el.className = 'phone' + (W < 350 ? ' stretto' : ''); el.dataset.col = o.col; el.dataset.forma = o.forma
+  el.style.width = W + 'px'; el.style.height = HT + 'px'
+  const tele = o.gioco === 'telesina'
+  const fase = tele && o.fase === 'cambio' ? 'puntate' : o.fase
+  const sub = tele ? (fase === 'fine' ? 'Telesina 2 di 6 · carte scoperte' : 'Telesina 2 di 6 · 4° giro di puntate')
+    : { puntate:'Primo giro di puntate', attesa:'Primo giro di puntate', cambio:'Cambio delle carte', fine:'Mano conclusa' }[fase]
+  const mioPunto = fase === 'fine' ? 'Coppia di re' : tele ? 'Coppia di re' : 'Coppia di re <u>· puoi aprire</u>'
+  const mieCarte = MIE.map((c, k) => carta(c, 0, (tele && k === 0 ? 'cop' : '') + (fase === 'cambio' && (k === 3 || k === 4) ? ' sel' : '')))
+  const az = fase === 'fine' ? `<p class="msg">Massimiliano vince 1.240 con Doppia coppia</p><div class="bt"><button class="o">Prossima mano</button></div>`
+    : fase === 'cambio' ? `<p class="msg">Tocca le carte da scartare (al massimo 4)</p><div class="bt"><button class="o">Cambio 2 carte</button></div>`
+    : fase === 'attesa' ? `<div class="pre"><span>Tocca ad Antonella · quando tocca a te:</span><b>Lascio</b><b class="on">Vedo 140</b></div>`
+    : `<div class="imp"><button>−</button><span class="val">160</span><button>+</button><span class="q">Min</span><span class="q">½</span><span class="q">Piatto</span></div>
+       <div class="bt"><button class="n">Lascio</button><button class="v">Vedo 140</button><button class="o">Rilancio +160</button></div>`
+  el.innerHTML = `
+    <div class="top"><span class="ind">‹</span><span class="nm"><b>Tavolo del venerdì</b><i>${sub}</i></span><span class="chip">⏱ 1:24</span><span class="chip o">+ Posta</span><span class="chip">⋯</span></div>
+    <div class="tav"><div class="felt"></div></div>
+    <div class="mio"><div class="info"><span class="av">L</span><b>Tu</b><i>1.180</i>${fase === 'puntate' || fase === 'cambio' ? '<span class="turno">Tocca a te</span>' : ''}<span class="sp"></span><span class="pt">${mioPunto}</span></div><div class="g mie">${mieCarte.join('')}</div></div>
+    <div class="az">${az}</div>`
+  el._o = { ...o, fase, tele }
+  return el
+}
+
+// Dispone gli elementi del tavolo in pixel. Ritorna false se non ci sta (si prova più compatto).
+function disponi(el, d) {
+  const { n, fase, tele, size:[W] } = el._o
+  const D = DENS[d]
+  el.classList.remove('d0', 'd1', 'd2'); el.classList.add('d' + d)
+  const wm = Math.min(D.cap, (W - 24 - 24) / 5)
+  el.querySelectorAll('.mie .c').forEach((c) => c.style.setProperty('--w', wm.toFixed(1) + 'px'))
+  const tav = el.querySelector('.tav')
+  tav.querySelectorAll('.row').forEach((r) => r.remove())
+  const H = tav.clientHeight
+  const m = 8, pad = 7, sp = 3
+  const cw = Math.min(36, Math.max(26, W * 0.082)), ch = cw * 1.4, step = cw * 0.70
+  const pillH = D.pill + (fase === 'fine' ? 8 : 0)
+  const mw = cw + 4 * step, mh = D.ph + sp + ch + sp + pillH
+  const colW = W - 2 * (m + mw) - 10
+  const nOpp = n - 1, slots = SLOT[nOpp], R = Math.max(...slots.map((s) => +s[1])) + 1
+  const riserva = fase === 'puntate' || fase === 'attesa' ? 30 : 0   // spazio per la mia puntata, in basso al centro
+  const gap = R > 1 ? Math.min(44, (H - 2 * pad - riserva - R * mh) / (R - 1)) : 0
+  let ok = R > 1 ? gap >= 4 : pad + mh <= H - riserva
+  const yR = (r) => pad + r * (mh + gap)
+  let html = ''
+  const riga = (cls, x, y, w, dentro) => { html += `<div class="row j${cls}" style="left:${x.toFixed(1)}px;top:${y.toFixed(1)}px;width:${w.toFixed(1)}px">${dentro}</div>` }
+  // In senso orario partendo da chi siede alla mia sinistra
+  const chi = nOpp === 5 ? [0, 1, 2, 3, 4] : nOpp === 4 ? [0, 1, 3, 4] : nOpp === 3 ? [0, 1, 4] : nOpp === 2 ? [1, 4] : [1]
+  slots.forEach((s, i) => {
+    const a = AVV[chi[i]], st = STATI[fase][chi[i]]
+    const lato = s[0].toLowerCase(), y = yR(+s[1])
+    const x = lato === 'l' ? m : lato === 'r' ? W - m - mw : (W - mw) / 2
+    riga(lato, x, y, mw, `<div class="pl ov${st.turno ? ' turno' : ''}${st.fold ? ' fold' : ''}${st.win ? ' win' : ''}"><span class="av">${a.n[0]}${a.mz ? '<small class="mz">M</small>' : ''}</span><span class="tx"><b>${a.n}</b><i>${st.win ? '+1.240' : a.f ? fmt(a.f) : 'Tutto dentro'}</i></span></div>`)
+    let carte
+    if (fase === 'fine' && !st.fold) carte = gruppo(a.h.map((c) => carta(c, cw)), cw, step, st.win ? 'win' : '')
+    else if (tele) carte = gruppo([dorso(cw), ...a.h.slice(1).map((c) => carta(c, cw))], cw, step, st.fold ? 'fold' : '')
+    else carte = gruppo(Array.from({ length: 5 }, () => dorso(cw)), cw, cw * 0.42, st.fold ? 'fold' : '')
+    riga(lato, x, y + D.ph + sp, mw, carte)
+    const pallino = st.bet ? `<span class="dot${st.bet >= 100 ? ' g' : st.bet >= 50 ? ' b' : ''}"></span>` : ''
+    if (st.az) riga(lato, x, y + D.ph + sp + ch + sp, mw, `<span class="pill ov${fase === 'fine' && !st.fold ? ' due' : ''}${st.bet ? '' : ' solo'}${st.win ? ' win' : ''}${st.fold ? ' fold' : ''}">${pallino}${st.az}${st.bet && fase !== 'fine' ? ' ' + st.bet : ''}</span>`)
+  })
+  // Colonna centrale: vela o mazzo, piatto; in basso la mia puntata
+  const haC = slots.includes('C0')
+  const top = haC ? yR(0) + mh + 8 : pad + 4, bottom = H - 34
+  const cv = cw * 1.12
+  const pezzi = []
+  if (tele) pezzi.push([cv * 1.4 + 14, `<div class="vela ov">${fase === 'fine' ? carta('KP', cv) : dorso(cv)}<small>Vela</small></div>`])
+  pezzi.push([26, `<div class="pot ov" style="max-width:${colW.toFixed(0)}px"><span class="stk"><span></span></span>${fase === 'fine' ? '1.240' : '455'}</div>`])
+  if (!tele && fase !== 'fine') pezzi.push([cw * 1.26, `<div class="g ov" style="gap:6px">${dorso(cw * 0.9)}${fase !== 'cambio' ? '' : dorso(cw * 0.9).replace('style="', 'style="opacity:.75;transform:rotate(8deg);')}</div>`])
+  const tot = pezzi.reduce((s, p) => s + p[0], 0) + (pezzi.length - 1) * 10
+  if (tot > bottom - top) ok = false
+  let y = top + Math.max(0, (bottom - top - tot) / 2)
+  if (!haC && R === 1) y = Math.max(top, yR(0) + mh * 0.5)
+  for (const [h, dentro] of pezzi) { riga('c', 0, y, W, dentro); y += h + 10 }
+  if (fase === 'puntate' || fase === 'attesa') riga('c', 0, H - 28, W, `<span class="pill ov"><span class="dot"></span>Tu 20</span>`)
+  tav.insertAdjacentHTML('beforeend', html)
+  el._m = { d, cw, step, H, gap, wm }
+  return ok
+}
+function monta(el) { for (let d = 0; d < 3; d++) if (disponi(el, d)) return true; return false }
+
+// Controllo: nessun elemento del tavolo si tocca, niente esce, ogni indice di carta resta scoperto
+function controlla(el) {
+  const guai = []
+  const tr = el.querySelector('.tav').getBoundingClientRect(), pr = el.getBoundingClientRect()
+  const els = [...el.querySelectorAll('.tav .ov')], rs = els.map((e) => e.getBoundingClientRect())
+  rs.forEach((a, i) => {
+    if (a.left < tr.left - .5 || a.right > tr.right + .5 || a.top < tr.top - .5 || a.bottom > tr.bottom + .5) { guai.push('fuori dal tavolo: ' + els[i].className); els[i].classList.add('ko') }
+    for (let j = i + 1; j < rs.length; j++) {
+      const b = rs[j]
+      const ix = Math.min(a.right, b.right) - Math.max(a.left, b.left), iy = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top)
+      if (ix > .5 && iy > .5) { guai.push(`sovrapposti: ${els[i].className} / ${els[j].className}`); els[i].classList.add('ko'); els[j].classList.add('ko') }
+    }
+  })
+  let minIdx = 99
+  el.querySelectorAll('.g').forEach((g) => {
+    const cc = [...g.querySelectorAll('.c')]
+    cc.forEach((c, k) => {
+      const b = c.querySelector('b'); if (!b) return
+      minIdx = Math.min(minIdx, parseFloat(getComputedStyle(b).fontSize))
+      const nx = cc[k + 1]; if (!nx) return
+      const lim = nx.getBoundingClientRect().left + .5
+      if (b.getBoundingClientRect().right > lim || c.querySelector('i').getBoundingClientRect().right > lim) { guai.push('indice coperto dalla carta accanto'); c.classList.add('ko') }
+    })
+  })
+  const mie = el.querySelector('.mie').getBoundingClientRect()
+  if (mie.left < pr.left || mie.right > pr.right) guai.push('le mie carte escono dallo schermo')
+  el.querySelectorAll('.bt button,.pill,.pot,.pre b').forEach((b) => { if (b.scrollWidth > b.clientWidth + 1 || b.scrollHeight > b.clientHeight + 1) { guai.push('testo tagliato: ' + b.textContent.trim()); b.classList.add('ko') } })
+  const ultimo = el.querySelector('.az').getBoundingClientRect()
+  if (ultimo.bottom > pr.bottom + .5) guai.push('i comandi escono dallo schermo')
+  return { guai, minIdx }
+}
+
+const $ = (id) => document.getElementById(id)
+const par = new URLSearchParams(location.search)
+SIZES.forEach((s, i) => $('size').add(new Option(`${s[0]}×${s[1]}${s[2] ? ' · ' + s[2] : ''}`, i)))
+$('size').value = 3
+for (const k of ['col', 'gioco', 'fase', 'n', 'size']) if (par.has(k)) $(k).value = par.get(k)
+const stato = () => ({ col: $('col').value, gioco: $('gioco').value, fase: $('fase').value, n: +$('n').value, size: SIZES[+$('size').value] })
+function mostra() {
+  const st = $('stage'); st.innerHTML = ''
+  st.style.zoom = par.get('z') || 1
+  const forme = par.get('forma') ? FORME.filter((f) => par.get('forma').split(',').includes(f[0])) : FORME
+  const viste = par.get('viste') ? par.get('viste').split(';').map((v) => Object.fromEntries(v.split(',').map((x) => x.split(':')))) : [{}]
+  for (const v of viste) for (const [forma, nome, descr] of forme) {
+    const o = { ...stato(), ...v, forma }
+    if (v.n) o.n = +v.n
+    if (v.size) o.size = SIZES[+v.size]
+    const fig = document.createElement('figure')
+    fig.innerHTML = `<figcaption><b>${nome}</b> — ${descr}<br>${o.gioco === 'telesina' ? 'Telesina' : 'Poker'} · ${o.n} giocatori · ${o.size[0]}×${o.size[1]}</figcaption>`
+    const el = telefono(o); fig.append(el); st.append(fig)
+    const ok = monta(el), r = controlla(el)
+    if (!ok || r.guai.length) fig.querySelector('figcaption').innerHTML += `<br><span style="color:#ff7b9a">⚠ ${ok ? '' : 'non ci sta · '}${[...new Set(r.guai)].join(' · ')}</span>`
+  }
+}
+function verificaTutto() {
+  const banco = $('banco'), righe = []; let tot = 0, ko = 0
+  for (const size of SIZES) {
+    let k = 0, c = 0, dmax = 0, idx = 99, striscia = 99; const err = new Set()
+    for (const gioco of ['base', 'telesina']) for (const fase of ['puntate', 'attesa', 'cambio', 'fine']) for (let n = 2; n <= 6; n++) {
+      if (gioco === 'telesina' && fase === 'cambio') continue
+      const el = telefono({ col: 'smeraldo', forma: 'arena', gioco, fase, n, size }); banco.append(el)
+      const ok = monta(el), r = controlla(el); c++
+      dmax = Math.max(dmax, el._m.d); idx = Math.min(idx, r.minIdx); striscia = Math.min(striscia, el._m.step)
+      if (!ok || r.guai.length) { k++; err.add(`${gioco}/${fase}/${n}g: ${ok ? '' : 'non ci sta '}${[...new Set(r.guai)].join(', ')}`) }
+      el.remove()
+    }
+    tot += c; ko += k
+    righe.push(`${(size[0] + '×' + size[1]).padEnd(8)} ${k ? 'KO ' + k + '/' + c : 'OK ' + c + '/' + c}  · carattere minimo indice ${idx.toFixed(1)}px · striscia visibile per carta ${striscia.toFixed(1)}px · compattezza max ${dmax}` + [...err].map((e) => '\n     ✗ ' + e).join(''))
+  }
+  $('esito').textContent = `VERIFICA: ${tot} combinazioni (schermo × gioco × fase × 2–6 giocatori) → ${ko ? ko + ' CON PROBLEMI' : 'nessuna sovrapposizione, nessun testo tagliato'}\n\n` + righe.join('\n')
+  return { tot, ko, righe }
+}
+document.querySelectorAll('#ctl select').forEach((s) => s.addEventListener('change', mostra))
+$('verifica').addEventListener('click', verificaTutto)
+if (par.has('nudo')) $('ctl').style.display = 'none'
+document.fonts.ready.then(() => { mostra(); if (par.has('verifica')) verificaTutto() })
+</script>
+</body>
+</html>
