@@ -31,8 +31,8 @@ function useSpizzata(idMano, carte) {
   return { ordine, viste, aperto, vedi }
 }
 
-// Tasto delle emoticon nell'angolo del tavolo: si apre la tavolozza, un tocco e l'emoticon
-// compare sopra il tuo posto per tutti
+// Tasto delle emoticon accanto al mio nome: si apre la tavolozza, un tocco e l'emoticon
+// compare sul tuo posto per tutti
 function Emoticon({ onReagisci }) {
   const [aperta, setAperta] = useState(false)
   const ref = useRef(null)
@@ -60,176 +60,86 @@ function Emoticon({ onReagisci }) {
   )
 }
 
-// Posizioni in percentuale del tavolo (x sulla larghezza, y sull'altezza)
-const CENTRO = { x: 50, y: 48 }
-const MAZZO = { x: 36, y: 48 }
-const SCARTI = { x: 64, y: 48 }
-// La vela sta al centro, sopra il piatto: di lato finirebbe sotto le carte scoperte dei giocatori
-const VELA = { x: 50, y: 37.5 }
-const verso = (a, b, t) => ({ x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t })
-
-// Senso orario visto dall'alto: io in basso, poi a sinistra, in alto, a destra
-function posizioni(n, stretto, pov = false) {
-  const rx = stretto ? 40 : 45
-  const ry = stretto ? 44 : 45
-  // Prima persona: il mio posto non è sul tavolo, quindi gli altri si distribuiscono su tutto l'arco
-  // da sinistra a destra passando per l'alto; i laterali scendono un po' e usano lo spazio in basso
-  if (pov) {
-    const m = n - 1
-    const da = stretto ? 162 : 168, a_ = stretto ? 378 : 372
-    const cy = stretto ? 47 : 50
-    return [{ x: 50, y: 95 }, ...Array.from({ length: m }, (_, k) => {
-      const g = ((da + (k * (a_ - da)) / Math.max(1, m - 1)) * Math.PI) / 180
-      return { x: 50 + rx * Math.cos(g), y: cy + (stretto ? 41 : ry) * Math.sin(g) }
-    })]
-  }
-  return Array.from({ length: n }, (_, k) => {
-    const a = ((90 + (k * 360) / n) * Math.PI) / 180
-    const x = 50 + rx * Math.cos(a)
-    const y = 50 + ry * Math.sin(a)
-    // Telefono: i posti laterali bassi salgono un po', per non coprire le mie carte
-    return { x, y: stretto && (x < 20 || x > 80) && y > 62 ? 64 : y }
-  })
+const nf = new Intl.NumberFormat('it-IT')
+const AZIONI = {
+  passo: 'Passo', lascio: 'Lascio', vedo: 'Vedo', busso: 'Busso', parol: 'Parola',
+  buio: 'Buio', controbuio: 'Controbuio', over: 'Over', nobuio: 'Niente buio', chiudo: 'Chiudo',
+  apro: 'Apro', punto: 'Punto', rilancio: 'Rilancio', copro: 'Copro',
 }
+const CON_PUNTATA = new Set(['apro', 'vedo', 'rilancio', 'punto', 'buio', 'controbuio', 'over', 'copro'])
+const testoCambio = (n) => (n === 0 ? 'Servito' : `Cambia ${n}`)
 
-// Telefono in verticale: tavolo più alto che largo
-function useStretto() {
-  const q = '(max-width: 639px)'
-  const [stretto, setStretto] = useState(() => window.matchMedia(q).matches)
-  useEffect(() => {
-    const m = window.matchMedia(q)
-    const f = () => setStretto(m.matches)
-    m.addEventListener('change', f)
-    return () => m.removeEventListener('change', f)
-  }, [])
-  return stretto
-}
-
-// Telefono e tablet: visuale in prima persona. Le mie carte e il mio posto non stanno sul tavolo
-// ma davanti, nella barra in basso insieme ai tasti; sul tavolo restano gli altri e la mia puntata.
-function usePov() {
-  const q = '(max-width: 959px)'
-  const [pov, setPov] = useState(() => window.matchMedia(q).matches)
-  useEffect(() => {
-    const m = window.matchMedia(q)
-    const f = () => setPov(m.matches)
-    m.addEventListener('change', f)
-    return () => m.removeEventListener('change', f)
-  }, [])
-  return pov
-}
-
-const TAGLI_DISCENDENTI = [100, 50, 20, 10, 5, 1]
-function pila(importo, max = 7) {
-  const dischi = []
-  let resto = importo
-  for (const t of TAGLI_DISCENDENTI) {
-    while (resto >= t && dischi.length < max) { dischi.push(t); resto -= t }
-  }
-  return dischi.reverse()
-}
-
-function Pila({ importo }) {
-  return (
-    <span className="pila" aria-hidden="true">
-      {pila(importo).map((t, i) => <span key={i} className={`disco f${t}`} style={{ '--i': i }} />)}
-    </span>
-  )
-}
-
-const BOLLE = {
-  passo: () => 'Passo', lascio: () => 'Lascio', vedo: () => 'Vedo', busso: () => 'Busso', parol: () => 'Parola',
-  buio: (i) => `Buio ${i}`, controbuio: (i) => `Controbuio ${i}`, over: (i) => `Over ${i}`,
-  nobuio: () => 'Niente buio', chiudo: () => 'Chiudo',
-  apro: (i) => `Apro ${i}`, punto: (i) => `Punto ${i}`, rilancio: (i) => `Rilancio +${i}`,
-  cambio: (i) => (i === 0 ? 'Servito' : `Cambia ${i}`), vince: (i) => `Vince ${i}`,
-}
-
-// Carte di un giocatore senza la vela (al confronto la vela viene aggiunta a tutti)
+// Carte di un giocatore senza la vela (al confronto la vela resta al centro)
 const senzaVela = (carte, mano) => (mano?.gioco === 'telesina' && mano.vela ? carte.filter((c) => c !== mano.vela) : carte)
 
-// ── Prospettiva disegnata ──
-// Il tavolo è descritto "dall'alto" (x, y da 0 a 100) e proiettato sullo schermo:
-// in fondo (y piccolo) è più stretto e gli oggetti sono un po' più piccoli.
-const PROSPETTIVA = {
-  largo: { fondo: 1, alto: 7, altezza: 84 },   // computer: ovale regolare, senza prospettiva
-  stretto: { fondo: 0.84, alto: 5, altezza: 88 },
-}
-function proietta(p, stretto) {
-  const k = PROSPETTIVA[stretto ? 'stretto' : 'largo']
-  const t = Math.min(Math.max(p.y, 0), 100) / 100
-  const d = k.fondo + (1 - k.fondo) * t
-  return { x: 50 + (p.x - 50) * d, y: k.alto + p.y * (k.altezza / 100), s: Math.pow(d, 0.9) }
+// ── Disposizione del tavolo, in pixel ──
+// Ogni avversario è un blocco: targhetta (nome e fiches), carte, etichetta (azione e puntata, o il punto).
+// I blocchi stanno su due colonne ai lati, più uno in alto al centro se sono dispari;
+// piatto, vela e mazzo nella colonna centrale; la mia puntata in basso al centro.
+// Niente si sovrappone: se lo spazio non basta, prima si compattano targhette ed etichette, poi le carte.
+const DENSITA = [{ ph: 36, pill: 22 }, { ph: 32, pill: 20 }, { ph: 28, pill: 18 }]
+const DENSITA_VIDEO = [56, 46, 36]
+const limita = (v, a, b) => Math.min(b, Math.max(a, v))
+
+export function sedi(nAltri) {
+  const coppie = Math.floor(nAltri / 2), dispari = nAltri % 2
+  const sx = [], dx = []
+  for (let r = coppie - 1 + dispari; r >= dispari; r--) sx.push({ lato: 'l', riga: r })
+  for (let r = dispari; r <= coppie - 1 + dispari; r++) dx.push({ lato: 'r', riga: r })
+  // In senso orario partendo da chi siede alla mia sinistra
+  return [...sx, ...(dispari ? [{ lato: 'c', riga: 0 }] : []), ...dx]
 }
 
-// Contorno di un'ellisse del tavolo, proiettato, come percorso SVG
-function ellisse(cx, cy, rx, ry, stretto, dy = 0) {
-  const punti = Array.from({ length: 73 }, (_, i) => {
-    const a = (i / 72) * Math.PI * 2
-    const q = proietta({ x: cx + rx * Math.cos(a), y: cy + ry * Math.sin(a) }, stretto)
-    return `${q.x.toFixed(2)},${(q.y + dy).toFixed(2)}`
-  })
-  return `M${punti.join('L')}Z`
+export function disposizione({ W, H, nAltri, vela = false, mazzo = true, dueRighe = false, video = false }) {
+  const m = 8, pad = 7, sp = 3
+  const posti = sedi(nAltri)
+  const R = Math.max(1, ...posti.map((s) => s.riga + 1))
+  const centrale = posti.some((s) => s.lato === 'c')
+  const cwLargo = limita(W * 0.082, 26, 58)
+  const k = limita(cwLargo / 30, 1, 1.4)             // schermi grandi: targhette ed etichette in proporzione
+  // Tentativi, dal più comodo al più compatto; nell'ultimo la mia puntata lascia il tavolo
+  // e va accanto al mio nome, così le righe degli altri hanno 30 pixel in più
+  const TENTATIVI = [[0, 30], [1, 30], [2, 30], [2, 0]]
+  let d, riserva, ph, pill, cw, pezzi, top, bottom
+  for (let t = 0; t < TENTATIVI.length; t++) {
+    [d, riserva] = TENTATIVI[t]
+    const ultimo = t === TENTATIVI.length - 1
+    ph = (video ? DENSITA_VIDEO[d] : DENSITA[d].ph) * k
+    pill = (DENSITA[d].pill + (dueRighe ? 8 : 0)) * k
+    const cwAlto = (H - 2 * pad - riserva - R * (ph + pill + 2 * sp) - (R - 1) * 5) / (R * 1.4)
+    cw = Math.min(cwLargo, Math.max(18, cwAlto))
+    top = centrale ? pad + ph + pill + 2 * sp + cw * 1.4 + 8 : pad + 4
+    bottom = H - riserva - 4
+    pezzi = []
+    if (vela) pezzi.push({ tipo: 'vela', h: cw * 1.12 * 1.4 + 14 })
+    pezzi.push({ tipo: 'piatto', h: 26 * k })
+    if (mazzo && !vela) pezzi.push({ tipo: 'mazzo', h: cw * 0.9 * 1.4 })
+    const tot = () => pezzi.reduce((s, p) => s + p.h, 0) + (pezzi.length - 1) * 10
+    if (ultimo && tot() > bottom - top) pezzi = pezzi.filter((p) => p.tipo !== 'mazzo')
+    if ((cwAlto >= cwLargo && tot() <= bottom - top) || ultimo) break
+  }
+  const ch = cw * 1.4, step = cw * 0.7
+  const mw = cw + 4 * step, mh = ph + sp + ch + sp + pill
+  const gap = R > 1 ? limita((H - 2 * pad - riserva - R * mh) / (R - 1), 0, 44 * k) : 0
+  const blocchi = posti.map((s) => ({
+    lato: s.lato,
+    x: s.lato === 'l' ? m : s.lato === 'r' ? W - m - mw : (W - mw) / 2,
+    y: pad + s.riga * (mh + gap),
+  }))
+  const tot = pezzi.reduce((s, p) => s + p.h, 0) + (pezzi.length - 1) * 10
+  let y = top + Math.max(0, (bottom - top - tot) / 2)
+  if (!centrale && R === 1 && nAltri > 0) y = Math.max(top, Math.min(pad + mh * 0.5, bottom - tot))
+  for (const p of pezzi) { p.y = y; y += p.h + 10 }
+  const colW = nAltri >= 2 ? W - 2 * (m + mw) - 10 : W - 2 * m
+  const origine = pezzi.find((p) => p.tipo === 'mazzo') ?? pezzi[0]
+  return {
+    d, k, cw, ch, step, mw, mh, ph, pill, sp, blocchi, pezzi, colW,
+    miaSulTavolo: riserva > 0, miaY: H - riserva + 2, kf: limita(cw / 29, 0.8, 1), mazzo: { x: W / 2, y: origine.y + origine.h / 2 },
+  }
 }
 
-function Fondo({ stretto }) {
-  // Proporzioni del tavolo (larghezza / altezza): servono perché la trama del panno resti quadrata
-  const rapporto = stretto ? 3 / 4.2 : 16 / 10.5
-  const lato = stretto ? 34 : 22
-  const bordo = ellisse(50, 50, 49, 49, stretto)
-  const spessore = ellisse(50, 50, 49, 49, stretto, stretto ? 2.2 : 3.2)
-  const panno = ellisse(50, 50, 43.5, 42.5, stretto)
-  const filo = ellisse(50, 50, 42.3, 41.3, stretto)
-  const linea = ellisse(50, 49, 29, 27, stretto)
-  return (
-    <svg className="fondo" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-      <defs>
-        <radialGradient id="g-pelle" cx="50%" cy="20%" r="80%">
-          <stop offset="0%" stopColor="#5a3826" />
-          <stop offset="55%" stopColor="#38200f" />
-          <stop offset="100%" stopColor="#1b0d06" />
-        </radialGradient>
-        <linearGradient id="g-legno" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#2a160b" />
-          <stop offset="100%" stopColor="#0b0503" />
-        </linearGradient>
-        <radialGradient id="g-panno" cx="50%" cy="42%" r="62%">
-          <stop offset="0%" stopColor="#3a9a6b" />
-          <stop offset="45%" stopColor="#21724b" />
-          <stop offset="85%" stopColor="#144a33" />
-          <stop offset="100%" stopColor="#0c3121" />
-        </radialGradient>
-        <pattern id="p-panno" patternUnits="userSpaceOnUse" width={lato} height={lato * rapporto}>
-          <image href="/img/panno.webp" width={lato} height={lato * rapporto} preserveAspectRatio="none" />
-        </pattern>
-        <pattern id="p-pelle" patternUnits="userSpaceOnUse" width={lato} height={lato * rapporto}>
-          <image href="/img/pelle.webp" width={lato} height={lato * rapporto} preserveAspectRatio="none" />
-        </pattern>
-        <radialGradient id="g-luce" cx="50%" cy="42%" r="62%">
-          <stop offset="0%" stopColor="#fff" stopOpacity="0.16" />
-          <stop offset="40%" stopColor="#fff" stopOpacity="0" />
-          <stop offset="80%" stopColor="#000" stopOpacity="0.30" />
-          <stop offset="100%" stopColor="#000" stopOpacity="0.55" />
-        </radialGradient>
-        <filter id="f-ombra" x="-20%" y="-20%" width="140%" height="160%">
-          <feGaussianBlur stdDeviation="2.2" />
-        </filter>
-      </defs>
-      <path d={spessore} transform="translate(0 2.5)" fill="rgba(0,0,0,0.55)" filter="url(#f-ombra)" />
-      <path d={spessore} fill="url(#g-legno)" />
-      <path d={bordo} fill="url(#p-pelle)" />
-      <path d={bordo} fill="url(#g-pelle)" opacity="0.45" />
-      <path d={bordo} fill="none" stroke="rgba(255,255,255,0.16)" strokeWidth="1.2" vectorEffect="non-scaling-stroke" />
-      <path d={panno} fill="url(#g-panno)" />
-      <path d={panno} fill="url(#p-panno)" />
-      <path d={panno} fill="#0e5a3c" fillOpacity="0.28" />
-      <path d={panno} fill="url(#g-luce)" />
-      <path d={panno} fill="none" stroke="rgba(0,0,0,0.45)" strokeWidth="6" vectorEffect="non-scaling-stroke" />
-      <path d={filo} fill="none" stroke="#c9a227" strokeOpacity="0.8" strokeWidth="1.5" vectorEffect="non-scaling-stroke" />
-      <path d={linea} fill="none" stroke="rgba(242,215,122,0.25)" strokeWidth="1" strokeDasharray="4 5" vectorEffect="non-scaling-stroke" />
-    </svg>
-  )
-}
+// Sfondo del tavolo: rettangolo arrotondato con bordo sottile, piatto, senza prospettiva
+const Fondo = () => <div className="t2-fondo" aria-hidden="true" />
 
 export default function TavoloVerde({ mano, posti, giocatori, io, carte, scelte, onScegli, azioni, conclusa, fumetti = {}, reazioni = {}, onReagisci, povEl = null, video = null }) {
   const [fantasmi, setFantasmi] = useState([])
@@ -243,7 +153,7 @@ export default function TavoloVerde({ mano, posti, giocatori, io, carte, scelte,
   useEffect(() => { setSpizzo(false) }, [mano?.id])
   useLayoutEffect(() => {
     const misura = () => {
-      const v = manoRef.current?.querySelectorAll(':scope > .volo')
+      const v = manoRef.current?.querySelectorAll(':scope > .t2-mia')
       if (v && v.length > 1) setPassoCarte(v[1].offsetLeft - v[0].offsetLeft)
     }
     misura()
@@ -251,17 +161,20 @@ export default function TavoloVerde({ mano, posti, giocatori, io, carte, scelte,
     return () => window.removeEventListener('resize', misura)
   }, [carte.length, mano?.id])
   const prevCambio = useRef({})
-  const stretto = useStretto()
-  const pov = usePov() && !!povEl
-  const stile = (pos, extra = {}) => {
-    const q = proietta(pos, stretto)
-    return { left: `${q.x}%`, top: `${q.y}%`, '--s': q.s.toFixed(3), ...extra }
-  }
-  // Spostamento sullo schermo da un punto all'altro (per le animazioni)
-  const delta = (da, a) => {
-    const p = proietta(da, stretto), q = proietta(a, stretto)
-    return { '--dx': (p.x - q.x).toFixed(2), '--dy': (p.y - q.y).toFixed(2) }
-  }
+
+  // Misura del tavolo: la disposizione si calcola in pixel
+  const tavoloRef = useRef(null)
+  const [misura, setMisura] = useState({ W: 0, H: 0 })
+  useLayoutEffect(() => {
+    const el = tavoloRef.current
+    if (!el) return
+    const leggi = () => setMisura((p) => (p.W === el.clientWidth && p.H === el.clientHeight ? p : { W: el.clientWidth, H: el.clientHeight }))
+    leggi()
+    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(leggi) : null
+    ro?.observe(el)
+    window.addEventListener('resize', leggi)
+    return () => { ro?.disconnect(); window.removeEventListener('resize', leggi) }
+  }, [])
 
   // Gli elementi già sul tavolo all'apertura della pagina non si animano;
   // tutto quello che arriva dopo (carte, puntate, piatto) sì.
@@ -296,59 +209,19 @@ export default function TavoloVerde({ mano, posti, giocatori, io, carte, scelte,
   if (!mano) {
     return (
       <div className="scena">
-        <div className="tavolo-verde vuoto"><Fondo stretto={stretto} /><div className="panno"><p className="invito-mano">Il mazzo è pronto.</p></div></div>
+        <div className="tavolo-verde t2 vuoto" ref={tavoloRef}><Fondo /><p className="t2-invito">Il mazzo è pronto.</p></div>
       </div>
     )
   }
 
-  // Le mie carte: sul tavolo (computer) o davanti a me nella barra in basso (telefono)
-  const telesina = mano?.gioco === 'telesina'
-  // Telesina: la prima carta è la coperta; il punto si calcola con 5 carte (più la vela, se è girata)
-  const carteMie = telesina && mano.vela ? [...carte, mano.vela] : carte
-  const manoMia = (cartePos, fuori, nGiro) => {
-                  const chiuse = !telesina && conSpizzata && carte.length === 5 && !fuori && !aperto
-                  const ap = chiuse ? 0 : 1
-                  const punto = carte.length === 5 ? nomePunto(valutaMigliore(carteMie, mano.bassa)) : ''
-                  return (
-                <div ref={manoRef} className={`mano-mia${fuori ? ' piegata' : ''}${chiuse ? ' chiuse' : ''}`}
-                  style={cartePos ? stile(cartePos) : undefined} onClick={chiuse ? () => setSpizzo(true) : undefined}
-                  onKeyDown={chiuse ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSpizzo(true) } } : undefined}
-                  role={chiuse ? 'button' : undefined} tabIndex={chiuse ? 0 : undefined}
-                  aria-label={chiuse ? 'Le tue carte sono chiuse: tocca per spizzarle' : undefined}>
-                  {ordine.map((c, k) => (
-                    <span key={`${mano.id}-${c}`} className={`volo${gia(`${mano.id}-${c}`)}`}
-                      style={{ ...(cartePos ? delta(MAZZO, cartePos) : { '--dx': 0, '--dy': -14 }), '--ritardo': `${k * nGiro * 70 + 40}ms`, '--rot': `${(k - 2) * 3 * ap}deg`, zIndex: 10 - k }}>
-                      <span className="strato" style={{ transform: `translate(${((2 - k) * passoCarte + (k - 2) * -2) * (1 - ap)}px, ${chiuse ? (4 - k) * -1.5 : Math.abs(k - 2) * 2}px)` }}>
-                        <Carta c={c} indice scelta={scelte.includes(c)} coperta={telesina && c === carte[0]}
-                          onClick={onScegli && !chiuse ? () => onScegli(c) : undefined} />
-                      </span>
-                    </span>
-                  ))}
-                  {chiuse && (
-                    <span className="mio-punto spizza-aiuto" aria-hidden="true">Tocca per spizzare</span>
-                  )}
-                  {spizzo && conSpizzata && carte.length === 5 && !fuori && (
-                    <Spizzata ordine={ordine} viste={viste} onVedi={vedi} punto={punto}
-                      onChiudi={() => setSpizzo(false)} />
-                  )}
-                  {carte.length === 5 && !fuori && !chiuse && (
-                    <span className="mio-punto">
-                      {punto}
-                      {mano.fase === 'apertura' && (puoAprire(carte, mano.requisito, mano.bassa)
-                        ? <b className="si"> · puoi aprire</b> : <b className="no"> · non puoi aprire</b>)}
-                    </span>
-                  )}
-                </div>
-                  )
-  }
+  const telesina = mano.gioco === 'telesina'
+  const primaDelleCarte = mano.fase === 'buio' || mano.fase === 'scelta'
 
-  // Io in basso, gli altri in senso orario
+  // Io in basso (fuori dal tavolo, sopra i comandi), gli altri in senso orario
   const ordinati = [...posti].sort((a, b) => a.posto - b.posto)
-  const mioIndice = Math.max(0, ordinati.findIndex((p) => p.giocatore_id === io.id))
-  const giro = [...ordinati.slice(mioIndice), ...ordinati.slice(0, mioIndice)]
-  const pos = posizioni(giro.length, stretto, pov)
-  const posDi = Object.fromEntries(giro.map((p, i) => [p.giocatore_id, pos[i]]))
-  const pIo = posti.find((p) => p.giocatore_id === io.id)
+  const mioIndice = ordinati.findIndex((p) => p.giocatore_id === io.id)
+  const altri = mioIndice < 0 ? ordinati : [...ordinati.slice(mioIndice + 1), ...ordinati.slice(0, mioIndice)]
+  const pIo = mioIndice < 0 ? null : ordinati[mioIndice]
 
   const nomeDi = (id) => giocatori.find((g) => g.giocatore_id === id)?.profili?.nickname ?? 'giocatore'
   const fichesDi = (id) => giocatori.find((g) => g.giocatore_id === id)?.fiches ?? 0
@@ -356,81 +229,117 @@ export default function TavoloVerde({ mano, posti, giocatori, io, carte, scelte,
   // Ultima azione di ciascuno in questa mano (le azioni arrivano dalla più recente)
   const ultima = {}
   for (const a of azioni) {
-    if (a.giocatore_id && !(a.giocatore_id in ultima) && BOLLE[a.tipo]) ultima[a.giocatore_id] = BOLLE[a.tipo](a.importo)
+    if (a.giocatore_id && !(a.giocatore_id in ultima) && (AZIONI[a.tipo] || a.tipo === 'cambio')) ultima[a.giocatore_id] = a
   }
 
   const inGiro = posti.reduce((s, p) => s + p.versato_giro, 0)
   const alCentro = mano.piatto - inGiro
   const vincitori = mano.esito?.vincitori ?? []
-  const piattoVerso = conclusa && vincitori.length === 1 && posDi[vincitori[0]]
-    ? verso(CENTRO, posDi[vincitori[0]], stretto ? 0 : 0.12) : CENTRO
   const mostraPiatto = mano.fase !== 'finita' || vincitori.length === 1
+  const conVela = telesina && !!mano.con_vela
+  const scartiVisibili = !telesina && !['apertura', 'primo_giro', 'scelta', 'buio'].includes(mano.fase)
+  const qualcheVideo = !!video && altri.some((p) => video.stati?.[p.giocatore_id]?.cam && video.flussi?.[p.giocatore_id])
+  const puntiMostrati = conclusa && altri.some((p) => p.carte_mostrate && p.punto)
+
+  const { W, H } = misura
+  const L = W > 0 && H > 0
+    ? disposizione({ W, H, nAltri: altri.length, vela: conVela, mazzo: !conclusa, dueRighe: puntiMostrati, video: qualcheVideo })
+    : null
+
+  // Etichetta sotto le carte: il punto a fine mano, altrimenti l'ultima azione con la puntata del giro
+  const etichetta = (p) => {
+    const fuori = p.stato === 'fuori'
+    const vince = conclusa && p.vincita > 0
+    if (conclusa) {
+      if (p.carte_mostrate && p.punto) return { testo: p.punto, due: true, vince }
+      if (vince) return { testo: `Vince ${nf.format(p.vincita)}`, vince }
+      return fuori ? { testo: 'Lascio', fuori } : null
+    }
+    if (fuori) return { testo: 'Lascio', fuori }
+    const u = ultima[p.giocatore_id]
+    if (p.versato_giro > 0) {
+      return { testo: `${u && CON_PUNTATA.has(u.tipo) ? AZIONI[u.tipo] + ' ' : ''}${nf.format(p.versato_giro)}`, importo: p.versato_giro }
+    }
+    if (u) return { testo: u.tipo === 'cambio' ? testoCambio(u.importo) : AZIONI[u.tipo], chiave: u.id }
+    return p.cambio != null ? { testo: testoCambio(p.cambio) } : null
+  }
+  const pallino = (n) => <span className={`t2-fiche${n >= 100 ? ' nera' : n >= 50 ? ' blu' : ''}`} aria-hidden="true" />
+
+  const riga = (lato, x, y, w, chiave, dentro) => (
+    <div key={chiave} className={`t2-riga j${lato}`} style={{ left: x, top: y, width: w }}>{dentro}</div>
+  )
+
+  // ── Le mie carte, davanti a me ──
+  const mioFuori = pIo?.stato === 'fuori'
+  // Telesina: la prima carta è la coperta; il punto si calcola con 5 carte (più la vela, se è girata)
+  const carteMie = telesina && mano.vela ? [...carte, mano.vela] : carte
+  const chiuse = !telesina && conSpizzata && carte.length === 5 && !mioFuori && !aperto
+  const mioPunto = carte.length === 5 ? nomePunto(valutaMigliore(carteMie, mano.bassa)) : ''
+  const mioTurno = !!pIo && mano.turno === pIo.posto && !conclusa
+  const manoMia = () => (
+    <div ref={manoRef} className={`t2-mano${mioFuori ? ' piegata' : ''}${chiuse ? ' chiuse' : ''}`}
+      onClick={chiuse ? () => setSpizzo(true) : undefined}
+      onKeyDown={chiuse ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSpizzo(true) } } : undefined}
+      role={chiuse ? 'button' : undefined} tabIndex={chiuse ? 0 : undefined}
+      aria-label={chiuse ? 'Le tue carte sono chiuse: tocca per spizzarle' : undefined}>
+      {ordine.map((c, k) => (
+        <span key={`${mano.id}-${c}`} className={`t2-mia t2-arriva${gia(`${mano.id}-${c}`)}`}
+          style={{ '--ritardo': `${k * (altri.length + 1) * 70 + 40}ms`, zIndex: 10 - k }}>
+          <span className="strato" style={{ transform: chiuse ? `translate(${(2 - k) * passoCarte + (k - 2) * -2}px, ${(4 - k) * -1.5}px)` : undefined }}>
+            <Carta c={c} indice scelta={scelte.includes(c)} coperta={telesina && c === carte[0]}
+              onClick={onScegli && !chiuse ? () => onScegli(c) : undefined} />
+          </span>
+        </span>
+      ))}
+      {spizzo && conSpizzata && carte.length === 5 && !mioFuori && (
+        <Spizzata ordine={ordine} viste={viste} onVedi={vedi} punto={mioPunto} onChiudi={() => setSpizzo(false)} />
+      )}
+    </div>
+  )
 
   return (
     <div className="scena">
-      {onReagisci && <Emoticon onReagisci={onReagisci} />}
-    <div className="tavolo-verde">
-      <Fondo stretto={stretto} />
-      <div className="panno" aria-label={`Tavolo: mano ${mano.numero}, piatto ${fmt(mano.piatto)}`}>
-        {/* Mazzo e scarti al centro */}
-        <span className="mazzetto" style={stile(MAZZO)} aria-hidden="true"><span className="dorso" /><span className="dorso" /></span>
-        {telesina ? (
-          mano.con_vela && (
-            <span className="mazzetto vela" style={stile(VELA)} aria-label={mano.vela ? 'La vela' : 'La vela, ancora coperta'}>
-              {mano.vela ? <span key={mano.vela} className={`gira${gia(`${mano.id}-vela`)}`}><Carta c={mano.vela} piccola /></span> : <span className="dorso" />}
-              <span className="vela-nome">Vela</span>
+      <div className="tavolo-verde t2" ref={tavoloRef}
+        style={L ? { '--cw': `${L.cw.toFixed(1)}px`, '--step': `${L.step.toFixed(1)}px`, '--ph': `${L.ph.toFixed(1)}px`, '--pill': `${L.pill.toFixed(1)}px`, '--k': (L.k * L.kf).toFixed(3) } : undefined}
+        data-densita={L?.d} data-stretto={L && L.cw < 28 ? '' : undefined} aria-label={`Tavolo: mano ${mano.numero}, piatto ${fmt(mano.piatto)}`}>
+        <Fondo />
+        {L && L.pezzi.map((pz) => riga('c', 0, pz.y, W, pz.tipo,
+          pz.tipo === 'vela' ? (
+            <span className="t2-vela ov" style={{ '--cw': `${(L.cw * 1.12).toFixed(1)}px` }} aria-label={mano.vela ? 'La vela' : 'La vela, ancora coperta'}>
+              {mano.vela ? <span key={mano.vela} className={`gira${gia(`${mano.id}-vela`)}`}><Carta c={mano.vela} piccola indice /></span> : <span className="t2-dorso" />}
+              <small>Vela</small>
             </span>
-          )
-        ) : (
-          <span className="mazzetto scarti" style={stile(SCARTI)} aria-hidden="true">
-            {mano.fase !== 'apertura' && mano.fase !== 'primo_giro' && mano.fase !== 'scelta' && <span className="dorso storto" />}
-          </span>
-        )}
-
-        {/* Di chi è il turno */}
-        {/* Sul telefono a 5-6 giocatori lo dice già la barra dei comandi e il posto illuminato */}
-        {/* Sul telefono lo dice già la barra dei comandi in basso, e il posto di turno è illuminato */}
-        {!conclusa && mano.turno != null && !stretto && (() => {
-          const t = posti.find((p) => p.posto === mano.turno)
-          if (!t) return null
-          const mio = t.giocatore_id === io.id
-          return (
-            <span key={`${mano.id}-${mano.fase}-${mano.turno}`} className={`turno-centro${mio ? ' mio' : ''}`}>
-              {mio ? 'Tocca a te' : `Tocca a ${nomeDi(t.giocatore_id)}`}
+          ) : pz.tipo === 'piatto' ? (
+            mostraPiatto && (
+              <span className="t2-piatto ov" style={{ maxWidth: L.colW }}>
+                <span key={alCentro} className={`t2-pila${gia(`${mano.id}-piatto-${alCentro}`)}`} aria-hidden="true"><i /></span>
+                {nf.format(conclusa ? mano.piatto : Math.max(alCentro, 0))}
+              </span>
+            )
+          ) : (
+            <span className="t2-mazzo ov" style={{ '--cw': `${(L.cw * 0.9).toFixed(1)}px` }} aria-hidden="true">
+              <span className="t2-dorso" />
+              {scartiVisibili && <span className="t2-dorso storto" />}
             </span>
-          )
-        })()}
+          )))}
 
-        {/* Piatto */}
-        {mostraPiatto && (
-          <div className={`piatto-centro${conclusa && vincitori.length === 1 ? ' al-vincitore' : ''}`} style={stile(piattoVerso)}>
-            <span key={alCentro} className={`pila-grande${gia(`${mano.id}-piatto-${alCentro}`)}`}><Pila importo={Math.max(alCentro, 0)} /></span>
-            <span className="cifra">{fmt(conclusa ? mano.piatto : alCentro)}</span>
-          </div>
-        )}
-
-        {giro.map((p, i) => {
-          const s = pos[i]
-          const sonoIo = p.giocatore_id === io.id
+        {L && altri.map((p, i) => {
+          const b = L.blocchi[i]
+          if (!b) return null
+          const id = p.giocatore_id
           const fuori = p.stato === 'fuori'
           const diTurno = mano.turno === p.posto && !conclusa
           const vince = conclusa && p.vincita > 0
-          // Telefono in verticale: i posti laterali stanno attaccati al bordo dello schermo,
-          // le loro carte vanno sopra o sotto il posto (verso il centro), la puntata dall'altro lato
-          const bordo = stretto && !sonoIo && (s.x < 20 || s.x > 80)
-          const sx = s.x < 50
-          const dir = s.y > 55 ? -1 : 1
-          // Computer: carte e puntate più verso il centro, così non finiscono sotto i nomi (ora più grandi)
-          const puntataPos = bordo ? { x: sx ? 18 : 82, y: s.y - dir * (dir < 0 ? 14 : 11) }
-            : verso(s, CENTRO, sonoIo ? (stretto ? 0.42 : 0.5) : (stretto ? 0.4 : 0.52))
-          const cartePos = sonoIo ? { x: 50, y: stretto ? (conclusa && p.carte_mostrate ? 72 : 75) : 69 }
-            : bordo ? { x: sx ? 26 : 74, y: s.y + dir * (dir < 0 ? 13 : 11) }
-            : verso(s, CENTRO, stretto ? 0.3 : 0.36)
-          // Fumetto sotto il nome: posti in basso sul computer, e laterali con le carte sopra in prima persona
-          const basso = (!stretto && !sonoIo && s.y > 60) || (pov && bordo && dir < 0)
-          const sopra = bordo ? dir < 0 : s.y > 50
           const scoperte = conclusa && p.carte_mostrate
-          const primaDelleCarte = mano.fase === 'buio' || mano.fase === 'scelta'
+          const yCarte = b.y + L.ph + L.sp, yEtichetta = yCarte + L.ch + L.sp
+          // Da dove partono le carte nell'animazione: il mazzo al centro
+          const larghe = scoperte || telesina
+          const lgr = larghe ? L.mw : L.cw + 4 * L.cw * 0.42
+          const cx = b.lato === 'l' ? b.x + lgr / 2 : b.lato === 'r' ? b.x + L.mw - lgr / 2 : b.x + L.mw / 2
+          const dalMazzo = { '--dx': (L.mazzo.x - cx).toFixed(0), '--dy': (L.mazzo.y - (yCarte + L.ch / 2)).toFixed(0) }
+          const st = video?.stati?.[id]
+          const conVideo = st?.cam && video.flussi?.[id]
+          const et = etichetta(p)
 
           // Dorsi degli altri: le prime (5 − cambio) sono le vecchie, poi le nuove arrivate dal mazzo
           const nuove = Math.max(0, (p.cambio ?? 0) - p.cambio_pendente)
@@ -439,152 +348,183 @@ export default function TavoloVerde({ mano, posti, giocatori, io, carte, scelte,
             ...Array.from({ length: vecchie }, (_, k) => `v${k}`),
             ...Array.from({ length: nuove }, (_, k) => `n${k}`),
           ]
+          // Quante carte ha cambiato: resta visibile accanto alle carte fino alla fine della mano
+          const segnoCambio = !telesina && !conclusa && !fuori && p.cambio != null && et?.testo !== testoCambio(p.cambio) && (
+            <span key="cambio" className="t2-cambio ov" title={p.cambio === 0 ? 'Servito' : `Ha cambiato ${p.cambio} ${p.cambio === 1 ? 'carta' : 'carte'}`}>
+              {p.cambio === 0 ? 'serv.' : `↻${p.cambio}`}
+            </span>
+          )
+
+          let gruppo = null
+          if (primaDelleCarte) gruppo = null
+          else if (scoperte) {
+            gruppo = (
+              <div key="carte" className={`t2-gruppo ov${vince ? ' vincente' : ''}`}>
+                {senzaVela(p.carte_mostrate, mano).map((c, k) => (
+                  <span key={c} className={`gira${gia(`${mano.id}-g-${c}`)}`} style={{ '--ritardo': `${k * 90}ms` }}><Carta c={c} piccola indice /></span>
+                ))}
+              </div>
+            )
+          } else if (telesina) {
+            gruppo = (
+              <div key="carte" className={`t2-gruppo ov${fuori ? ' piegata' : ''}`}>
+                <span className={`t2-volo${gia(`${mano.id}-${id}-coperta`)}`} style={{ ...dalMazzo, '--ritardo': `${i * 70}ms` }}><span className="t2-dorso" /></span>
+                {(p.scoperte ?? []).map((c, k) => (
+                  <span key={c} className={`t2-volo${gia(`${mano.id}-${id}-${c}`)}`} style={{ ...dalMazzo, '--ritardo': `${(k === 0 ? altri.length + 1 : 0) * 70 + i * 70}ms` }}>
+                    <Carta c={c} piccola indice />
+                  </span>
+                ))}
+              </div>
+            )
+          } else {
+            gruppo = (
+              <div key="carte" className={`t2-gruppo coperte ov${fuori ? ' piegata' : ''}`}>
+                {dorsi.map((k, j) => (
+                  <span key={`${mano.id}-${k}`} className={`t2-volo${gia(`${mano.id}-${id}-${k}`)}`}
+                    style={{ ...dalMazzo, '--ritardo': k.startsWith('v') ? `${j * (altri.length + 1) * 70 + i * 70}ms` : `${j * 60}ms` }}>
+                    <span className="t2-dorso" />
+                  </span>
+                ))}
+              </div>
+            )
+          }
 
           return (
-            <div key={p.giocatore_id} className="posto-gruppo">
-              {/* Carte (in prima persona le mie stanno nella barra in basso) */}
-              {primaDelleCarte || (pov && sonoIo) ? null : sonoIo && !scoperte ? (
-                manoMia(cartePos, fuori, giro.length)
-              ) : scoperte ? (
-                <div className={`mano-scoperta${vince ? ' vincente' : ''}${sonoIo ? ' mia' : ''}${sonoIo || sopra ? ' sopra' : ''}`} style={stile(sonoIo || bordo ? cartePos : stretto ? verso(s, CENTRO, 0.36) : basso ? { x: s.x + (50 - s.x) * 0.3, y: s.y - 18 } : verso(s, CENTRO, 0.4))}>
-                  {senzaVela(p.carte_mostrate, mano).map((c, k) => (
-                    <span key={c} className={`gira${gia(`${mano.id}-g-${c}`)}`} style={{ '--ritardo': `${k * 90}ms` }}><Carta c={c} piccola={!sonoIo} /></span>
-                  ))}
-                </div>
-              ) : telesina ? (
-                <div className={`mano-scoperta mano-telesina${fuori ? ' piegata' : ''}${sopra ? ' sopra' : ''}`} style={stile(bordo ? cartePos : stretto ? verso(s, CENTRO, 0.36) : basso ? { x: s.x + (50 - s.x) * 0.3, y: s.y - 18 } : verso(s, CENTRO, 0.4))}>
-                  <span className={`volo dorso${gia(`${mano.id}-${p.giocatore_id}-coperta`)}`} style={{ ...delta(MAZZO, cartePos), '--ritardo': `${i * 70}ms`, '--rot': '0deg' }} />
-                  {(p.scoperte ?? []).map((c, k) => (
-                    <span key={c} className={`volo${gia(`${mano.id}-${p.giocatore_id}-${c}`)}`} style={{ ...delta(MAZZO, cartePos), '--ritardo': `${(k === 0 ? giro.length : 0) * 70 + i * 70}ms`, '--rot': '0deg' }}>
-                      <Carta c={c} piccola />
+            <div key={id} className="t2-posto">
+              {riga(b.lato, b.x, b.y, L.mw, 'targa', (
+                <div className={`t2-targa ov${diTurno ? ' di-turno' : ''}${fuori ? ' fuori' : ''}${vince ? ' vince' : ''}${conVideo ? ' con-video' : ''}`}>
+                  <span className="t2-av">
+                    {conVideo
+                      ? <VideoCerchio stream={video.flussi[id]} className="t2-video" titolo={`Video di ${nomeDi(id)}`} />
+                      : <span aria-hidden="true">{nomeDi(id).slice(0, 1).toUpperCase()}</span>}
+                    {p.posto === mano.mazziere && <small className="t2-mz" title="Mazziere">M</small>}
+                    {st?.mic && <span className="t2-mic" title="Microfono acceso" aria-label="Microfono acceso">🎤</span>}
+                    {(() => {
+                      // Diagnosi: se qualcuno ha video o audio acceso ma il collegamento con questo giocatore non c'è
+                      if (!st || st.collegato || !(st.cam || st.mic || video.cam || video.mic)) return null
+                      const fallito = st.stato === 'failed' || st.stato === 'disconnected'
+                      return (
+                        <button type="button" className={`t2-collegamento${fallito ? ' fallito' : ''}`}
+                          onClick={() => video.mostraDiagnosi(id)}
+                          title={fallito ? 'Collegamento video non riuscito: tocca per i dettagli' : 'Collegamento video in corso: tocca per i dettagli'}>
+                          {fallito ? '📡✕' : '📡…'}
+                        </button>
+                      )
+                    })()}
+                    {reazioni[id] && (
+                      <span key={reazioni[id].id} className="t2-reazione" role="img"
+                        aria-label={`${nomeDi(id)}: ${EMOTICON.find((x) => x.e === reazioni[id].e)?.nome ?? ''}`}>
+                        {reazioni[id].e}
+                      </span>
+                    )}
+                  </span>
+                  <span className="t2-testo">
+                    <b>{nomeDi(id)}</b>
+                    {vince ? <i>+{fmt(p.vincita)}</i>
+                      : p.tutto_dentro && p.stato === 'attivo' ? <i className="tutto">Tutto dentro</i>
+                      : <i>{fmt(fichesDi(id))}</i>}
+                  </span>
+                  {fumetti[id] && (
+                    <span key={`chat-${fumetti[id].id}`} className="t2-chat">
+                      {fumetti[id].testo.length > 60 ? fumetti[id].testo.slice(0, 58) + '…' : fumetti[id].testo}
                     </span>
-                  ))}
-                </div>
-              ) : (
-                <div className={`mano-coperta${fuori ? ' piegata' : ''}`} style={{ ...stile(cartePos), '--ang': bordo ? '0deg' : `${(Math.atan2(CENTRO.y - s.y, CENTRO.x - s.x) * 180) / Math.PI - 90}deg` }}>
-                  {dorsi.map((k, j) => (
-                    <span key={`${mano.id}-${k}`} className={`volo dorso${gia(`${mano.id}-${p.giocatore_id}-${k}`)}`}
-                      style={{ ...delta(MAZZO, cartePos), '--ritardo': k.startsWith('v') ? `${j * giro.length * 70 + i * 70}ms` : `${j * 60}ms`, '--rot': `${(j - 2) * 6}deg` }} />
-                  ))}
-                </div>
-              )}
-
-              {/* Carte scartate che volano agli scarti */}
-              {!(pov && sonoIo) && fantasmi.filter((f) => f.giocatore === p.giocatore_id).map((f) => (
-                <div key={f.id} className="fantasmi" style={stile(cartePos)}>
-                  {Array.from({ length: f.n }, (_, k) => (
-                    <span key={k} className="dorso via" style={{ ...delta(SCARTI, cartePos), '--ritardo': `${k * 60}ms` }} />
-                  ))}
+                  )}
                 </div>
               ))}
 
-              {/* Puntata del giro davanti al posto */}
-              {p.versato_giro > 0 && !conclusa && (
-                <div key={`${mano.id}-${p.giocatore_id}-${p.versato_giro}`} className={`puntata-posto${gia(`${mano.id}-${p.giocatore_id}-p${p.versato_giro}`)}`} style={{ ...stile(puntataPos), ...delta(s, puntataPos) }}>
-                  <Pila importo={p.versato_giro} />
-                  <span className="cifra">{p.versato_giro}</span>
-                </div>
-              )}
+              {gruppo && riga(b.lato, b.x, yCarte, L.mw, 'carte', b.lato === 'r' ? [segnoCambio, gruppo] : [gruppo, segnoCambio])}
 
-              {/* Il posto (in prima persona il mio è nella barra in basso) */}
-              {!(pov && sonoIo) && (
-              <div className={`posto-tavolo${s.x < 35 ? ' lato-sx' : s.x > 65 ? ' lato-dx' : ''}${bordo ? (sx ? ' bordo-sx' : ' bordo-dx') : ''}${sonoIo ? ' io' : ''}${diTurno ? ' di-turno' : ''}${fuori ? ' fuori' : ''}${vince ? ' vince' : ''}${basso ? ' basso' : ''}`} style={stile(s)}>
-                {fumetti[p.giocatore_id] ? (
-                  <span key={`chat-${fumetti[p.giocatore_id].id}`} className="bolla chat-bolla">
-                    {fumetti[p.giocatore_id].testo.length > 60 ? fumetti[p.giocatore_id].testo.slice(0, 58) + '…' : fumetti[p.giocatore_id].testo}
-                  </span>
-                ) : conclusa && p.carte_mostrate && p.punto ? (
-                  // A fine mano il fumetto mostra il punto (e quanto vince), grande e leggibile
-                  <span className={`bolla bolla-punto${vince ? ' vincente' : ''}`}>
-                    {p.punto}{vince && p.vincita > 0 ? ` · vince ${fmt(p.vincita)}` : ''}
-                  </span>
-                ) : ultima[p.giocatore_id] && !(conclusa && !vince && !scoperte) && (
-                  <span key={`${ultima[p.giocatore_id]}-${azioni[0]?.id}`} className="bolla">{ultima[p.giocatore_id]}</span>
-                )}
-                {reazioni[p.giocatore_id] && (
-                  <span key={reazioni[p.giocatore_id].id} className="reazione" role="img"
-                    aria-label={`${nomeDi(p.giocatore_id)}: ${EMOTICON.find((x) => x.e === reazioni[p.giocatore_id].e)?.nome ?? ''}`}>
-                    {reazioni[p.giocatore_id].e}
-                  </span>
-                )}
-                {video?.stati[p.giocatore_id]?.cam && video.flussi[p.giocatore_id]
-                  ? <VideoCerchio stream={video.flussi[p.giocatore_id]} className="avatar avatar-video" titolo={`Video di ${nomeDi(p.giocatore_id)}`} />
-                  : <span className="avatar" aria-hidden="true">{nomeDi(p.giocatore_id).slice(0, 1).toUpperCase()}</span>}
-                {video?.stati[p.giocatore_id]?.mic && <span className="mic-acceso" title="Microfono acceso" aria-label="Microfono acceso">🎤</span>}
-                {(() => {
-                  // Diagnosi: se qualcuno ha video o audio acceso ma il collegamento con questo giocatore non c'è
-                  const st = video?.stati[p.giocatore_id]
-                  if (!st || st.collegato || !(st.cam || st.mic || video.cam || video.mic)) return null
-                  const fallito = st.stato === 'failed' || st.stato === 'disconnected'
-                  return (
-                    <button type="button" className={`collegamento-video${fallito ? ' fallito' : ''}`}
-                      onClick={() => video.mostraDiagnosi(p.giocatore_id)}
-                      title={fallito ? 'Collegamento video non riuscito: tocca per i dettagli' : 'Collegamento video in corso: tocca per i dettagli'}>
-                      {fallito ? '📡✕' : '📡…'}
-                    </button>
-                  )
-                })()}
-                <span className="posto-testo">
-                  <span className="posto-nick">{sonoIo ? 'Tu' : nomeDi(p.giocatore_id)}</span>
-                  <span className="posto-fiches">{fmt(fichesDi(p.giocatore_id))}</span>
-                  {/* Quante carte ha cambiato: resta visibile fino alla fine della mano */}
-                  {p.tutto_dentro && p.stato === 'attivo' && <span className="posto-cambio tutto-dentro">Tutto dentro</span>}
-                  {p.cambio != null && p.stato === 'attivo' && (
-                    <span className="posto-cambio">{p.cambio === 0 ? 'Servito' : p.cambio === 1 ? 'Cambia 1 carta' : `Cambia ${p.cambio} carte`}</span>
-                  )}
+              {/* Carte scartate che volano agli scarti */}
+              {fantasmi.filter((f) => f.giocatore === id).map((f) => riga(b.lato, b.x, yCarte, L.mw, f.id, (
+                <span className="t2-fantasmi" aria-hidden="true">
+                  {Array.from({ length: f.n }, (_, k) => (
+                    <span key={k} className="t2-dorso via" style={{ ...dalMazzo, '--ritardo': `${k * 60}ms` }} />
+                  ))}
                 </span>
-                {p.posto === mano.mazziere && <span className="bottone-mazziere" title="Mazziere">M</span>}
-              </div>
-              )}
+              )))}
+
+              {et && riga(b.lato, b.x, yEtichetta, L.mw, 'etichetta', (
+                <span key={et.importo ? `p${et.importo}` : et.chiave ?? et.testo}
+                  className={`t2-etichetta ov${et.due ? ' due' : ''}${et.vince ? ' vince' : ''}${et.fuori ? ' fuori' : ''}${et.importo ? '' : ' solo'}${gia(`${mano.id}-${id}-e-${et.importo ?? et.testo}`)}`}>
+                  {et.importo ? pallino(et.importo) : null}{et.testo}
+                </span>
+              ))}
             </div>
           )
         })}
+
+        {/* La mia puntata del giro: in basso al centro, davanti a me */}
+        {L && L.miaSulTavolo && pIo && pIo.versato_giro > 0 && !conclusa && riga('c', 0, L.miaY, W, 'mia', (
+          <span key={pIo.versato_giro} className={`t2-etichetta mia ov${gia(`${mano.id}-io-p${pIo.versato_giro}`)}`}>
+            {pallino(pIo.versato_giro)}Tu {nf.format(pIo.versato_giro)}
+          </span>
+        ))}
       </div>
-    </div>
-    {pov && pIo && createPortal(
-      <div className={`pov-dentro${mano.turno === pIo.posto && !conclusa ? ' di-turno' : ''}${pIo.stato === 'fuori' ? ' fuori' : ''}`}>
-        <div className="pov-carte">
-          {mano.fase === 'scelta' ? (
-            <span className="pov-attesa">Il mazziere sceglie se giocare con la vela</span>
-          ) : mano.fase === 'buio' ? (
-            <span className="pov-attesa">Le carte arrivano dopo il buio</span>
-          ) : conclusa && pIo.carte_mostrate ? (
-            <div className={`mano-scoperta mia${pIo.vincita > 0 ? ' vincente' : ''}`}>
-              {senzaVela(pIo.carte_mostrate, mano).map((c, k) => (
-                <span key={c} className={`gira${gia(`${mano.id}-g-${c}`)}`} style={{ '--ritardo': `${k * 90}ms` }}><Carta c={c} /></span>
-              ))}
-              {pIo.punto && <span className="mio-punto">{pIo.punto}{pIo.vincita > 0 ? ` · vinci ${fmt(pIo.vincita)}` : ''}</span>}
-            </div>
-          ) : manoMia(null, pIo.stato === 'fuori', giro.length)}
-        </div>
-        <div className="pov-io">
-          {mano.turno === pIo.posto && !conclusa && (
-            <span className="pov-tocca">{mano.fase === 'cambio' ? 'Tocca a te: scegli le carte' : mano.fase === 'scelta' ? 'Tocca a te: con o senza vela?' : 'Tocca a te'}</span>
-          )}
-          {video?.cam && video.locale
-            ? <VideoCerchio stream={video.locale} specchio className="avatar avatar-video" titolo="Il tuo video" />
-            : <span className="avatar" aria-hidden="true">{nomeDi(io.id).slice(0, 1).toUpperCase()}</span>}
-          <span className="pov-nick">{nomeDi(io.id)}</span>
-          <span className="pov-fiches">{fmt(fichesDi(io.id))}</span>
-          {(() => {
-            const n = giocatori.find((g) => g.giocatore_id === io.id)?.poste_in_arrivo ?? 0
-            return n > 0 && <span className="pov-arrivo" title="Le fiches arrivano a fine mano">+{n} {n === 1 ? 'posta' : 'poste'} a fine mano</span>
-          })()}
-          {pIo.posto === mano.mazziere && <span className="bottone-mazziere" title="Mazziere">M</span>}
-          {pIo.tutto_dentro && pIo.stato === 'attivo' && <span className="pov-cambio tutto-dentro">Tutto dentro</span>}
-          {pIo.cambio != null && pIo.stato === 'attivo' && (
-            <span className="pov-cambio">{pIo.cambio === 0 ? 'Servito' : pIo.cambio === 1 ? 'Cambia 1' : `Cambia ${pIo.cambio}`}</span>
-          )}
-          {reazioni[io.id] && (
-            <span key={reazioni[io.id].id} className="pov-reazione" role="img"
-              aria-label={EMOTICON.find((x) => x.e === reazioni[io.id].e)?.nome ?? ''}>{reazioni[io.id].e}</span>
-          )}
-          {video && <TastiMedia video={video} className="pov-media" />}
-          {ultima[io.id] && !conclusa && ultima[io.id] !== BOLLE.cambio(pIo.cambio) && <span key={`${ultima[io.id]}-${azioni[0]?.id}`} className="pov-bolla">{ultima[io.id]}</span>}
-        </div>
-      </div>,
-      povEl,
-    )}
+
+      {povEl && pIo && createPortal(
+        <div className={`t2-mio${mioTurno ? ' di-turno' : ''}${mioFuori ? ' fuori' : ''}`}>
+          <div className="t2-io">
+            <span className="t2-av">
+              {video?.cam && video.locale
+                ? <VideoCerchio stream={video.locale} specchio className="t2-video" titolo="Il tuo video" />
+                : <span aria-hidden="true">{nomeDi(io.id).slice(0, 1).toUpperCase()}</span>}
+              {pIo.posto === mano.mazziere && <small className="t2-mz" title="Mazziere">M</small>}
+              {reazioni[io.id] && (
+                <span key={reazioni[io.id].id} className="t2-reazione" role="img"
+                  aria-label={EMOTICON.find((x) => x.e === reazioni[io.id].e)?.nome ?? ''}>{reazioni[io.id].e}</span>
+              )}
+            </span>
+            <span className="t2-nick">{nomeDi(io.id)}</span>
+            <span className="t2-fiches">{fmt(fichesDi(io.id))}</span>
+            {(() => {
+              const n = giocatori.find((g) => g.giocatore_id === io.id)?.poste_in_arrivo ?? 0
+              return n > 0 && <span className="t2-nota" title="Le fiches arrivano a fine mano">+{n} {n === 1 ? 'posta' : 'poste'}</span>
+            })()}
+            {pIo.tutto_dentro && pIo.stato === 'attivo' && <span className="t2-nota rossa">Tutto dentro</span>}
+            {pIo.cambio != null && pIo.stato === 'attivo' && !conclusa && <span className="t2-nota">{testoCambio(pIo.cambio)}</span>}
+            {/* Tavolo molto pieno su schermo basso: la mia puntata sta qui invece che sul tavolo */}
+            {L && !L.miaSulTavolo && pIo.versato_giro > 0 && !conclusa && (
+              <span className="t2-nota puntata">{pallino(pIo.versato_giro)}{nf.format(pIo.versato_giro)}</span>
+            )}
+          </div>
+          <div className="t2-tasti">
+            {video && <TastiMedia video={video} className="pov-media" />}
+            {onReagisci && <Emoticon onReagisci={onReagisci} />}
+          </div>
+          <div className="t2-stato">
+            {mioTurno && (
+              <span className="t2-tocca">{mano.fase === 'cambio' ? 'Tocca a te: scegli le carte' : mano.fase === 'scelta' ? 'Tocca a te: con o senza vela?' : 'Tocca a te'}</span>
+            )}
+            {conclusa && pIo.carte_mostrate && pIo.punto ? (
+              <span className={`t2-punto${pIo.vincita > 0 ? ' vince' : ''}`}>{pIo.punto}{pIo.vincita > 0 ? ` · vinci ${fmt(pIo.vincita)}` : ''}</span>
+            ) : chiuse ? (
+              <span className="t2-punto spizza-aiuto">Tocca le carte per spizzarle</span>
+            ) : carte.length === 5 && !mioFuori && !primaDelleCarte ? (
+              <span className="t2-punto">
+                {mioPunto}
+                {mano.fase === 'apertura' && (puoAprire(carte, mano.requisito, mano.bassa)
+                  ? <b className="si"> · puoi aprire</b> : <b className="no"> · non puoi aprire</b>)}
+              </span>
+            ) : mioFuori ? (
+              <span className="t2-punto tenue">Hai lasciato</span>
+            ) : null}
+          </div>
+          <div className="t2-carte">
+            {mano.fase === 'scelta' ? (
+              <span className="t2-attesa">Il mazziere sceglie se giocare con la vela</span>
+            ) : mano.fase === 'buio' ? (
+              <span className="t2-attesa">Le carte arrivano dopo il buio</span>
+            ) : conclusa && pIo.carte_mostrate ? (
+              <div className={`t2-mano${pIo.vincita > 0 ? ' vincente' : ''}`}>
+                {senzaVela(pIo.carte_mostrate, mano).map((c, k) => (
+                  <span key={c} className={`t2-mia gira${gia(`${mano.id}-g-${c}`)}`} style={{ '--ritardo': `${k * 90}ms` }}><Carta c={c} indice /></span>
+                ))}
+              </div>
+            ) : manoMia()}
+          </div>
+        </div>,
+        povEl,
+      )}
     </div>
   )
 }

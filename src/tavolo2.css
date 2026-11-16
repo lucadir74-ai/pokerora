@@ -1,0 +1,372 @@
+/* ═════════ Tavolo nuovo ("Squircle"): piatto, senza prospettiva, a blocchi che non si sovrappongono ═════════
+   Le posizioni sono calcolate in pixel da TavoloVerde.jsx (funzione disposizione).
+   Questo file viene dopo stile.css e ne sostituisce le parti che riguardano tavolo, mie carte e comandi. */
+:root {
+  --t2-sfondo: #08130f; --t2-panno1: #22805a; --t2-panno2: #0e4630; --t2-bordo: #0a2a1d;
+  --t2-oro: #e9c46a; --t2-inchiostro: #1b1d1c;
+}
+
+/* Sfondo della pagina durante la partita: scuro e piatto, niente foto della sala */
+.pagina.ampia::before { background: radial-gradient(120% 70% at 50% 30%, #0f2219, var(--t2-sfondo) 70%); }
+
+.t2 { font-family: 'Instrument Sans', system-ui, -apple-system, 'Segoe UI', sans-serif; color: #fff; }
+.t2-fondo {
+  position: absolute; inset: 3px 4px; border-radius: min(54px, 12%); border: 5px solid var(--t2-bordo); pointer-events: none;
+  background: radial-gradient(110% 75% at 50% 45%, var(--t2-panno1), var(--t2-panno2) 80%);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.1), 0 8px 22px rgba(0, 0, 0, 0.6), inset 0 0 34px rgba(0, 0, 0, 0.5);
+}
+.t2-fondo::after {
+  content: ''; position: absolute; inset: 9px; border-radius: min(40px, 10%);
+  border: 1px solid color-mix(in srgb, var(--t2-oro) 45%, transparent);
+}
+.t2-invito { position: absolute; inset: 0; display: grid; place-items: center; margin: 0; color: #cfe0d6; font-size: 1.05rem; }
+
+.t2-riga { position: absolute; display: flex; align-items: flex-start; gap: 4px; pointer-events: none; }
+.t2-riga > * { pointer-events: auto; }
+.t2-riga.jl { justify-content: flex-start; } .t2-riga.jc { justify-content: center; } .t2-riga.jr { justify-content: flex-end; }
+
+/* Targhetta: avatar, nome, fiches */
+.t2-targa {
+  position: relative; width: 100%; height: var(--ph); display: flex; align-items: center; gap: calc(6px * var(--k, 1));
+  padding: 0 8px 0 3px; border-radius: 999px;
+  background: rgba(8, 12, 11, 0.82); border: 1px solid rgba(255, 255, 255, 0.14); box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+  transition: box-shadow 300ms ease, border-color 300ms ease;
+}
+.t2-av {
+  position: relative; flex: none; width: calc(var(--ph) - 8px); height: calc(var(--ph) - 8px); border-radius: 50%;
+  display: grid; place-items: center; background: linear-gradient(160deg, #5b6b63, #2c3531);
+  font-weight: 700; font-size: calc(12px * var(--k, 1)); color: #fff;
+}
+.t2-video { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
+.t2-targa.con-video .t2-av { box-shadow: 0 0 0 1.5px var(--t2-oro); }
+.t2-mz {
+  position: absolute; right: -4px; bottom: -4px; width: 14px; height: 14px; border-radius: 50%;
+  display: grid; place-items: center; background: #fff; color: #111; font-size: 9px; font-weight: 700; line-height: 1;
+  box-shadow: 0 0 0 1.5px var(--t2-oro);
+}
+.t2-mic { position: absolute; left: -4px; bottom: -4px; font-size: 9px; line-height: 1; padding: 2px; border-radius: 50%; background: #1f6f4a; }
+.t2-collegamento {
+  position: absolute; left: -4px; top: -6px; border: 0; cursor: pointer; font: inherit; font-size: 9px; line-height: 1;
+  padding: 2px 3px; border-radius: 999px; background: rgba(0, 0, 0, 0.8); color: var(--t2-oro); white-space: nowrap;
+}
+.t2-collegamento.fallito { color: #ff8a80; }
+.t2-testo { min-width: 0; display: flex; flex-direction: column; line-height: 1.1; }
+.t2-testo b { font-size: calc(12px * var(--k, 1)); font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.t2-testo i {
+  font-style: normal; font-size: calc(11px * var(--k, 1)); font-weight: 600; color: var(--t2-oro);
+  font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.t2[data-densita="2"] .t2-testo b, .t2[data-stretto] .t2-testo b { font-size: calc(11.5px * var(--k, 1)); }
+.t2[data-densita="2"] .t2-testo i, .t2[data-stretto] .t2-testo i { font-size: calc(10.5px * var(--k, 1)); }
+.t2 .t2-testo i.tutto { color: #ff9d94; font-size: calc(9.5px * var(--k, 1)); letter-spacing: -0.01em; }
+.t2-targa.di-turno {
+  border-color: var(--t2-oro);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--t2-oro) 35%, transparent), 0 0 14px color-mix(in srgb, var(--t2-oro) 45%, transparent);
+  animation: t2-pulsa 1.4s ease-in-out infinite;
+}
+@keyframes t2-pulsa { 50% { box-shadow: 0 0 0 3px color-mix(in srgb, var(--t2-oro) 55%, transparent), 0 0 22px color-mix(in srgb, var(--t2-oro) 65%, transparent); } }
+.t2-targa.fuori > .t2-av, .t2-targa.fuori > .t2-testo { opacity: 0.45; }
+.t2-targa.vince { background: var(--t2-oro); border-color: #fff; }
+.t2-targa.vince .t2-testo b, .t2-targa.vince .t2-testo i { color: var(--t2-inchiostro); }
+
+/* Messaggio di chat: per qualche secondo al posto del nome, senza coprire carte o puntate */
+.t2-chat {
+  position: absolute; inset: -1px; z-index: 3; border-radius: 14px; padding: 2px 8px; overflow: hidden;
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2;
+  background: #fff; color: var(--t2-inchiostro); font-size: calc(10.5px * var(--k, 1)); font-weight: 600; line-height: 1.2;
+  animation: t2-compare 260ms ease-out;
+}
+.t2-reazione {
+  position: absolute; left: 50%; top: 50%; z-index: 12; pointer-events: none; font-size: 2rem; line-height: 1;
+  filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.5)); animation: reazione 3.5s ease-out forwards;
+}
+
+/* Carte degli altri: sovrapposte, con valore e seme sempre scoperti sulla sinistra */
+.t2-gruppo { display: flex; transition: opacity 400ms ease; }
+.t2-gruppo > * { flex: none; display: inline-flex; }
+.t2-gruppo > * + * { margin-left: calc(var(--step) - var(--cw)); }
+.t2-gruppo.coperte > * + * { margin-left: calc(var(--cw) * -0.58); }
+.t2-gruppo.piegata { opacity: 0.28; }
+.t2 .carta-gioco, .t2 .carta-gioco.piccola {
+  position: relative; display: block; width: var(--cw); height: calc(var(--cw) * 1.4); padding: 0;
+  border: 0; border-radius: calc(var(--cw) * 0.13);
+  background: linear-gradient(160deg, #fff, #f1eee6); color: #17191a; font-family: inherit;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9), -1px 0 2px rgba(0, 0, 0, 0.28), 0 2px 5px rgba(0, 0, 0, 0.4);
+}
+.t2 .carta-gioco.rossa { color: #c9261c; }
+.t2 .carta-gioco .cg-valore, .t2 .carta-gioco.piccola .cg-valore {
+  position: absolute; left: 8%; top: 4%; font-size: calc(var(--cw) * 0.46); font-weight: 700; line-height: 1; letter-spacing: -0.07em;
+}
+.t2 .cg-valore .cg-mini { display: block; font-size: 0.92em; line-height: 1; margin-top: 0.02em; letter-spacing: 0; }
+.t2 .carta-gioco .cg-seme, .t2 .carta-gioco.piccola .cg-seme {
+  position: absolute; right: 7%; bottom: 4%; font-size: calc(var(--cw) * 0.55); line-height: 1;
+}
+.t2-dorso {
+  display: block; flex: none; width: var(--cw); height: calc(var(--cw) * 1.4); border-radius: calc(var(--cw) * 0.13);
+  background: var(--dorso, #7d1a14) url('/img/dorso.webp') center / cover no-repeat;
+  border: 1.5px solid #f4efe4; box-shadow: -1px 0 2px rgba(0, 0, 0, 0.28), 0 2px 5px rgba(0, 0, 0, 0.4);
+}
+.t2-gruppo.vincente .carta-gioco { box-shadow: 0 0 0 1.5px var(--t2-oro), 0 2px 6px rgba(0, 0, 0, 0.5); }
+.t2-cambio {
+  align-self: center; flex: none; padding: 2px 5px; border-radius: 999px; background: rgba(0, 0, 0, 0.5);
+  color: var(--t2-oro); font-size: calc(10px * var(--k, 1)); font-weight: 700; line-height: 1.2; white-space: nowrap;
+}
+
+/* Animazioni: le carte partono dal mazzo, gli scarti ci tornano */
+.t2-volo { animation: t2-dal-mazzo 520ms cubic-bezier(.2, .8, .25, 1) var(--ritardo, 0ms) backwards; }
+@keyframes t2-dal-mazzo {
+  from { translate: calc(var(--dx) * 1px) calc(var(--dy) * 1px); scale: 0.5; opacity: 0; }
+  20% { opacity: 1; }
+}
+.t2-fantasmi { position: relative; display: block; width: var(--cw); height: calc(var(--cw) * 1.4); pointer-events: none; }
+.t2-dorso.via { position: absolute; left: 0; top: 0; animation: t2-agli-scarti 650ms ease-in var(--ritardo, 0ms) forwards; }
+@keyframes t2-agli-scarti { to { translate: calc(var(--dx) * 1px) calc(var(--dy) * 1px); rotate: 25deg; scale: 0.6; opacity: 0; } }
+@keyframes t2-compare { from { opacity: 0; translate: 0 4px; } }
+.t2 .gia, .pov .gia { animation: none !important; }
+
+/* Etichetta: ultima azione e puntata del giro, oppure il punto a fine mano */
+.t2-etichetta {
+  max-width: 100%; height: var(--pill); display: inline-flex; align-items: center; gap: 5px; padding: 0 9px 0 5px;
+  border-radius: 999px; background: rgba(0, 0, 0, 0.5); color: #fff;
+  font-size: calc(11.5px * var(--k, 1)); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  font-variant-numeric: tabular-nums; animation: t2-compare 260ms ease-out;
+}
+.t2-etichetta.solo { padding-left: 9px; }
+.t2-etichetta.due {
+  white-space: normal; text-align: center; text-wrap: balance; line-height: 1.12; border-radius: 10px; padding: 0 8px;
+  font-size: calc(11px * var(--k, 1));
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; height: auto; max-height: var(--pill);
+  padding-block: 2px;
+}
+.t2-etichetta.vince { background: var(--t2-oro); color: var(--t2-inchiostro); }
+.t2-etichetta.fuori { opacity: 0.55; }
+.t2-etichetta.mia { height: 22px; background: rgba(0, 0, 0, 0.6); border: 1px solid rgba(255, 255, 255, 0.18); }
+.t2[data-densita="2"] .t2-etichetta, .t2[data-stretto] .t2-etichetta { font-size: calc(10.5px * var(--k, 1)); gap: 3px; padding: 0 6px 0 3px; }
+.t2[data-densita="2"] .t2-etichetta.solo, .t2[data-stretto] .t2-etichetta.solo { padding-left: 7px; }
+.t2[data-densita="2"] .t2-etichetta.due, .t2[data-stretto] .t2-etichetta.due { padding: 1px 6px; line-height: 1.08; }
+.t2-fiche { flex: none; width: 13px; height: 13px; border-radius: 50%; background: #d6423a; border: 2px dashed #fff; }
+.t2-fiche.blu { background: #2f6fd6; } .t2-fiche.nera { background: #222; }
+.t2[data-densita="2"] .t2-fiche, .t2[data-stretto] .t2-fiche { width: 11px; height: 11px; }
+
+/* Centro: piatto, vela, mazzo */
+.t2-piatto {
+  height: calc(26px * var(--k, 1)); display: inline-flex; align-items: center; gap: 6px; padding: 0 10px 0 6px;
+  border-radius: 999px; background: rgba(0, 0, 0, 0.55); border: 1px solid color-mix(in srgb, var(--t2-oro) 55%, transparent);
+  font-weight: 700; font-size: calc(14px * var(--k, 1)); font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden;
+}
+.t2-pila { position: relative; flex: none; width: 16px; height: 16px; animation: t2-battito 380ms ease-out; }
+.t2-pila::before, .t2-pila::after, .t2-pila i {
+  content: ''; position: absolute; left: 0; width: 16px; height: 7px; border-radius: 50%; border: 1px solid rgba(0, 0, 0, 0.5);
+}
+.t2-pila::before { bottom: 0; background: #2f6fd6; } .t2-pila i { bottom: 4px; background: #d6423a; } .t2-pila::after { bottom: 8px; background: var(--t2-oro); }
+@keyframes t2-battito { 40% { scale: 1.25; } }
+.t2-vela { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.t2-vela small { font-size: 9.5px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--t2-oro); line-height: 1.2; }
+.t2-mazzo { display: flex; gap: 6px; }
+.t2-mazzo .storto { transform: rotate(8deg); opacity: 0.75; }
+
+/* ═════════ La mia zona: sopra i comandi, fuori dal tavolo ═════════ */
+.pov {
+  display: block; position: static; height: auto; padding: 0; pointer-events: auto;
+  container-type: inline-size; --tetto: 64px;
+}
+.t2-mio {
+  --cw: min(var(--tetto), calc((100cqw - 48px) / 5));
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "io tasti" "stato stato" "carte carte";
+  gap: 4px 8px; padding: 6px 12px 8px; color: #fff;
+  font-family: 'Instrument Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+.t2-io { grid-area: io; display: flex; align-items: center; gap: 7px; height: 28px; min-width: 0; overflow: hidden; }
+.t2-tasti { grid-area: tasti; display: flex; align-items: center; gap: 6px; }
+.t2-stato { grid-area: stato; }
+.t2-carte { grid-area: carte; }
+.t2-nota.puntata { display: inline-flex; align-items: center; gap: 4px; background: rgba(0, 0, 0, 0.6); font-variant-numeric: tabular-nums; }
+.t2-io .t2-av { width: 24px; height: 24px; background: var(--t2-oro); color: var(--t2-inchiostro); font-size: 12px; }
+.t2-io .t2-av:has(.t2-video) { width: 44px; height: 44px; margin-block: -8px; box-shadow: 0 0 0 1.5px var(--t2-oro); }
+.t2-nick { min-width: 0; font-weight: 700; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.t2-fiches { flex: none; color: var(--t2-oro); font-weight: 600; font-size: 13px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.t2-nota { flex: none; font-size: 11px; font-weight: 600; padding: 2px 7px; border-radius: 999px; background: rgba(255, 255, 255, 0.1); white-space: nowrap; }
+.t2-nota.rossa { background: rgba(179, 38, 30, 0.85); }
+.t2-spazio { flex: 1; }
+.t2-mio.fuori .t2-nick, .t2-mio.fuori .t2-fiches { opacity: 0.6; }
+.t2-tasti .emoticon { position: relative; inset: auto; flex: none; display: block; z-index: 40; }
+.t2-tasti .emoticon-tasto { width: 28px; height: 28px; font-size: 16px; box-shadow: none; background: rgba(255, 255, 255, 0.1); border: 0; }
+.t2-tasti .emoticon-tavolozza { position: absolute; right: 0; bottom: calc(100% + 8px); }
+.t2-tasti .pov-media { display: inline-flex; margin: 0; }
+.t2-tasti .pov-media .tasto-media { width: 28px; height: 28px; font-size: 13px; }
+@media (min-width: 960px) { .t2-tasti .pov-media { display: none; } }
+
+.t2-stato { display: flex; align-items: center; justify-content: center; gap: 6px; height: 22px; min-width: 0; }
+.t2-tocca {
+  flex: none; padding: 2px 9px; border-radius: 999px; background: var(--t2-oro); color: var(--t2-inchiostro);
+  font-size: 11.5px; font-weight: 700; white-space: nowrap;
+}
+.t2-punto {
+  min-width: 0; padding: 2px 10px; border-radius: 999px; background: rgba(255, 255, 255, 0.1);
+  font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.t2-punto b { font-weight: 600; } .t2-punto .si { color: #7ee2a8; } .t2-punto .no { color: #cfe0d6; font-weight: 400; }
+.t2-punto.vince { background: var(--t2-oro); color: var(--t2-inchiostro); }
+.t2-punto.tenue { background: none; color: #9fb0a5; font-weight: 400; }
+.t2-mio.di-turno .t2-stato .t2-punto { background: rgba(255, 255, 255, 0.14); }
+
+.t2-carte { display: flex; justify-content: center; align-items: center; height: calc(var(--cw) * 1.4 + 10px); padding-top: 10px; }
+.t2-attesa { color: #9fb0a5; font-size: 0.9rem; text-align: center; }
+.t2-mano { position: relative; display: flex; gap: 6px; justify-content: center; transition: opacity 400ms ease; }
+.t2-mano.piegata { opacity: 0.35; }
+.t2-mano.chiuse { cursor: pointer; }
+.t2-mano.chiuse:focus-visible { outline: 3px solid var(--t2-oro); outline-offset: 6px; border-radius: 10px; }
+.t2-mia { display: inline-block; position: relative; }
+.t2-mia .strato { display: block; transition: transform 200ms ease; }
+.t2-arriva { animation: t2-arriva 420ms cubic-bezier(.2, .8, .25, 1) var(--ritardo, 0ms) backwards; }
+@keyframes t2-arriva { from { translate: 0 -2.5rem; scale: 0.6; opacity: 0; } }
+.t2-mio .carta-gioco {
+  position: relative; display: block; width: var(--cw); height: calc(var(--cw) * 1.4); padding: 0;
+  border: 0; border-radius: calc(var(--cw) * 0.12); background: linear-gradient(160deg, #fff, #f1eee6); color: #17191a;
+  font-family: inherit; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 3px 8px rgba(0, 0, 0, 0.45);
+  transition: transform 120ms ease, box-shadow 120ms ease;
+}
+.t2-mio .carta-gioco.rossa { color: #c9261c; }
+.t2-mio .cg-valore { position: absolute; left: 9%; top: 5%; font-size: calc(var(--cw) * 0.42); font-weight: 700; line-height: 1; letter-spacing: -0.06em; }
+.t2-mio .cg-valore .cg-mini { display: block; font-size: 0.9em; line-height: 1; margin-top: 0.03em; letter-spacing: 0; }
+.t2-mio .cg-seme { position: absolute; right: 7%; bottom: 4%; font-size: calc(var(--cw) * 0.62); line-height: 1; }
+.t2-mio .carta-gioco.scelta { transform: translateY(-8px); box-shadow: 0 0 0 2px var(--t2-oro), 0 6px 12px rgba(0, 0, 0, 0.5); border: 0; }
+.t2-mano.vincente .carta-gioco { box-shadow: 0 0 0 2px var(--t2-oro), 0 4px 12px rgba(0, 0, 0, 0.5); }
+.t2-mio .carta-gioco.coperta-mia { outline: 0; }
+.t2-mio .carta-gioco .cg-coperta {
+  position: absolute; left: 0; right: 0; bottom: 0; top: auto; transform: none; text-align: center;
+  font-size: 9px; font-weight: 700; line-height: 1; letter-spacing: 0.03em; text-transform: uppercase;
+  padding: 2px 0; border-radius: 0 0 calc(var(--cw) * 0.12) calc(var(--cw) * 0.12); background: var(--t2-inchiostro); color: #fff;
+}
+.t2-mio .carta-gioco.coperta-mia .cg-seme { bottom: 20%; }
+
+/* Schermi bassi: le mie carte un po' più piccole, per lasciare spazio al tavolo */
+@media (max-height: 700px) and (max-width: 959px) {
+  /* nome, punto e tasti su una riga sola */
+  .t2-mio { grid-template-columns: auto minmax(0, 1fr) auto; grid-template-areas: "io stato tasti" "carte carte carte"; padding: 4px 12px 6px; gap: 3px 6px; }
+  .t2-stato { height: 28px; justify-content: flex-end; }
+  .t2-nick { display: none; }
+  .t2-carte { height: calc(var(--cw) * 1.4 + 8px); padding-top: 8px; }
+}
+@media (max-height: 660px) { .pov { --tetto: 54px; } }
+@media (max-height: 590px) and (max-width: 959px) {
+  .pov { --tetto: 46px; }
+  .t2-mio { padding: 3px 12px 5px; }
+  .t2-stato, .t2-io { height: 24px; }
+  .comandi { gap: 6px; padding: 6px 10px calc(7px + env(safe-area-inset-bottom, 0px)); }
+  .console .azione-grande { min-height: 42px; }
+  .console .puntata-riga { height: 30px; }
+  .console .griglia-azioni, .console .azioni-gioco { gap: 6px; }
+}
+
+@media (max-width: 959px) {
+  .pov {
+    position: fixed; left: 0; right: 0; bottom: var(--h-console, 0px); z-index: 31;
+    height: auto; padding: 0; pointer-events: auto; background: var(--t2-sfondo);
+  }
+}
+/* Computer: tavolo a sinistra; a destra le mie carte e sotto i comandi */
+@media (min-width: 960px) {
+  .zona-tavolo { grid-template-rows: 1fr auto; align-items: stretch; }
+  .zona-tavolo > .scena { grid-column: 1; grid-row: 1 / span 2; align-self: start; }
+  .zona-tavolo > .pov { grid-column: 2; grid-row: 1; align-self: end; --tetto: 72px; }
+  .zona-tavolo > .console { grid-column: 2; grid-row: 2; }
+}
+
+/* ═════════ Comandi: stesso stile piatto e scuro ═════════ */
+.console {
+  background: #0d1a15; border: 1px solid rgba(255, 255, 255, 0.08); box-shadow: none;
+  -webkit-backdrop-filter: none; backdrop-filter: none;
+  font-family: 'Instrument Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+@media (max-width: 959px) {
+  .comandi { border-radius: 0; border: 0; border-top: 1px solid rgba(255, 255, 255, 0.08); box-shadow: none; gap: 8px; padding: 8px 10px calc(10px + env(safe-area-inset-bottom, 0px)); }
+}
+.console .azione-grande {
+  min-height: 46px; padding: 4px 6px; border: 0; border-radius: 14px; box-shadow: none;
+  font-family: inherit; transition: filter 80ms ease, transform 80ms ease;
+}
+.console .azione-grande > span { font-size: 14px; font-weight: 700; white-space: nowrap; }
+.console .azione-grande:active { transform: scale(0.98); filter: brightness(0.92); box-shadow: none; }
+.console .azione-grande.neutro { background: rgba(255, 255, 255, 0.12); color: #fff; }
+.console .azione-grande.verde { background: #1f9d63; color: #fff; }
+.console .azione-grande.oro { background: var(--t2-oro); color: var(--t2-inchiostro); }
+.console .griglia-azioni { gap: 6px; }
+.console .puntata-riga { flex-wrap: nowrap; gap: 6px; height: 34px; align-items: stretch; }
+.console .importo-frecce { flex: 1; min-width: 0; border: 0; border-radius: 10px; background: #000; overflow: hidden; }
+.console .importo-frecce .puntata-campo { flex: 1; min-width: 0; display: flex; }
+.console .importo-frecce .puntata-campo input {
+  width: 100%; min-width: 0; height: 100%; padding: 0; border: 0; border-radius: 0; background: #000; color: #fff;
+  font-family: inherit; font-size: 15px; font-weight: 700; text-align: center; font-variant-numeric: tabular-nums;
+}
+.console .freccia, .console .freccia:first-child {
+  flex: none; width: 36px; border: 0; background: rgba(255, 255, 255, 0.14); color: #fff; font-size: 18px; font-weight: 700; cursor: pointer;
+}
+.console .freccia:disabled { opacity: 0.35; background: rgba(255, 255, 255, 0.14); color: #fff; }
+.console .chip {
+  flex: none; display: grid; place-items: center; padding: 0 10px; border: 0; border-radius: 10px;
+  background: rgba(255, 255, 255, 0.1); color: #fff; font-family: inherit; font-size: 12px; font-weight: 600; white-space: nowrap;
+}
+.console .chip.max { background: color-mix(in srgb, var(--t2-oro) 22%, transparent); color: var(--t2-oro); }
+.console .pre-scelta {
+  flex: 1; justify-content: center; min-height: 38px; padding: 0 10px; border-radius: 12px; border-width: 1.5px;
+  background: transparent; border-color: rgba(255, 255, 255, 0.22); font-size: 13.5px;
+}
+.console .pre-scelta.attiva { border-color: var(--t2-oro); background: color-mix(in srgb, var(--t2-oro) 18%, transparent); }
+.console .pre-scelta input { accent-color: var(--t2-oro); }
+.console .pre-titolo { font-size: 12px; color: #c6d0ca; }
+.console .azioni-gioco { gap: 8px; margin-bottom: 0; }
+.console .azioni-gioco > p, .console .tenue { font-size: 12.5px; line-height: 1.3; color: #c6d0ca; margin: 0; }
+.console .esito-mano { padding: 8px 12px; border-radius: 12px; border-left: 0; font-size: 13.5px; background: rgba(255, 255, 255, 0.08); }
+.console .esito-mano.mio { background: var(--t2-oro); }
+@media (max-width: 959px) {
+  /* Fine mano: comandi bassi, così il tavolo non si rimpicciolisce */
+  .console .esito-mano { padding: 6px 10px; font-size: 12.5px; line-height: 1.25; }
+  .console .prossima-mano { padding: 8px 10px; }
+  .console .prossima-mano.conto { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .console .prossima-mano.conto .prossima-subito { display: none; }
+}
+@media (min-width: 960px) { .console .prossima-mano { padding: 10px 12px; } }
+.console .prossima-mano { margin: 0; border-radius: 14px; border: 0; font-size: 13.5px; background: color-mix(in srgb, var(--t2-oro) 16%, transparent); color: var(--t2-oro); }
+
+/* ═════════ Barra in alto: sul telefono una riga sola, il resto nel menu "⋯" ═════════ */
+.barra-gioco { font-family: 'Instrument Sans', system-ui, -apple-system, 'Segoe UI', sans-serif; }
+.barra-gioco .barra-nome { font-family: inherit; }
+.barra-menu-tasto, .barra-menu-velo, .solo-stretto { display: none; }
+@media (max-width: 959px) {
+  .pagina.ampia { gap: 0; padding-top: 0; }
+  .barra-gioco { position: relative; flex-wrap: wrap; gap: 4px 6px; min-height: 40px; padding: 4px 0; }
+  .barra-gioco .barra-nome { flex: 1 1 0; font-size: 14px; font-weight: 700; }
+  .barra-gioco .barra-home { font-size: 22px; padding: 0 4px 0 0; }
+  .barra-gioco .chip-posta { padding: 4px 10px; font-size: 12px; border: 0; background: var(--t2-oro); color: var(--t2-inchiostro); }
+  .barra-gioco .chip-tempo { font-size: 12px; }
+  .barra-gioco .tasto-pausa { width: 30px; height: 30px; font-size: 13px; }
+  .solo-largo { display: none !important; }
+  .solo-stretto { display: block; }
+  .barra-menu-tasto {
+    position: relative; flex: none; display: grid; place-items: center; width: 34px; height: 30px; border: 0; border-radius: 999px;
+    background: rgba(255, 255, 255, 0.1); color: #fff; font: inherit; font-size: 18px; font-weight: 700; line-height: 1; cursor: pointer;
+  }
+  .barra-menu-tasto[aria-expanded="true"] { background: var(--t2-oro); color: var(--t2-inchiostro); }
+  .barra-menu-tasto .segnale { position: absolute; right: -4px; top: -4px; margin: 0; }
+  .barra-menu-velo { display: block; position: fixed; inset: 0; z-index: 58; }
+  .barra-gioco .barra-link { display: none; }
+  .barra-gioco .barra-link.aperto {
+    display: flex; flex-direction: column; align-items: stretch; flex-wrap: nowrap; gap: 2px; order: 0;
+    position: absolute; right: 0; top: calc(100% + 2px); z-index: 59; min-width: 12.5rem; padding: 6px;
+    background: #0d1a15; border: 1px solid rgba(255, 255, 255, 0.14); border-radius: 14px; box-shadow: 0 14px 34px rgba(0, 0, 0, 0.6);
+  }
+  .barra-link.aperto > * {
+    display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 40px; padding: 0 12px;
+    border-radius: 10px; font-size: 14px; color: #fff; text-decoration: none; text-align: left;
+  }
+  .barra-link.aperto > .tasti-media { display: none; }
+  .barra-link.aperto > .tasto-termina { justify-content: center; margin-top: 4px; box-shadow: none; }
+  .barra-link.aperto > .suoni-tasto::after { content: 'Suoni'; font-size: 14px; order: -1; }
+  .barra-gioco .barra-avviso { order: 5; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .t2 *, .t2 *::after, .t2-mio * { animation: none !important; transition: none !important; }
+  .t2-dorso.via { display: none; }
+}

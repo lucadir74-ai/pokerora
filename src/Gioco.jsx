@@ -77,7 +77,7 @@ export default function Gioco({ tavolo, giocatori, io, usciti = [], bot = new Se
       }
       // Prima persona: le mie carte stanno sopra la console e per metà entrano sul bordo del tavolo
       const pov = telefono ? (povRef.current?.offsetHeight || 0) : 0
-      const sovrapposto = Math.round(pov * 0.45)
+      const sovrapposto = 0   // le mie carte stanno sotto il tavolo, non sopra il bordo
       const sotto = comandi + pov - sovrapposto
       radice.setProperty('--h-console', `${comandi}px`)
       radice.setProperty('--h-comandi', `${sotto}px`)
@@ -85,8 +85,8 @@ export default function Gioco({ tavolo, giocatori, io, usciti = [], bot = new Se
       const H = Math.max(260, base - alto - sotto - (telefono ? 4 : 18))
       const W = scena.clientWidth
       let w = W, h = H
-      if (stretto) {
-        h = Math.min(Math.max(H, W * 0.8), W * 1.6)       // ovale verticale, né troppo schiacciato né troppo lungo
+      if (telefono) {
+        h = H                                             // telefono e tablet: il tavolo usa tutto lo spazio libero
       } else if (W / H > 1.8) {
         w = H * 1.8                                       // schermo larghissimo: il tavolo si ferma
       } else if (W / H < 1.3) {
@@ -258,8 +258,13 @@ export default function Gioco({ tavolo, giocatori, io, usciti = [], bot = new Se
     return () => clearTimeout(t)
   }, [tocca_a_bot, mano?.id, mano?.turno, mano?.fase, mano?.giro, registro.length, regista, tentativoBot, inPausa])
 
-  // Nuova fase o nuovo turno: azzera scelte e importo
-  useEffect(() => { setScelte([]); setImporto('') }, [mano?.fase, mano?.turno, mano?.giro, idMano])
+  // Nuova fase o nuovo turno: azzera l'importo
+  useEffect(() => { setImporto('') }, [mano?.fase, mano?.turno, mano?.giro, idMano])
+  // Le carte da cambiare si possono scegliere in anticipo, mentre giocano gli altri: la scelta resta
+  // finché non cambio (o finché non arriva una mano nuova), e vale solo per le carte che ho ancora in mano
+  const mioCambio = posti.find((p) => p.giocatore_id === io.id)?.cambio ?? null
+  useEffect(() => { setScelte([]) }, [idMano, mioCambio])
+  useEffect(() => { setScelte((s) => (s.every((c) => carte.includes(c)) ? s : s.filter((c) => carte.includes(c)))) }, [carte])
 
   async function rpc(nome, parametri) {
     setErrore('')
@@ -358,6 +363,11 @@ export default function Gioco({ tavolo, giocatori, io, usciti = [], bot = new Se
     setScelte((s) => s.includes(c) ? s.filter((x) => x !== c) : s.length < cambioMax ? [...s, c] : s)
   }
 
+  // Posso scegliere le carte da cambiare già durante l'apertura e il primo giro, e nel cambio anche
+  // quando non è ancora il mio turno; il cambio vero parte solo quando lo confermo al mio turno
+  const puoScegliere = !!mano && mano.gioco !== 'telesina' && ['apertura', 'primo_giro', 'cambio'].includes(mano.fase)
+    && !!mio && mio.stato === 'attivo' && mio.cambio == null && carte.length === 5
+
   const azione = (tipo, imp = 0) => rpc('azione', { p_mano: mano.id, p_tipo: tipo, p_importo: imp })
 
   // Pre-azione: quando arriva il mio turno la eseguo, purché la situazione sia la stessa di quando l'ho scelta
@@ -380,6 +390,8 @@ export default function Gioco({ tavolo, giocatori, io, usciti = [], bot = new Se
   // Riga dell'importo: frecce per scendere e salire, campo e scorciatoie
   const passo = invito
   const limita = (v) => Math.max(invito, tetto ? Math.min(v, tetto) : v)
+  // Puntata massima: il tetto del tavolo, se c'è, e comunque non più delle fiches che mi restano dopo aver visto
+  const massimo = Math.max(invito, Math.min(tetto ?? Infinity, fichesMie - Math.max(daVedere, 0)))
   const cambiaImporto = (verso) => setImporto((attuale) => {
     const v = attuale === '' ? invito : Number(attuale) || invito
     return String(limita(v + verso * passo))
@@ -396,9 +408,9 @@ export default function Gioco({ tavolo, giocatori, io, usciti = [], bot = new Se
         </label>
         <Freccia verso={1} onPasso={cambiaImporto} disabled={attesa || (tetto != null && valore >= tetto)} etichetta={`Aumenta di ${fmt(passo)}`} />
       </div>
-      <button type="button" className="chip" onClick={() => setImporto(String(invito))}>Min</button>
       <button type="button" className="chip" onClick={() => setImporto(String(limita(Math.floor((tetto ?? mano.piatto) / 2))))}>½ piatto</button>
-      <button type="button" className="chip" onClick={() => setImporto(String(limita(tetto ?? mano.piatto)))}>{tetto ? 'Max' : 'Piatto'}</button>
+      {!tetto && <button type="button" className="chip" onClick={() => setImporto(String(limita(mano.piatto)))}>Piatto</button>}
+      <button type="button" className="chip max" title={`Puntata massima: ${fmt(massimo)}`} onClick={() => setImporto(String(massimo))}>Max</button>
     </div>
   )
 
@@ -559,8 +571,16 @@ export default function Gioco({ tavolo, giocatori, io, usciti = [], bot = new Se
   // Pre-azioni: quando non è il tuo turno puoi scegliere in anticipo cosa fare
   function preAzioni() {
     const fasiPuntata = ['apertura', 'primo_giro', 'secondo_giro', 'telesina']
+    if (mano.fase === 'cambio' && puoScegliere) {
+      return (
+        <p className="tenue">
+          {scelte.length === 0 ? `Intanto puoi toccare le carte che vuoi cambiare (al massimo ${cambioMax}).`
+            : `Hai scelto ${scelte.length === 1 ? '1 carta' : `${scelte.length} carte`} da cambiare: confermi quando tocca a te.`}
+        </p>
+      )
+    }
     if (!fasiPuntata.includes(mano.fase)) return null
-    const scelte = mano.fase === 'apertura'
+    const opzioni = mano.fase === 'apertura'
       ? [['passo', 'Passo']]
       : mano.puntata > 0
         ? [['passo', 'Lascio'], ...(daVedere > 0 ? [['vedo', `Vedo ${fmt(daVedere)}`]] : [])]
@@ -569,7 +589,7 @@ export default function Gioco({ tavolo, giocatori, io, usciti = [], bot = new Se
     return (
       <div className="pre-azioni" role="group" aria-label="Scegli in anticipo">
         <span className="pre-titolo">Quando tocca a te:</span>
-        {scelte.map(([tipo, testo]) => (
+        {opzioni.map(([tipo, testo]) => (
           <label key={tipo} className={`pre-scelta${attiva(tipo) ? ' attiva' : ''}`}>
             <input type="checkbox" checked={attiva(tipo)}
               onChange={(e) => setPre(e.target.checked
@@ -602,7 +622,7 @@ export default function Gioco({ tavolo, giocatori, io, usciti = [], bot = new Se
         <div className="zona-tavolo" ref={zonaRef}>
         <TavoloVerde
             mano={mano} posti={posti} giocatori={giocatori} io={io} carte={carte}
-            scelte={scelte} onScegli={mano?.fase === 'cambio' && mioTurno ? scegli : null}
+            scelte={scelte} onScegli={puoScegliere ? scegli : null}
             azioni={registro} conclusa={conclusa} fumetti={fumetti} reazioni={reazioni} onReagisci={reagisci}
             povEl={povEl} video={video}
           />
@@ -687,7 +707,7 @@ export default function Gioco({ tavolo, giocatori, io, usciti = [], bot = new Se
 
             {conclusa && traSecondi !== null && !tempoScaduto && (
               // Si può toccare per partire subito; se un altro l'ha già fatto, il server non ne distribuisce due
-              <button type="button" className="prossima-mano" disabled={traSecondi === 0 || attesa}
+              <button type="button" className="prossima-mano conto" disabled={traSecondi === 0 || attesa}
                 onClick={() => { setTraSecondi(0); prossimaMano() }}>
                 {traSecondi > 0
                     ? <>{mano ? 'Prossima mano' : 'Prima mano'} tra {traSecondi} {traSecondi === 1 ? 'secondo' : 'secondi'} <span className="prossima-subito">· tocca per iniziare subito</span></>

@@ -125,6 +125,7 @@ export default function Tavolo({ id, io }) {
   useEffect(() => ascoltaSpizzata(setSpizzata), [])
   const [pannello, setPannello] = useState(null)   // 'chat' | 'storico' | null
   const [nonLetti, setNonLetti] = useState(0)
+  const [menu, setMenu] = useState(false)          // telefono: le voci della barra stanno in un menu a scomparsa
   useEffect(() => ascoltaSuoni(setSuoni), [])
   // Video e audio: solo per chi è seduto, a partita in corso; partono spenti
   const seduto = giocatori.some((g) => g.giocatore_id === io.id)
@@ -406,11 +407,11 @@ export default function Tavolo({ id, io }) {
                 title={tavolo.in_pausa_dal ? 'Riprendi la partita' : 'Metti in pausa: si ferma il tavolo e il timer'}>
                 {tavolo.in_pausa_dal ? '▶' : '⏸'}
               </button>
-              <button className="tasto-termina" disabled={attesa} onClick={terminaPartita}>Termina</button>
+              <button className="tasto-termina solo-largo" disabled={attesa} onClick={terminaPartita}>Termina</button>
             </span>
           )}
           {!organizzo && mioPosto && (
-            <span className="barra-org">
+            <span className={`barra-org${mioPosto.esce_a_fine_mano ? '' : ' solo-largo'}`}>
               {mioPosto.esce_a_fine_mano
                 ? <span className="chip-tempo">Esci a fine mano</span>
                 : <button className="tasto-termina" disabled={attesa} onClick={esci}>Abbandona</button>}
@@ -421,7 +422,13 @@ export default function Tavolo({ id, io }) {
                 && chiama('prendi_posta', { p_tavolo: id }, `Posta da ${fmt(tavolo.valore_posta)} presa: se c’è una mano in corso, le fiches arrivano a fine mano.`)}>
               + Posta
             </button>
-          <span className="barra-link">
+          {/* Telefono: una riga sola; il resto si apre da qui */}
+          <button className="barra-menu-tasto" aria-expanded={menu} aria-label="Menu del tavolo" onClick={() => setMenu((m) => !m)}>
+            ⋯{nonLetti > 0 && !menu && <span className="segnale" aria-label={`${nonLetti} messaggi nuovi`}>{nonLetti}</span>}
+          </button>
+          {menu && <span className="barra-menu-velo" onClick={() => setMenu(false)} aria-hidden="true" />}
+          <span className={`barra-link${menu ? ' aperto' : ''}`}
+            onClick={(e) => { if (e.target.closest('.link-chiaro, .tasto-termina')) setMenu(false) }}>
             <button className="suoni-tasto" onClick={() => impostaSuoni(!suoni)}
               aria-label={suoni ? 'Disattiva i suoni' : 'Attiva i suoni'} title={suoni ? 'Suoni attivi' : 'Suoni spenti'}>
               {suoni ? '🔊' : '🔇'}
@@ -438,6 +445,10 @@ export default function Tavolo({ id, io }) {
             <button className="link-chiaro" onClick={() => setPannello(pannello === 'storico' ? null : 'storico')}>Storico</button>
             <button className="link-chiaro" onClick={() => setCassetto('regole')}>Regole</button>
             <button className="link-chiaro" onClick={() => setCassetto('poste')}>Poste</button>
+            {organizzo && <button className="tasto-termina solo-stretto" disabled={attesa} onClick={terminaPartita}>Termina la partita</button>}
+            {!organizzo && mioPosto && !mioPosto.esce_a_fine_mano && (
+              <button className="tasto-termina solo-stretto" disabled={attesa} onClick={esci}>Abbandona il tavolo</button>
+            )}
 
           </span>
           {video.errore && <p className="barra-avviso errore" role="alert">{video.errore}</p>}
