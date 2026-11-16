@@ -5,7 +5,16 @@ import React, { useEffect, useState } from 'react'
 import ReactDOM from 'react-dom/client'
 import Gioco from '../src/Gioco'
 import TavoloVerde from '../src/TavoloVerde'
+import Accesso from '../src/Accesso'
+import Lobby from '../src/Lobby'
+import Tavolo from '../src/Tavolo'
+import Giocatori from '../src/Giocatori'
+import Messaggi from '../src/Messaggi'
+import Invito from '../src/Invito'
+import Copertina from '../src/Copertina'
+import NuovaPassword from '../src/NuovaPassword'
 import '../src/stile.css'
+import '../src/stile2.css'
 import '../src/tavolo2.css'
 import { scenario } from './supabase-finto'
 import { spizzataAttiva, impostaSpizzata } from '../src/preferenze'
@@ -60,6 +69,35 @@ window.__controlla = () => {
   mie.forEach((a, i) => { const b = mie[i + 1]; if (b && a.right > b.left + 0.5 && !document.querySelector('.t2-mano.chiuse')) r.guai.push('le mie carte si sovrappongono') })
   document.querySelectorAll('.azione-grande, .console .chip, .pre-scelta').forEach((b) => { if (b.scrollWidth > b.clientWidth + 1) r.guai.push(`tasto tagliato: ${b.textContent.trim()}`) })
   return { ...r, schermo: `${innerWidth}x${innerHeight}`, tavolo: `${Math.round(t.width)}x${Math.round(t.height)}`, densita: tav.dataset.densita }
+}
+
+// Controllo di leggibilità: testi con poco contrasto rispetto al loro sfondo (apre anche le sezioni chiuse)
+window.__contrasto = (soglia = 3) => {
+  document.querySelectorAll('details').forEach((d) => { d.open = true })
+  const rgb = (s) => { const m = s.match(/[\d.]+/g)?.map(Number) ?? [0, 0, 0, 0]; return { r: m[0], g: m[1], b: m[2], a: m[3] ?? 1 } }
+  const lum = ({ r, g, b }) => { const f = (v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4 }; return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b) }
+  const sopra = (su, giu) => ({ r: su.r * su.a + giu.r * (1 - su.a), g: su.g * su.a + giu.g * (1 - su.a), b: su.b * su.a + giu.b * (1 - su.a), a: 1 })
+  const sfondo = (el) => {
+    const strati = []
+    for (let e = el; e; e = e.parentElement) {
+      const s = getComputedStyle(e)
+      const c = rgb(s.backgroundColor)
+      if (c.a > 0) strati.push(c)
+      if (s.backgroundImage !== 'none' && c.a === 0) { const m = s.backgroundImage.match(/rgba?\([^)]+\)/g); if (m) strati.push({ ...rgb(m[m.length - 1]), a: 1 }) }
+      if (c.a === 1) break
+    }
+    return strati.reverse().reduce((giu, su) => sopra(su, giu), { r: 8, g: 19, b: 15, a: 1 })
+  }
+  const guai = []
+  for (const el of document.querySelectorAll('body *')) {
+    if (![...el.childNodes].some((n) => n.nodeType === 3 && n.textContent.trim())) continue
+    const r = el.getBoundingClientRect(); if (r.width === 0 || r.height === 0) continue
+    const s = getComputedStyle(el); if (s.visibility === 'hidden' || Number(s.opacity) === 0) continue
+    const bg = sfondo(el), fg = sopra(rgb(s.color), bg)
+    const a = lum(fg), b = lum(bg), k = (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05)
+    if (k < soglia) guai.push(`${k.toFixed(1)} · ${el.tagName.toLowerCase()}.${String(el.className).split(' ').slice(0, 2).join('.')} · “${el.textContent.trim().slice(0, 28)}”`)
+  }
+  return [...new Set(guai)]
 }
 
 // ── Tutte le combinazioni del solo tavolo, in scatole di misura fissa ──
@@ -179,8 +217,22 @@ function Pagina() {
   )
 }
 
+// Le altre pagine dell'app: ?pagina=accesso|lobby|attesa|chiuso|partita|giocatori|messaggi|invito|copertina|password
+const PAGINE = {
+  accesso: () => <Accesso />,
+  lobby: () => <Lobby io={io} />,
+  attesa: () => <Tavolo id="t2" io={io} />,
+  chiuso: () => <Tavolo id="t3" io={io} />,
+  partita: () => <Tavolo id="t1" io={io} />,
+  giocatori: () => <Giocatori io={io} />,
+  messaggi: () => <Messaggi altroId="11111111-1111-4111-8111-111111111111" io={io} />,
+  invito: () => <Invito codice="M4RC0X" io={io} />,
+  copertina: () => <Copertina onEntra={() => {}} />,
+  password: () => <NuovaPassword onFatto={() => {}} />,
+}
+
 // Nel banco di prova le carte arrivano già aperte, salvo ?spizza=1
 const spizzataPrima = spizzataAttiva()
 if (!q.has('spizza')) impostaSpizzata(false)
 window.addEventListener('pagehide', () => impostaSpizzata(spizzataPrima))
-ReactDOM.createRoot(document.getElementById('root')).render(q.has('griglia') ? <Griglia /> : q.has('giro') ? <Giro /> : <Pagina />)
+ReactDOM.createRoot(document.getElementById('root')).render(q.has('griglia') ? <Griglia /> : q.has('giro') ? <Giro /> : PAGINE[q.get('pagina')]?.() ?? <Pagina />)

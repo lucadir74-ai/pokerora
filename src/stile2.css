@@ -1,0 +1,140 @@
+/* ═════════ Stile nuovo delle pagine fuori dal tavolo: scuro, piatto, senza carte color crema ═════════
+   Viene dopo stile.css e ne cambia colori e forme; la struttura delle pagine resta quella.
+   Il tavolo di gioco ha il suo file (tavolo2.css), caricato dopo questo. */
+:root {
+  color-scheme: dark;
+  --panno: #1f9d63;            /* verde: adesso deve leggersi anche come testo su fondo scuro */
+  --panno-scuro: #17804f;
+  --ottone: #e9c46a;
+  --grigio: #9fb0a5;
+  --bordo: rgba(255, 255, 255, 0.14);
+  --fondo: #08130f;            /* sfondo delle pagine */
+  --superficie: #0f1f19;       /* riquadri */
+  --campo: #0a1611;            /* campi da compilare */
+  --testo: #eef3ef;
+  --rosso-chiaro: #ff8a80;
+  color: var(--testo);
+}
+body {
+  background: radial-gradient(120% 60% at 50% 0%, #12281e, var(--fondo) 70%);
+  background-color: var(--fondo); background-attachment: fixed;
+}
+button { color: inherit; }
+
+/* Titoli: stesso carattere del resto, niente più carattere "da casinò" */
+.marchio, .marchio-piccolo, .saluto, h2, .titolo-tavolo, .piatto strong, .spizzata-punto,
+.cop-logo, .cop-entra, .cop-carta, .carta-gioco, .angolo {
+  font-family: 'Instrument Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+.marchio { font-weight: 700; letter-spacing: -0.03em; color: #fff; }
+.marchio-piccolo { font-size: 1.25rem; letter-spacing: -0.02em; }
+h2 { font-size: 1.2rem; letter-spacing: -0.01em; margin-bottom: 0.8rem; }
+.saluto { font-weight: 700; letter-spacing: -0.02em; }
+.titolo-tavolo { font-size: 1.6rem; letter-spacing: -0.02em; }
+.sottotitolo { color: var(--grigio); }
+
+/* Riquadri */
+.carta {
+  background: var(--superficie); color: var(--testo); border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 20px; padding: 1.6rem 1.35rem 1.5rem; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+  animation: entra-riquadro 320ms ease-out both;
+}
+@keyframes entra-riquadro { from { opacity: 0; transform: translateY(8px); } }
+.pagina .carta { padding: 1.35rem 1.2rem 1.25rem; }
+.pagina { gap: 0.9rem; }
+.angolo { display: none; }
+.home-benvenuto { padding-top: 1.35rem; }
+.pannello { background: var(--superficie); color: var(--testo); }
+
+/* Testata */
+.testata { background: rgba(8, 19, 15, 0.86); border-bottom: 1px solid rgba(255, 255, 255, 0.06); color: var(--testo); }
+.link-chiaro { text-decoration: none; color: #cfe0d6; }
+.link-chiaro:hover { color: #fff; text-decoration: underline; }
+.fondo .link-chiaro, .pausa-altri .link-chiaro, .report .link-chiaro { text-decoration: underline; }
+.link-scuro { color: var(--ottone); }
+
+/* Schede Entra / Iscriviti */
+.schede button[aria-selected='true'] { color: #fff; border-bottom-color: var(--ottone); }
+
+/* Campi */
+label { color: #d5ded8; }
+input, select, textarea {
+  background: var(--campo); color: #fff; border: 1px solid rgba(255, 255, 255, 0.16); border-radius: 12px;
+}
+input { padding: 0.7rem 0.8rem; }
+input::placeholder { color: #6f8177; }
+input:focus, select:focus, textarea:focus {
+  outline: none; border-color: var(--ottone); box-shadow: 0 0 0 3px rgba(233, 196, 106, 0.2);
+}
+select option { background: var(--superficie); color: #fff; }
+.campo-link { color: var(--grigio); }
+label.spunta { color: var(--testo); }
+label.spunta input { accent-color: var(--ottone); }
+
+/* Tasti */
+.principale {
+  background: var(--ottone); color: #1b1d1c; font-weight: 700; border-radius: 14px; padding: 0.85rem 1rem;
+  transition: filter 100ms ease, transform 100ms ease;
+}
+.principale:hover { background: var(--ottone); filter: brightness(1.06); }
+.principale:active { transform: scale(0.99); }
+.principale.piccolo, .chat-scrivi .principale { border-radius: 12px; }
+.secondario, a.secondario {
+  color: var(--testo); background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.18); border-radius: 12px;
+}
+.secondario:hover:not(:disabled) { background: rgba(255, 255, 255, 0.1); }
+.console .secondario { color: var(--testo); background: rgba(255, 255, 255, 0.1); }
+.chip { background: rgba(255, 255, 255, 0.08); color: var(--testo); }
+.scelta button { background: rgba(255, 255, 255, 0.06); color: var(--testo); }
+.scelta button[aria-pressed='true'] { background: var(--ottone); color: #1b1d1c; border-color: var(--ottone); }
+.togli-bot:hover { color: var(--rosso-chiaro); border-color: var(--rosso-chiaro); }
+
+/* Avvisi ed errori */
+.errore, .negativo { color: var(--rosso-chiaro); }
+.positivo { color: #5fd39b; }
+.avviso { background: rgba(233, 196, 106, 0.12); color: #f3e3b0; border-radius: 10px; }
+.richiesta-riga { background: #1a2a22; color: var(--testo); border-color: var(--ottone); }
+.turno { background: rgba(255, 255, 255, 0.08); color: var(--testo); }
+.turno.mio { background: var(--ottone); color: #1b1d1c; }
+
+/* Elenchi */
+.riga-tavolo { color: var(--testo); padding: 0.8rem 0.2rem; }
+.riga-tavolo:hover .riga-nome { color: var(--ottone); text-decoration: none; }
+.esito li.vincente { color: var(--ottone); }
+.cronaca li:first-child { color: #fff; }
+.giro li.di-turno { background: rgba(233, 196, 106, 0.12); }
+.giro li.vincente { background: rgba(31, 157, 99, 0.16); }
+.regole-home summary::after { color: var(--ottone); }
+.posti li.occupato { background: rgba(255, 255, 255, 0.04); }
+.posto-nome { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; overflow-wrap: normal; }
+.posto-nome small { white-space: normal; }
+.posto-numero { color: #fff; }
+
+.report td:nth-child(n+2), .report th:nth-child(n+2) { white-space: nowrap; }
+.report .link-chiaro { font-size: 0.85rem; padding: 0; }
+.cassetto .report { font-size: 0.92rem; }
+.cassetto .report th, .cassetto .report td { padding-inline: 0.25rem; }
+
+/* Chat */
+.chat-lista li { background: rgba(255, 255, 255, 0.08); }
+.chat-lista li.mio { background: rgba(233, 196, 106, 0.2); }
+.chat-lista li.chat-vuota { background: none; }
+
+/* Finestre a scomparsa (chat, storico, regole, poste) */
+.cassetto { background: var(--superficie); color: var(--testo); }
+.cassetto.laterale { background: rgba(13, 26, 21, 0.97); }
+.cassetto-chiudi { background: rgba(255, 255, 255, 0.08); border: 0; color: #fff; }
+.diag-finestra { background: var(--superficie); color: var(--testo); border: 1px solid rgba(255, 255, 255, 0.12); }
+
+/* Copertina d'apertura */
+.copertina {
+  background:
+    radial-gradient(ellipse 80% 55% at 50% 58%, rgba(233, 196, 106, 0.14), transparent 70%),
+    radial-gradient(120% 70% at 50% 30%, #17382a, var(--fondo) 75%);
+}
+.cop-logo { font-weight: 700; letter-spacing: -0.04em; text-shadow: none; }
+.cop-logo span { color: var(--ottone); }
+.cop-entra {
+  font-size: 1.15rem; letter-spacing: 0; border-radius: 16px; color: #1b1d1c; background: var(--ottone);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+}

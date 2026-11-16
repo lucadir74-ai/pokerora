@@ -74,26 +74,101 @@ export function scenario(o = {}) {
 }
 
 const dati = scenario()
+
+// ── Pagine fuori dal tavolo: lobby, sala d'attesa, tavolo chiuso, giocatori, messaggi ──
+const fa = (min) => new Date(Date.now() - min * 60000).toISOString()
+const REGOLE = { mazzo: 'regola11', limite: 'apertura', cambio_max: 4, buio: 'si', durata: 120, giochi: 'entrambi', vela: 'si', invito: 20 }
+const TAVOLI = [
+  { ...dati.tavolo, id: 't1', nome: 'Tavolo del venerdì', stato: 'in_corso', posti: 6, organizzatore: 'io', creato_il: fa(200), avviato_il: fa(84), valore_posta: 2000, regole: REGOLE, codice_invito: 'K7QP2A', tavolo_giocatori: [{ count: 5 }] },
+  { id: 't2', nome: 'Sabato da Marco', stato: 'attesa', posti: 5, organizzatore: 'io', creato_il: fa(30), valore_posta: 2000, regole: REGOLE, codice_invito: 'M4RC0X', tavolo_giocatori: [{ count: 3 }] },
+  { id: 't3', nome: 'Torneo di Natale', stato: 'chiuso', posti: 4, organizzatore: 'a1', creato_il: fa(9000), avviato_il: fa(8900), chiuso_il: fa(8700), valore_posta: 1000, regole: REGOLE, codice_invito: 'N4T4LE', prolungamenti: 1, tavolo_giocatori: [{ count: 4 }] },
+]
+const SEDUTI = [
+  { posto: 1, giocatore_id: 'io', fiches: 1180, poste_in_arrivo: 0, esce_a_fine_mano: false, profili: { nickname: 'Luca' } },
+  { posto: 2, giocatore_id: 'a1', fiches: 2450, poste_in_arrivo: 0, esce_a_fine_mano: false, profili: { nickname: 'Marco' } },
+  { posto: 3, giocatore_id: 'a2', fiches: 4120, poste_in_arrivo: 0, esce_a_fine_mano: false, profili: { nickname: 'Massimiliano' } },
+  { posto: 4, giocatore_id: 'a4', fiches: 250, poste_in_arrivo: 0, esce_a_fine_mano: false, profili: { nickname: 'Gigi' } },
+]
+const POSTE = [
+  ...SEDUTI.map((g, i) => ({ id: i + 1, giocatore_id: g.giocatore_id, numero: 1, valore: 2000, presa_il: fa(84) })),
+  { id: 9, giocatore_id: 'a4', numero: 2, valore: 2000, presa_il: fa(40) },
+]
+const ISCRITTI = [
+  { id: 'a1', nickname: 'Marco', nome: 'Marco', cognome: 'Bianchi', email: 'marco@example.com', telefono: '+393331234567', da_leggere: 2 },
+  { id: 'a2', nickname: 'Massimiliano', da_leggere: 0 },
+  { id: 'a3', nickname: 'Sara', nome: 'Sara', cognome: 'Verdi', da_leggere: 0 },
+  { id: 'a5', nickname: 'Antonella', da_leggere: 0 },
+]
+const PRIVATI = [
+  { id: 31, mittente: 'a1', destinatario: 'io', testo: 'Ti invito al mio tavolo “Sabato da Marco”.', codice_invito: 'M4RC0X', creato_il: fa(25), letto_il: null },
+  { id: 30, mittente: 'io', destinatario: 'a1', testo: 'Sabato ci sono, a che ora?', codice_invito: null, creato_il: fa(60), letto_il: fa(50) },
+  { id: 29, mittente: 'a3', destinatario: 'io', testo: 'Bella partita ieri!', codice_invito: null, creato_il: fa(1500), letto_il: fa(1400) },
+]
+const CHAT = [
+  { id: 1, giocatore_id: 'a1', testo: 'Arrivo tra cinque minuti', creato_il: fa(12) },
+  { id: 2, giocatore_id: 'io', testo: 'Va bene, ti aspettiamo', creato_il: fa(11) },
+]
 const TABELLE = {
-  mani: () => dati.mano,
+  mani: () => [dati.mano],
   mani_giocatori: () => dati.posti,
-  mani_carte: () => ({ carte: dati.carte }),
+  mani_carte: () => [{ carte: dati.carte }],
   mani_azioni: () => dati.azioni,
-  messaggi: () => [],
+  messaggi: () => CHAT,
+  tavoli: (f) => TAVOLI.filter((t) => Object.entries(f).every(([k, v]) => !(k in t) || t[k] === v)),
+  tavolo_giocatori: (f) => (f.tavolo_id === 't2' ? SEDUTI.slice(0, 3) : f.tavolo_id === 't1' ? dati.giocatori : SEDUTI),
+  poste: () => POSTE,
+  tavolo_usciti: () => [],
+  richieste_ingresso: () => [],
+  giocatori_automatici: () => [{ id: 'a4' }],
+  messaggi_privati: () => PRIVATI,
+  profili: (f) => [{ id: f.id ?? 'a1', nickname: ISCRITTI.find((p) => p.id === f.id)?.nickname ?? 'Marco' }],
+  profili_privati: () => [{ mostra_nome: true, mostra_email: false, mostra_telefono: false, telefono: null }],
+}
+const FUNZIONI = {
+  nuova_mano: () => ({ error: { message: 'prova' } }),   // la scena resta ferma su quella scelta
+  elenco_giocatori: () => ({ data: ISCRITTI }),
+  sono_gestore: () => ({ data: true }),
+  tavoli_aperti_gestione: () => ({ data: TAVOLI.filter((t) => t.stato !== 'chiuso').map((t) => ({ tavolo_id: t.id, tavolo_nome: t.nome, tavolo_stato: t.stato, organizzatore_nick: 'Luca', seduti: 3, posti_totali: t.posti, ultima_attivita: fa(5) })) }),
+  info_invito: () => ({ data: [{ nome: 'Sabato da Marco', stato: 'attesa', posti: 5, occupati: 3, gia_seduto: false, organizzatore: 'Marco' }] }),
+  invitati_tavolo: () => ({ data: [{ giocatore_id: 'a3', nickname: 'Sara', invitato_da: 'Luca', letto: true }] }),
+  nickname_disponibile: () => ({ data: true }),
 }
 function richiesta(tabella) {
+  const filtri = {}
+  let uno = false, conta = false
   const r = {
-    select: () => r, eq: () => r, order: () => r, limit: () => r, insert: () => r,
-    maybeSingle: () => r, single: () => r,
-    then: (ok, ko) => Promise.resolve({ data: TABELLE[tabella]?.() ?? null, error: null }).then(ok, ko),
+    select: (_c, o) => { if (o?.head) conta = true; return r },
+    eq: (k, v) => { filtri[k] = v; return r },
+    is: () => r, or: () => r, in: () => r, order: () => r, limit: () => r, insert: () => r, update: () => r,
+    maybeSingle: () => { uno = true; return r }, single: () => { uno = true; return r },
+    then: (ok, ko) => {
+      const righe = TABELLE[tabella]?.(filtri) ?? []
+      const esito = conta ? { count: righe.filter((x) => x.letto_il === null).length, data: null, error: null }
+        : { data: uno ? righe[0] ?? null : righe, error: null }
+      return Promise.resolve(esito).then(ok, ko)
+    },
   }
   return r
 }
-const canale = () => { const c = { on: () => c, subscribe: () => c, send: () => {} }; return c }
+// Canale in tempo reale finto: accetta qualunque chiamata e non fa niente
+const canale = () => {
+  const c = new Proxy(function () {}, {
+    get: (_t, k) => (k === 'then' || typeof k === 'symbol' ? undefined : k === 'presenceState' ? () => ({}) : () => c),
+    apply: () => c,
+  })
+  return c
+}
 export const supabase = {
   from: richiesta,
-  // Niente mano successiva nel banco di prova: la scena resta ferma su quella scelta
-  rpc: async (nome) => ({ error: nome === 'nuova_mano' ? { message: 'prova' } : null }),
+  rpc: (nome) => Promise.resolve({ data: null, error: null, ...(FUNZIONI[nome]?.() ?? {}) }),
   channel: canale,
   removeChannel: () => {},
+  functions: { invoke: async () => ({ data: null, error: { message: 'prova' } }) },
+  auth: {
+    getSession: async () => ({ data: { session: { user: { id: 'io' } } } }),
+    onAuthStateChange: () => ({ data: { subscription: { unsubscribe() {} } } }),
+    signOut: async () => ({}), signInWithPassword: async () => ({ error: { message: 'prova' } }),
+    signUp: async () => ({ data: {}, error: { message: 'prova' } }), resetPasswordForEmail: async () => ({ error: null }),
+    updateUser: async () => ({ error: null }),
+  },
 }
