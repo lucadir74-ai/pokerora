@@ -4,13 +4,14 @@ import { VideoCerchio, TastiMedia } from './VideoCerchio'
 import Carta from './Carta'
 import { fmt } from './regole'
 import { valutaMigliore, nomePunto, puoAprire } from './punti'
-import Spizzata from './Spizzata'
+import { gira } from './suoni'
 import { EMOTICON } from './emoticon'
 import { spizzataAttiva, ascoltaSpizzata } from './preferenze'
 
 // Spizzata: le mie carte arrivano chiuse una sopra l'altra, a faccia in su.
-// Si spizzano a tutto schermo, una carta alla volta (vedi Spizzata.jsx).
-// Ordine: la prima è quella davanti; le carte nuove dopo il cambio finiscono dietro.
+// Si spizzano direttamente sulla mano: trascinando verso destra il mazzetto si apre a ventaglio
+// e gli indici delle carte sotto spuntano un po' alla volta; un tocco le apre subito.
+// Ordine: la prima è quella davanti (a destra, una volta aperte); le carte nuove dopo il cambio finiscono dietro.
 function useSpizzata(idMano, carte) {
   const chiave = `pokerora_spizza_${idMano}`
   const leggi = () => {
@@ -145,12 +146,16 @@ export default function TavoloVerde({ mano, posti, giocatori, io, carte, scelte,
   const [fantasmi, setFantasmi] = useState([])
   // ── Spizzata delle mie carte ──
   const { ordine, viste, aperto, vedi } = useSpizzata(mano?.id, carte)
-  const [spizzo, setSpizzo] = useState(false)
   const [conSpizzata, setConSpizzata] = useState(spizzataAttiva())   // spizzata facoltativa
   useEffect(() => ascoltaSpizzata(setConSpizzata), [])
   const [passoCarte, setPassoCarte] = useState(0)      // distanza tra due carte aperte, in pixel
   const manoRef = useRef(null)
-  useEffect(() => { setSpizzo(false) }, [mano?.id])
+  const [ventaglio, setVentaglio] = useState(0)        // quanto è aperto il mazzetto mentre si spizza (0 chiuso … 1 aperto)
+  const [tengo, setTengo] = useState(false)            // dito appoggiato: le carte seguono il dito senza ritardo
+  const dito = useRef(null)
+  const apertura = useRef(null)
+  useEffect(() => { clearTimeout(apertura.current); setVentaglio(0); setTengo(false); dito.current = null }, [mano?.id, carte.join()])
+  useEffect(() => () => clearTimeout(apertura.current), [])
   useLayoutEffect(() => {
     const misura = () => {
       const v = manoRef.current?.querySelectorAll(':scope > .t2-mia')
@@ -276,24 +281,56 @@ export default function TavoloVerde({ mano, posti, giocatori, io, carte, scelte,
   const chiuse = !telesina && conSpizzata && carte.length === 5 && !mioFuori && !aperto
   const mioPunto = carte.length === 5 ? nomePunto(valutaMigliore(carteMie, mano.bassa)) : ''
   const mioTurno = !!pIo && mano.turno === pIo.posto && !conclusa
+  // Con la spizzata la carta davanti sta a destra e le altre spuntano alla sua sinistra, indice per primo;
+  // l'ordine resta quello anche a carte aperte, così non si rimescolano sotto gli occhi
+  const inMano = conSpizzata && !telesina ? [...ordine].reverse() : ordine
+  const apriTutte = () => {
+    clearTimeout(apertura.current)
+    setTengo(false); setVentaglio(1)
+    apertura.current = setTimeout(() => { gira(); vedi(ordine) }, 200)
+  }
+  const spizza = !chiuse ? {} : {
+    onPointerDown: (e) => {
+      clearTimeout(apertura.current)
+      dito.current = { x: e.clientX, v0: ventaglio, mosso: false }
+      setTengo(true)
+      e.currentTarget.setPointerCapture?.(e.pointerId)
+    },
+    onPointerMove: (e) => {
+      const t = dito.current
+      if (!t) return
+      const dx = e.clientX - t.x
+      if (Math.abs(dx) > 6) t.mosso = true
+      // la carta davanti segue il dito: dal centro al suo posto a destra ci sono due passi
+      setVentaglio(Math.min(1, Math.max(0, t.v0 + dx / Math.max(1, passoCarte * 2))))
+    },
+    onPointerUp: () => {
+      const t = dito.current
+      dito.current = null
+      if (!t) return
+      if (!t.mosso || ventaglio >= 0.6) apriTutte()        // un tocco, o ventaglio quasi aperto: si aprono
+      else { setTengo(false); setVentaglio(0) }             // altrimenti si richiudono
+    },
+    onPointerCancel: () => { dito.current = null; setTengo(false); setVentaglio(0) },
+    onKeyDown: (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); apriTutte() } },
+  }
   const manoMia = () => (
-    <div ref={manoRef} className={`t2-mano${mioFuori ? ' piegata' : ''}${chiuse ? ' chiuse' : ''}`}
-      onClick={chiuse ? () => setSpizzo(true) : undefined}
-      onKeyDown={chiuse ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSpizzo(true) } } : undefined}
-      role={chiuse ? 'button' : undefined} tabIndex={chiuse ? 0 : undefined}
-      aria-label={chiuse ? 'Le tue carte sono chiuse: tocca per spizzarle' : undefined}>
-      {ordine.map((c, k) => (
-        <span key={`${mano.id}-${c}`} className={`t2-mia t2-arriva${gia(`${mano.id}-${c}`)}`}
-          style={{ '--ritardo': `${k * (altri.length + 1) * 70 + 40}ms`, zIndex: 10 - k }}>
-          <span className="strato" style={{ transform: chiuse ? `translate(${(2 - k) * passoCarte + (k - 2) * -2}px, ${(4 - k) * -1.5}px)` : undefined }}>
-            <Carta c={c} indice scelta={scelte.includes(c)} coperta={telesina && c === carte[0]}
-              onClick={onScegli && !chiuse ? () => onScegli(c) : undefined} />
+    <div ref={manoRef} className={`t2-mano${mioFuori ? ' piegata' : ''}${chiuse ? ' chiuse' : ''}${tengo ? ' tengo' : ''}`}
+      {...spizza} role={chiuse ? 'button' : undefined} tabIndex={chiuse ? 0 : undefined}
+      aria-label={chiuse ? 'Le tue carte sono chiuse: scorri verso destra per spizzarle, o tocca per aprirle' : undefined}>
+      {inMano.map((c, j) => {
+        const k = ordine.indexOf(c)
+        const centro = (inMano.length - 1) / 2
+        return (
+          <span key={`${mano.id}-${c}`} className={`t2-mia t2-arriva${gia(`${mano.id}-${c}`)}`}
+            style={{ '--ritardo': `${k * (altri.length + 1) * 70 + 40}ms`, zIndex: j + 1 }}>
+            <span className="strato" style={{ transform: chiuse ? `translate(${((j - centro) * (passoCarte - 2) * (ventaglio - 1)).toFixed(1)}px, ${((centro * 2 - j) * -1.5 * (1 - ventaglio)).toFixed(1)}px)` : undefined }}>
+              <Carta c={c} indice scelta={scelte.includes(c)} coperta={telesina && c === carte[0]}
+                onClick={onScegli && !chiuse ? () => onScegli(c) : undefined} />
+            </span>
           </span>
-        </span>
-      ))}
-      {spizzo && conSpizzata && carte.length === 5 && !mioFuori && (
-        <Spizzata ordine={ordine} viste={viste} onVedi={vedi} punto={mioPunto} onChiudi={() => setSpizzo(false)} />
-      )}
+        )
+      })}
     </div>
   )
 
@@ -484,7 +521,7 @@ export default function TavoloVerde({ mano, posti, giocatori, io, carte, scelte,
             {pIo.cambio != null && pIo.stato === 'attivo' && !conclusa && <span className="t2-nota">{testoCambio(pIo.cambio)}</span>}
             {/* Tavolo molto pieno su schermo basso: la mia puntata sta qui invece che sul tavolo */}
             {L && !L.miaSulTavolo && pIo.versato_giro > 0 && !conclusa && (
-              <span className="t2-nota puntata">{pallino(pIo.versato_giro)}{nf.format(pIo.versato_giro)}</span>
+              <span className="t2-nota mia-puntata">{pallino(pIo.versato_giro)}{nf.format(pIo.versato_giro)}</span>
             )}
           </div>
           <div className="t2-tasti">
@@ -498,7 +535,7 @@ export default function TavoloVerde({ mano, posti, giocatori, io, carte, scelte,
             {conclusa && pIo.carte_mostrate && pIo.punto ? (
               <span className={`t2-punto${pIo.vincita > 0 ? ' vince' : ''}`}>{pIo.punto}{pIo.vincita > 0 ? ` · vinci ${fmt(pIo.vincita)}` : ''}</span>
             ) : chiuse ? (
-              <span className="t2-punto spizza-aiuto">Tocca le carte per spizzarle</span>
+              <span className="t2-punto spizza-aiuto">Scorri verso destra per spizzare<span className="t2-aiuto-in-piu"> · tocca per aprire</span></span>
             ) : carte.length === 5 && !mioFuori && !primaDelleCarte ? (
               <span className="t2-punto">
                 {mioPunto}

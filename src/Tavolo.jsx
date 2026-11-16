@@ -531,7 +531,7 @@ export default function Tavolo({ id, io }) {
 
       {tavolo.stato === 'in_corso' && <Gioco tavolo={tavolo} giocatori={giocatori} usciti={usciti} io={io} bot={bot}
         pannello={pannello} setPannello={setPannello} onNonLetti={setNonLetti} video={video} />}
-      {tavolo.stato === 'in_corso' && <AudioRemoti audio={video.audio} />}
+      {tavolo.stato === 'in_corso' && <AudioRemoti audio={video.audio} muto={!video.ascolto} />}
       {tavolo.stato === 'in_corso' && (
         <DiagnosiVideo video={video}
           nome={(gid) => giocatori.find((g) => g.giocatore_id === gid)?.profili?.nickname ?? 'giocatore'} />

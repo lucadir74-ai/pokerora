@@ -233,6 +233,6 @@ const PAGINE = {
 
 // Nel banco di prova le carte arrivano già aperte, salvo ?spizza=1
 const spizzataPrima = spizzataAttiva()
-if (!q.has('spizza')) impostaSpizzata(false)
+impostaSpizzata(q.has('spizza'))
 window.addEventListener('pagehide', () => impostaSpizzata(spizzataPrima))
 ReactDOM.createRoot(document.getElementById('root')).render(q.has('griglia') ? <Griglia /> : q.has('giro') ? <Giro /> : PAGINE[q.get('pagina')]?.() ?? <Pagina />)

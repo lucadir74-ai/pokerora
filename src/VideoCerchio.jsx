@@ -21,7 +21,7 @@ export function VideoCerchio({ stream, specchio = false, className = '', titolo 
 // L'audio degli altri giocatori. I browser bloccano l'audio automatico finché non si tocca la pagina,
 // e i telefoni (soprattutto iPhone) a volte lo mettono in pausa da soli, per esempio quando si accende il microfono.
 // Per questo: si riprova a ogni tocco sulla pagina e ogni pochi secondi; se resta bloccato compare il tasto.
-export function AudioRemoti({ audio }) {
+export function AudioRemoti({ audio, muto = false }) {
   const contenitore = useRef(null)
   const [bloccato, setBloccato] = useState(false)
 
@@ -51,9 +51,9 @@ export function AudioRemoti({ audio }) {
   return (
     <>
       <span ref={contenitore} className="audio-remoti">
-        {audio.map((a) => <AudioUno key={a.chiave} stream={a.stream} />)}
+        {audio.map((a) => <AudioUno key={a.chiave} stream={a.stream} muto={muto} />)}
       </span>
-      {bloccato && audio.length > 0 && (
+      {bloccato && !muto && audio.length > 0 && (
         <button type="button" className="sblocca-audio" onClick={suonaTutti}>
           🔈 Tocca per sentire gli altri
         </button>
@@ -62,12 +62,14 @@ export function AudioRemoti({ audio }) {
   )
 }
 
-function AudioUno({ stream }) {
+function AudioUno({ stream, muto }) {
   const ref = useRef(null)
   useEffect(() => {
     const a = ref.current
     if (a && a.srcObject !== stream) a.srcObject = stream
   }, [stream])
+  // Audio tolto: l'elemento resta collegato ma non suona
+  useEffect(() => { if (ref.current) ref.current.muted = muto }, [muto, stream])
   return <audio ref={ref} autoPlay playsInline />
 }
 
@@ -85,6 +87,13 @@ export function TastiMedia({ video, className = '' }) {
         title={video.mic ? 'Microfono acceso: tocca per spegnerlo' : 'Microfono spento: tocca per accenderlo'}>
         🎤<span className="tasto-media-stato" aria-hidden="true">{video.mic ? '' : '✕'}</span>
       </button>
+      {video.alternaAscolto && (
+        <button type="button" className={`tasto-media${video.ascolto ? ' acceso' : ''}`} onClick={video.alternaAscolto}
+          aria-pressed={!video.ascolto} aria-label={video.ascolto ? 'Togli l’audio degli altri' : 'Rimetti l’audio degli altri'}
+          title={video.ascolto ? 'Senti gli altri: tocca per togliere l’audio' : 'Audio degli altri tolto: tocca per rimetterlo'}>
+          {video.ascolto ? '🔊' : '🔇'}<span className="tasto-media-stato" aria-hidden="true">{video.ascolto ? '' : '✕'}</span>
+        </button>
+      )}
     </span>
   )
 }

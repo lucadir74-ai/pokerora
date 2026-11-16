@@ -456,8 +456,12 @@ export function useVideoTavolo(tavoloId, mioId, attivo) {
 
   const [diagnosiDi, setDiagnosiDi] = useState(null)   // giocatore di cui mostrare i dettagli tecnici
 
+  // Audio degli altri: si può togliere e rimettere (il collegamento resta, si smette solo di sentirlo)
+  const [ascolto, setAscolto] = useState(true)
+  const alternaAscolto = () => setAscolto((a) => !a)
+
   return {
-    cam, mic, locale, flussi, stati, audio, doppio, errore, alternaCam, alternaMic,
+    cam, mic, locale, flussi, stati, audio, doppio, errore, alternaCam, alternaMic, ascolto, alternaAscolto,
     dettagli, diagnosiDi, mostraDiagnosi: setDiagnosiDi,
     turn,
   }

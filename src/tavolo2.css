@@ -180,7 +180,7 @@
 .t2-tasti { grid-area: tasti; display: flex; align-items: center; gap: 6px; }
 .t2-stato { grid-area: stato; }
 .t2-carte { grid-area: carte; }
-.t2-nota.puntata { display: inline-flex; align-items: center; gap: 4px; background: rgba(0, 0, 0, 0.6); font-variant-numeric: tabular-nums; }
+.t2-nota.mia-puntata { display: inline-flex; flex-wrap: nowrap; align-items: center; gap: 4px; background: rgba(0, 0, 0, 0.6); font-variant-numeric: tabular-nums; }
 .t2-io .t2-av { width: 24px; height: 24px; background: var(--t2-oro); color: var(--t2-inchiostro); font-size: 12px; }
 .t2-io .t2-av:has(.t2-video) { width: 44px; height: 44px; margin-block: -8px; box-shadow: 0 0 0 1.5px var(--t2-oro); }
 .t2-nick { min-width: 0; font-weight: 700; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -214,7 +214,12 @@
 .t2-attesa { color: #9fb0a5; font-size: 0.9rem; text-align: center; }
 .t2-mano { position: relative; display: flex; gap: 6px; justify-content: center; transition: opacity 400ms ease; }
 .t2-mano.piegata { opacity: 0.35; }
-.t2-mano.chiuse { cursor: pointer; }
+.t2-mano.chiuse { cursor: grab; touch-action: none; -webkit-user-select: none; user-select: none; }
+.t2-mano.chiuse.tengo { cursor: grabbing; }
+.t2-mano.tengo .t2-mia .strato { transition: none; }
+.t2-mano.chiuse .carta-gioco { box-shadow: -2px 0 4px rgba(0, 0, 0, 0.3), 0 3px 8px rgba(0, 0, 0, 0.45); }
+.t2-punto.spizza-aiuto { color: var(--t2-oro); animation: none; }
+@media (max-height: 700px) and (max-width: 959px) { .t2-aiuto-in-piu { display: none; } }
 .t2-mano.chiuse:focus-visible { outline: 3px solid var(--t2-oro); outline-offset: 6px; border-radius: 10px; }
 .t2-mia { display: inline-block; position: relative; }
 .t2-mia .strato { display: block; transition: transform 200ms ease; }
@@ -243,7 +248,10 @@
 /* Schermi bassi: le mie carte un po' più piccole, per lasciare spazio al tavolo */
 @media (max-height: 700px) and (max-width: 959px) {
   /* nome, punto e tasti su una riga sola */
-  .t2-mio { grid-template-columns: auto minmax(0, 1fr) auto; grid-template-areas: "io stato tasti" "carte carte carte"; padding: 4px 12px 6px; gap: 3px 6px; }
+  .t2-mio { grid-template-columns: max-content minmax(0, 1fr) auto; grid-template-areas: "io stato tasti" "carte carte carte"; padding: 4px 12px 6px; gap: 3px 6px; }
+  /* Schermo basso: fotocamera, microfono e audio passano nel menu "⋯" della barra, qui non c'è posto */
+  .t2-tasti .pov-media { display: none; }
+  .barra-gioco .barra-link.aperto > .tasti-media.barra-media { display: flex; justify-content: flex-start; gap: 10px; }
   .t2-stato { height: 28px; justify-content: flex-end; }
   .t2-nick { display: none; }
   .t2-carte { height: calc(var(--cw) * 1.4 + 8px); padding-top: 8px; }
